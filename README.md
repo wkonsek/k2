@@ -27,6 +27,8 @@ resource the cluster serves: built-in kinds, CRDs, OLM objects and OpenShift
 Routes and Projects. When you quit, your shell lands on the cluster and
 namespace of the focused pane.
 
+![k2](./docs/demo/k2.png)
+
 <!-- GIF: docs/demo/hero.gif -->
 
 ## Contents
