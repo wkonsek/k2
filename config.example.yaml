@@ -1,0 +1,182 @@
+# ~/.k2/config.yaml
+# uncomment a line to change it. a bad value is skipped and the default stays.
+# bools also accept yes/no and on/off.
+
+# theme: nord
+#   nord, dracula, catppuccin, gruvbox, tokyo-night, kanagawa, rose-pine,
+#   everforest, one-dark, solarized-dark, material, matrix, solarized-light,
+#   night-owl, ayu, monokai, github-dark, flexoki, oxocarbon, poimandres,
+#   horizon, zenburn, catppuccin-latte, custom
+#   custom needs colors, each #rrggbb. required bg, muted, text, accent,
+#   accent2, accent3, danger, ok, warn, bright. optional sel_bg, sel_fg, light
+# prod: [prod-eu-1, prod, kind-prod]   # exact context names, red border
+# max_panes: 4            # 1..8
+# state_dir: ~/.k2
+# kubectl_output: default # default | wide | yaml | json | name
+# aliases:                # short name: resource
+#   deps: deployments
+#   sts: statefulsets
+#   sub: subscriptions.operators.coreos.com
+#   csv: clusterserviceversions.operators.coreos.com
+#   ip: installplans.operators.coreos.com
+#   rt: routes.route.openshift.io
+# logs:
+#   tail: 80              # 1..100000
+#   max_lines: 400        # 1..100000
+#   multi_max_lines: 5000 # 100..200000
+#   multi_every: 2        # seconds, 1..60
+#   multi_max_pods: 20    # 1..200
+#   multi_all_containers: true
+# helm:
+#   binary: helm          # name or path
+# favorites:              # name, context, namespace, kubeconfig, view
+#     - {name: shop dev, context: kind-dev, namespace: shop, view: deploy}
+#     - {context: prod-eu-1, namespace: payments, kubeconfig: ~/.kube/prod, view: pulse}
+# portforward:
+#   auto_restart: false
+#   restart_backoff: 1    # seconds, 1..30
+#   max_restarts: 10      # 0..1000, 0 means no limit
+#   health_every: 5       # seconds, 0..300, 0 means off
+# ui:
+#   background: transparent   # transparent | theme
+#   context_themes:           # first match wins. context and kubeconfig are globs, * matches /
+#     - {context: kind-kindest, theme: matrix}
+#     - {context: "*-prod*", theme: dracula}
+#     - {kubeconfig: ~/.kube/lab.yaml, theme: nord}
+#   tabbar: auto              # auto | always | never
+#   sidebar_width: 28         # 1..200
+#   sidebar_narrow_width: 22  # 1..200
+#   refresh_every: 3          # seconds, 1..200
+#   forward_dock_rows: 12     # 1..200
+#   animations: true
+#   toasts: true
+#   toast_seconds: 3          # 1..30
+#   editor_inline: true       # false opens vim fullscreen
+#   active_border: normal     # normal | thick | double
+#   dim_inactive: false
+#   cluster_info: true
+#   pod_metrics: true
+#   metrics_every: 15         # seconds, 5..600
+#   metrics_bars: true
+#   metrics_warn: 70          # 1..99, must be below metrics_crit
+#   metrics_crit: 90          # 1..99
+#   token_bar: true
+#   token_warn: 25            # percent, 1..99, must be above token_crit
+#   token_crit: 10            # percent, 1..99
+#   wrap: false
+#   copy_mode_hint: true
+#   logo: default             # default | simple
+#   tagline: "kubectl, elevated"  # any text, "" hides it
+#   logo_title_color: green   # green | accent
+#   clipboard: auto           # auto | wl-copy | xclip | xsel | osc52
+# keys:                       # one key, or a list. "direct " means without the ctrl+a prefix
+#   kubeconfig: C
+#   context: c
+#   namespace: n
+#   kustomize: K
+#   kubectl: U
+#   forwards: f
+#   favorites: b
+#   port_forward: ctrl+f
+#   describe: d
+#   edit: e
+#   decode: x
+#   delete: ctrl+d
+#   shell: s
+#   scale: S
+#   set_image: i
+#   restart: r
+#   trigger: t
+#   label: L
+#   annotate: A
+#   copy_name: w
+#   copy_ref: W
+#   sort_next: ">"
+#   sort_prev: "<"
+#   sort_reverse: "="
+#   approve: a
+#   xray: X
+#   multi_logs: M
+#   xray_toggle: space
+#   xray_expand_all: "+"
+#   xray_collapse_all: "-"
+#   xray_filter: /
+#   yaml: y
+#   helm_values: v
+#   helm_computed: V
+#   helm_manifest: M
+#   helm_notes: N
+#   helm_history: t
+#   helm_rollback: r
+#   helm_mark: space
+#   helm_diff: D
+#   all_namespaces: "0"
+#   log_filter: /
+#   fav_add: a
+#   fav_remove: x
+#   fav_up: K
+#   fav_down: J
+#   apply: a
+#   diff: D
+#   kustomize_delete: d
+#   scan: s
+#   kustomize_path: p
+#   delete_all: D
+#   pf_restart: r
+#   pf_auto: a
+#   vim: v
+#   previous: p
+#   wrap: w
+#   copy_mode: y
+#   log_mark: m
+#   search: /
+#   copy_select: v
+#   copy_yank: y
+#   copy_all: Y
+#   command: ":"
+#   prefix: ctrl+a
+#   split_down: [h, '"']
+#   split_right: [v, "%"]
+#   close_pane: x
+#   next_pane: o
+#   prev_pane: []
+#   last_pane: ";"
+#   new_tab: [t, c]
+#   close_tab: [w, "&"]
+#   rename_tab: ","
+#   next_tab: ["direct ]", n, "]"]
+#   prev_tab: ["direct [", p, "["]
+#   zoom: z
+#   tab_1: "1"
+#   tab_2: "2"
+#   tab_3: "3"
+#   tab_4: "4"
+#   tab_5: "5"
+#   tab_6: "6"
+#   tab_7: "7"
+#   tab_8: "8"
+#   tab_9: "9"
+#   pane_left: ["direct ctrl+left", left]
+#   pane_right: ["direct ctrl+right", right]
+#   pane_up: ["direct ctrl+up", up]
+#   pane_down: ["direct ctrl+down", down]
+#   fullscreen: F
+#   last_error: "!"
+#   quit: [Q, ctrl+c]
+#   back: [q, esc, H]
+#   left: [left, h]
+#   select: [enter, right, l]
+#   submit: enter
+#   cancel: esc
+#   shell_back: [esc, q]
+#   scroll_down: [j, down]
+#   scroll_up: [k, up]
+#   page_down: [pgdown, "}"]
+#   page_up: [pgup, "{"]
+#   top: g
+#   bottom: G
+#   output: ctrl+o
+#   jq: ctrl+j
+#   complete: tab
+#   yes: [y, Y]
+#   no: [n, N, esc, q]

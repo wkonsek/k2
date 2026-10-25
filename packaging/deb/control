@@ -1,0 +1,19 @@
+Package: k2
+Version: @VERSION@
+Section: admin
+Priority: optional
+Architecture: amd64
+Maintainer: Wojciech Konsek <33316729+wkonsek@users.noreply.github.com>
+Recommends: kubectl
+Suggests: vim, jq
+Description: terminal UI for working with several Kubernetes clusters side by side
+ k2 is a keyboard-driven terminal UI around kubectl: several panes and tabs,
+ each with its own kubeconfig, context and namespace, tables, logs,
+ describe, port-forwards, kustomize diff/apply and an in-pane vim or shell.
+ .
+ kubectl is only recommended, not required: it is installed in many ways
+ (the Kubernetes apt repository, snap, a download ...).
+ .
+ On its first start k2 writes the commented example configuration to
+ ~/.k2/config.yaml (the package writes nothing into home directories);
+ the same file is in /usr/share/k2/config.example.yaml.

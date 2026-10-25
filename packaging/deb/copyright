@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: k2
+
+Files: *
+Copyright: 2026 Wojciech Konsek
+License: Apache-2.0
+ On Debian systems the full text of the Apache License 2.0 is in
+ /usr/share/common-licenses/Apache-2.0; it is also shipped as
+ /usr/share/doc/k2/LICENSE.

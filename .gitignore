@@ -1,0 +1,19 @@
+# build output (make build / make build-linux)
+/bin/
+/dist/
+# binary from a plain `go build ./cmd/k2` in the repo root
+/k2
+
+# test and coverage artifacts
+*.test
+*.out
+coverage.*
+
+# editors and OS clutter
+.idea/
+.vscode/
+*.swp
+.DS_Store
+# packages (make rpm / make deb write them to dist/)
+*.rpm
+*.deb

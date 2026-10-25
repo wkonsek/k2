@@ -1,0 +1,15 @@
+{
+  "kubeconfig": "/home/u/.kube/config",
+  "context": "kind-dev",
+  "namespace": "shop",
+  "focus": 2,
+  "panes": [
+    {"stage": "workpods", "kind": "pods", "logPod": "", "pod": "", "kubeconfig": "/home/u/.kube/config", "context": "kind-dev", "namespace": "shop"},
+    {"stage": "logs", "kind": "", "logPod": "shop/web-1", "pod": "", "kubeconfig": "/home/u/.kube/config", "context": "kind-dev", "namespace": "shop"},
+    {"stage": "res", "kind": "deployments", "logPod": "", "pod": "", "kubeconfig": "/home/u/.kube/config", "context": "kind-prod", "namespace": "olm"}
+  ],
+  "forwards": [
+    {"namespace": "shop", "pod": "web-1", "local": "8080", "remote": "80", "pid": 4242, "started": "2026-10-01T10:00:00Z", "kubeconfig": "/home/u/.kube/config", "context": "kind-dev"}
+  ],
+  "kustomRoot": "/src/deploy"
+}
