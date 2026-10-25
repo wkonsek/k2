@@ -91,20 +91,6 @@ roots in trouble start open.
 
 <!-- GIF: docs/demo/xray.gif -->
 
-```
-:xray deploy web
-NAME                  KIND        STATUS            READY  RESTARTS  AGE
-▾ web                 Deployment  Progressing       1/2              13h
-├ ▾ web               Service     ClusterIP
-│ └ web               Ingress
-├ ▾ web-7d9f          ReplicaSet  Progressing       1/2              13h
-│ ├ ▾ web-7d9f-a      Pod         CrashLoopBackOff  1/2    3         13h
-│ │ ├ app             container   Running           1/1    3         13h
-│ │ ├ side            container   CrashLoopBackOff  0/1    0         13h
-│ │ ├ migrate (init)  container   Completed                0         13h
-│ │ ├ web-config      ConfigMap
-```
-
 **Multi-pod logs.** `M` on a workload, service or pod follows the logs of
 all its pods at once, stern-style, each line prefixed with a colored
 `pod/container`. `:logs app=web --since=10m -c app` takes a label selector
