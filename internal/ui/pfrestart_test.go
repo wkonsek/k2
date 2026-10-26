@@ -14,6 +14,7 @@ import (
 
 	"k2/internal/forward"
 	"k2/internal/shell"
+	"k2/internal/state"
 )
 
 func livePID(t *testing.T) int {
@@ -344,4 +345,51 @@ func TestPfAutoToggle(t *testing.T) {
 	if m.forwards[0].Auto != "off" || m.autoOn(m.forwards[0]) {
 		t.Fatalf("toggle off: %+v", m.forwards[0])
 	}
+}
+
+func TestStartupResumeOnlyWhenAsked(t *testing.T) {
+	type spec struct {
+		auto bool
+		fs   []forward.Forward
+		want []string
+	}
+	dead := svcForward(deadPID)
+	on := dead
+	on.Auto, on.Local = "on", "8081"
+	off := dead
+	off.Auto, off.Local = "off", "8082"
+	live := svcForward(livePID(t))
+	live.Local = "9090"
+	cases := []spec{
+		{auto: false, fs: []forward.Forward{dead}},
+		{auto: true, fs: []forward.Forward{dead, live}, want: []string{"svc/web 8080:80"}},
+		{auto: false, fs: []forward.Forward{on}, want: []string{"svc/web 8081:80"}},
+		{auto: true, fs: []forward.Forward{off}},
+		{auto: false, fs: []forward.Forward{on, off, dead}, want: []string{"svc/web 8081:80"}},
+	}
+	for _, c := range cases {
+		cl := &pfCluster{spawn: func() shell.Result { return shell.OK("1") }}
+		cfg := testEnv(t)
+		cfg.PortForward.AutoRestart = c.auto
+		state.Save(cfg.StateDir, state.State{Version: state.Version, Forwards: c.fs})
+		m := newTestModel(t, cfg, cl.fake())
+		if m.resuming != (len(c.want) > 0) {
+			t.Fatalf("auto %v forwards %+v resuming %v", c.auto, c.fs, m.resuming)
+		}
+		_ = drainWait(m.Init(), 2*time.Second)
+		cl.mu.Lock()
+		got := append([]string(nil), cl.spawns...)
+		cl.mu.Unlock()
+		if strings.Join(got, ",") != strings.Join(c.want, ",") {
+			t.Fatalf("auto %v autos %v: spawns %v want %v", c.auto, autosOf(c.fs), got, c.want)
+		}
+	}
+}
+
+func autosOf(fs []forward.Forward) []string {
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		out[i] = f.Local + "=" + f.Auto
+	}
+	return out
 }

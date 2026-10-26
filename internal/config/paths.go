@@ -16,6 +16,16 @@ func DefaultDir() string {
 
 func Path() string { return filepath.Join(DefaultDir(), "config.yaml") }
 
+func FilePath() string {
+	if _, err := os.Stat(Path()); err == nil {
+		return Path()
+	}
+	if _, err := os.Stat(legacyPath()); err == nil {
+		return legacyPath()
+	}
+	return Path()
+}
+
 func legacyPath() string { return filepath.Join(DefaultDir(), "config") }
 
 func HomePath(p string) string {

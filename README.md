@@ -27,6 +27,8 @@ resource the cluster serves: built-in kinds, CRDs, OLM objects and OpenShift
 Routes and Projects. When you quit, your shell lands on the cluster and
 namespace of the focused pane.
 
+![k2](./docs/demo/k2.png)
+
 <!-- GIF: docs/demo/hero.gif -->
 
 ## Contents
@@ -69,7 +71,9 @@ statefulset suggests ports from the spec. k2 does not trust a running
 forwarded pods, so a forward whose pod went away in a rolling restart is
 marked dead with the reason. `r` restarts it through its owner
 (`pod gone → forwarding via deploy/kafka-connect`), and with
-`portforward.auto_restart` k2 does it on its own.
+`portforward.auto_restart` k2 does it on its own, including the next time
+k2 starts. Without that setting, and without `a` on the forward itself, a
+dead forward stays dead across restarts.
 
 <!-- GIF: docs/demo/port-forward.gif -->
 
@@ -90,20 +94,6 @@ Namespace-wide trees start folded with a one-line summary per root, and
 roots in trouble start open.
 
 <!-- GIF: docs/demo/xray.gif -->
-
-```
-:xray deploy web
-NAME                  KIND        STATUS            READY  RESTARTS  AGE
-▾ web                 Deployment  Progressing       1/2              13h
-├ ▾ web               Service     ClusterIP
-│ └ web               Ingress
-├ ▾ web-7d9f          ReplicaSet  Progressing       1/2              13h
-│ ├ ▾ web-7d9f-a      Pod         CrashLoopBackOff  1/2    3         13h
-│ │ ├ app             container   Running           1/1    3         13h
-│ │ ├ side            container   CrashLoopBackOff  0/1    0         13h
-│ │ ├ migrate (init)  container   Completed                0         13h
-│ │ ├ web-config      ConfigMap
-```
 
 **Multi-pod logs.** `M` on a workload, service or pod follows the logs of
 all its pods at once, stern-style, each line prefixed with a colored
@@ -214,6 +204,7 @@ Then:
 | `:` | command line: `:pods`, `:dp`, `:helm`, `:xray deploy`, `:logs app=web`, `:pulse` … (`tab` completes) |
 | `enter`, `d`, `e` | open (logs, YAML), describe, edit |
 | `ctrl+f`, `f` | port-forward the selected row, list forwards |
+| `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
 | `ctrl+a %`, `ctrl+a "` | split right, split down |
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
@@ -311,7 +302,8 @@ or the first part of an `oc` name `namespace/cluster/user`).
 **Owner tree (`X`, `:xray <kind> [name]`).** Kinds: deploy, sts, ds, rs,
 job, cronjob, pod, svc. `space` folds a node, `+` / `-` expand / collapse
 all, `/` filters by name keeping the path, `enter` jumps to the node's table
-(a container opens its log) and back returns, `d` describes, `y` shows the
+(a container opens its log) and back returns, `esc` leaves the tree for the
+list it was opened from (home, when it was opened from home), `d` describes, `y` shows the
 YAML, `M` follows the logs of every pod under the node.
 
 **Multi-pod logs (`M`, `:logs`).** The pods of the selected workload or
@@ -425,7 +417,9 @@ and restores it on the next start:
   The owner tree, Helm and pulse come back as the pane's home screen, and
   back from a restored stern view goes home too;
 - the port-forwards: on start, forwards whose process is still running are
-  kept as they are, and dead ones are restarted with the same logic as `r`;
+  kept as they are. A dead one is restarted only when its own auto-restart
+  is on, or when it has no override and `portforward.auto_restart` is true;
+  otherwise it stays on the list as dead until `r`;
 - the favorites you pinned and the last Kustomize directory.
 
 A missing or broken state file never stops k2; it just starts fresh. The
@@ -474,7 +468,12 @@ ui:
     - {kubeconfig: ~/.kube/lab.yaml, theme: nord}
 ```
 
-The theme follows the focused pane and switches without a restart. One
+The theme follows the focused pane and switches without a restart. `ctrl+t`
+(`keys.theme`, also `:theme`) opens the list of themes and writes the choice
+into `ui.context_themes` for the focused pane's context, so it sticks. A
+specific context is placed ahead of globs. `ctrl+shift+t` is not the
+binding: terminals use it for a new tab, and k2 does not see
+ctrl+shift+letter. One
 window has one palette, so all panes show the focused pane's theme. An
 unknown theme name or an entry without a context or kubeconfig is ignored
 with a warning.

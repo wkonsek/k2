@@ -95,6 +95,7 @@ pane with these keys or `:` commands.
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
 | `f` | `keys.forwards` | running port-forwards (`:forwards`, `:pf`, `:fwd`, `:fwds`, `:f`) |
 | `b` | `keys.favorites` | favorites picker: pinned context + namespace (+ view) (`:fav`, `:favorites`); every screen, not in text inputs |
+| `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`.
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace) |
@@ -324,7 +325,7 @@ the bottom unless `ui.copy_mode_hint: false`.
 | `ctrl+d` | `keys.delete` | stop and remove the selected forward (red popup: local → target:remote), also with other panes or tabs open |
 | `D` | `keys.delete_all` | stop and remove all forwards (red popup) |
 | `r` | `keys.pf_restart` | restart the selected forward (dead or alive): same ports and target; a pod that is gone falls back to its recorded owner, e.g. `deploy/web` |
-| `a` | `keys.pf_auto` | automatic restart on / off for the selected forward (default `portforward.auto_restart`) |
+| `a` | `keys.pf_auto` | automatic restart on / off for the selected forward. On the next start k2 restarts a dead forward only when this is on, or when the forward has no override and `portforward.auto_restart` is true |
 
 ## Dialogs and inputs
 

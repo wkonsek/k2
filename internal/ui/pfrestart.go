@@ -121,14 +121,27 @@ func (m model) toggleAuto() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) autoOn(f forward.Forward) bool {
+func wantsAutoRestart(cfg config.Config, f forward.Forward) bool {
 	switch f.Auto {
 	case "on":
 		return true
 	case "off":
 		return false
 	}
-	return m.cfg.PortForward.AutoRestart
+	return cfg.PortForward.AutoRestart
+}
+
+func resumeAny(cfg config.Config, fs []forward.Forward) bool {
+	for _, f := range fs {
+		if !forward.Up(f) && wantsAutoRestart(cfg, f) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m model) autoOn(f forward.Forward) bool {
+	return wantsAutoRestart(m.cfg, f)
 }
 
 func (m *model) pfState(local string) *pfAuto {
