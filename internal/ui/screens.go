@@ -79,6 +79,9 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
 	table := m.stage == "workpods" || m.stage == "res"
 	switch {
+	case km.Theme.Has(key):
+		next, cmd := m.openTheme()
+		return next, cmd, true
 	case km.Favorites.Has(key):
 		next, cmd := m.openFavorites()
 		return next, cmd, true
@@ -180,7 +183,10 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	switch m.stage {
-	case "xray", "helm", "pulse":
+	case "xray":
+		next, cmd := m.leaveXray()
+		return next, cmd, true
+	case "helm", "pulse":
 		m.stage = "nav"
 		m.status = m.context
 		return m, nil, true

@@ -159,6 +159,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 	case "logs", "prevlogs":
 		m.dlg = nil
 		return m.openLogs(d.ns+"/"+d.name, d.picked(), d.act == "prevlogs")
+	case "theme":
+		return m.applyThemePick(d.picked())
 	case "shell":
 		m.dlg = nil
 		return m.openShell(d.ns, d.name, d.picked())
@@ -283,7 +285,12 @@ func (m model) dialogBox(width int) string {
 	if len(d.details) > 0 {
 		lines = append(lines, "")
 	}
-	for i, o := range d.options {
+	start, end := m.optionWindow()
+	if start > 0 {
+		lines = append(lines, dimStyle.Render(fmt.Sprintf("  ↑ %d more", start)))
+	}
+	for i := start; i < end; i++ {
+		o := d.options[i]
 		text := o
 		if i < len(d.notes) && d.notes[i] != "" {
 			text += "  " + d.notes[i]
@@ -294,6 +301,9 @@ func (m model) dialogBox(width int) string {
 		} else {
 			lines = append(lines, itemStyle.Render("  "+text))
 		}
+	}
+	if end < len(d.options) {
+		lines = append(lines, dimStyle.Render(fmt.Sprintf("  ↓ %d more", len(d.options)-end)))
 	}
 	if len(d.images) > 0 && d.ask == "" {
 		lines = append(lines, d.imageRows(inner)...)
@@ -340,13 +350,58 @@ func (m model) dialogBox(width int) string {
 	return drawBox(strings.Join(body, "\n"), width, len(body)+2, true, title, "", hot || d.danger)
 }
 
+func (m model) optionWindow() (start, end int) {
+	d := m.dlg
+	if d == nil {
+		return 0, 0
+	}
+	n := len(d.options)
+	if n == 0 {
+		return 0, 0
+	}
+	_, y, _ := m.popupRect()
+	chrome := 6
+	if len(d.details) > 0 {
+		chrome += len(d.details) + 1
+	}
+	limit := m.height - chrome
+	if y > 0 && m.height-y-chrome >= min(n, 6) {
+		limit = m.height - y - chrome
+	}
+	if limit > n {
+		limit = n
+	}
+	if limit < n {
+		limit -= 2
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > n {
+		limit = n
+	}
+	if d.idx >= limit {
+		start = d.idx - limit + 1
+	}
+	if start+limit > n {
+		start = n - limit
+	}
+	if start < 0 {
+		start = 0
+	}
+	return start, start + limit
+}
+
 func (m model) withDialog(screen string) string {
 	if m.dlg == nil {
 		return screen
 	}
 	x, y, w := m.popupRect()
 	box := m.dialogBox(w)
-	if h := strings.Count(box, "\n") + 1; h < 12 {
+	h := strings.Count(box, "\n") + 1
+	if y+h > m.height {
+		y = max(0, m.height-h)
+	} else if h < 12 {
 		y += (12 - h) / 2
 	}
 	return overlay(screen, lipgloss.NewStyle().Render(box), x, y)

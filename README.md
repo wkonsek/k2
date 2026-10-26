@@ -71,7 +71,9 @@ statefulset suggests ports from the spec. k2 does not trust a running
 forwarded pods, so a forward whose pod went away in a rolling restart is
 marked dead with the reason. `r` restarts it through its owner
 (`pod gone → forwarding via deploy/kafka-connect`), and with
-`portforward.auto_restart` k2 does it on its own.
+`portforward.auto_restart` k2 does it on its own, including the next time
+k2 starts. Without that setting, and without `a` on the forward itself, a
+dead forward stays dead across restarts.
 
 <!-- GIF: docs/demo/port-forward.gif -->
 
@@ -202,6 +204,7 @@ Then:
 | `:` | command line: `:pods`, `:dp`, `:helm`, `:xray deploy`, `:logs app=web`, `:pulse` … (`tab` completes) |
 | `enter`, `d`, `e` | open (logs, YAML), describe, edit |
 | `ctrl+f`, `f` | port-forward the selected row, list forwards |
+| `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
 | `ctrl+a %`, `ctrl+a "` | split right, split down |
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
@@ -299,7 +302,8 @@ or the first part of an `oc` name `namespace/cluster/user`).
 **Owner tree (`X`, `:xray <kind> [name]`).** Kinds: deploy, sts, ds, rs,
 job, cronjob, pod, svc. `space` folds a node, `+` / `-` expand / collapse
 all, `/` filters by name keeping the path, `enter` jumps to the node's table
-(a container opens its log) and back returns, `d` describes, `y` shows the
+(a container opens its log) and back returns, `esc` leaves the tree for the
+list it was opened from (home, when it was opened from home), `d` describes, `y` shows the
 YAML, `M` follows the logs of every pod under the node.
 
 **Multi-pod logs (`M`, `:logs`).** The pods of the selected workload or
@@ -413,7 +417,9 @@ and restores it on the next start:
   The owner tree, Helm and pulse come back as the pane's home screen, and
   back from a restored stern view goes home too;
 - the port-forwards: on start, forwards whose process is still running are
-  kept as they are, and dead ones are restarted with the same logic as `r`;
+  kept as they are. A dead one is restarted only when its own auto-restart
+  is on, or when it has no override and `portforward.auto_restart` is true;
+  otherwise it stays on the list as dead until `r`;
 - the favorites you pinned and the last Kustomize directory.
 
 A missing or broken state file never stops k2; it just starts fresh. The
@@ -462,7 +468,12 @@ ui:
     - {kubeconfig: ~/.kube/lab.yaml, theme: nord}
 ```
 
-The theme follows the focused pane and switches without a restart. One
+The theme follows the focused pane and switches without a restart. `ctrl+t`
+(`keys.theme`, also `:theme`) opens the list of themes and writes the choice
+into `ui.context_themes` for the focused pane's context, so it sticks. A
+specific context is placed ahead of globs. `ctrl+shift+t` is not the
+binding: terminals use it for a new tab, and k2 does not see
+ctrl+shift+letter. One
 window has one palette, so all panes show the focused pane's theme. An
 unknown theme name or an entry without a context or kubeconfig is ignored
 with a warning.

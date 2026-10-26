@@ -623,7 +623,7 @@ keys:
   new_pane: [h, direct ctrl+n]
   next_pane: [o, direct O]
   close_pane: [x, direct ctrl+x]
-  new_tab: [t, direct ctrl+t]
+  new_tab: [t, c]
   close_tab: [w, direct ctrl+w]
   next_tab: [n, "]", "direct ]"]
   prev_tab: [p, "[", "direct ["]
@@ -637,6 +637,13 @@ keys:
 	k := c.Keys
 	for name, old := range OldPaneKeys {
 		if old == nil || (strings.HasPrefix(name, "tab_") && name != "tab_1" && name != "tab_9") {
+			continue
+		}
+		if name == "new_tab" {
+			b := *fieldByName(name).ptr(&k)
+			if b.Direct("ctrl+t") || !b.After("t") {
+				t.Errorf("keys.new_tab = %v, ctrl+t is keys.theme", b)
+			}
 			continue
 		}
 		b := *fieldByName(name).ptr(&k)
@@ -653,6 +660,11 @@ keys:
 		if got, err := ParseKey(in); err != nil || got != want {
 			t.Errorf("ParseKey(%q) = %q %v, want %q", in, got, err, want)
 		}
+	}
+
+	c, w = Parse([]byte("keys:\n  new_tab: [t, direct ctrl+t]\n"))
+	if !c.Keys.Theme.Has("ctrl+t") || !reflect.DeepEqual(c.Keys.NewTab, DefaultKeys().NewTab) || len(w) != 1 || !strings.Contains(w[0], "theme") {
+		t.Fatalf("new_tab stole ctrl+t: %v warnings %v", c.Keys.NewTab, w)
 	}
 }
 

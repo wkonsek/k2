@@ -151,11 +151,25 @@ func (m *model) dropLocal(port string) {
 	m.forwards = keep
 }
 
-func resumeForwards(k kube.Client, logDir string, fs []forward.Forward) tea.Cmd {
+func resumeForwards(k kube.Client, logDir string, fs []forward.Forward, auto func(forward.Forward) bool) tea.Cmd {
 	cp := append([]forward.Forward(nil), fs...)
+	var dead []forward.Forward
+	var at []int
+	for i, f := range cp {
+		if forward.Up(f) || auto == nil || !auto(f) {
+			continue
+		}
+		dead = append(dead, f)
+		at = append(at, i)
+	}
 	return func() tea.Msg {
-		out, note := forward.Resume(k.Run, logDir, cp)
-		return resumedMsg{forwards: out, note: note}
+		out, note := forward.Resume(k.Run, logDir, dead)
+		for j, i := range at {
+			if j < len(out) {
+				cp[i] = out[j]
+			}
+		}
+		return resumedMsg{forwards: cp, note: note}
 	}
 }
 

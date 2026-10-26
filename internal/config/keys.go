@@ -129,6 +129,7 @@ type Keys struct {
 	Xray          Binding
 	MultiLogs     Binding
 	Favorites     Binding
+	Theme         Binding
 	XrayToggle    Binding
 	Search        Binding
 	HelmMark      Binding
@@ -181,7 +182,7 @@ func DefaultKeys() Keys {
 		Output: Binding{"ctrl+o"}, JQ: Binding{"ctrl+j"}, Complete: Binding{"tab"},
 		Yes: Binding{"y", "Y"}, No: Binding{"n", "N", "esc", "q"},
 
-		Xray: Binding{"X"}, MultiLogs: Binding{"M"}, Favorites: Binding{"b"},
+		Xray: Binding{"X"}, MultiLogs: Binding{"M"}, Favorites: Binding{"b"}, Theme: Binding{"ctrl+t"},
 		XrayToggle: Binding{" "}, Yaml: Binding{"y"},
 		HelmMark: Binding{" "}, HelmDiff: Binding{"D"}, Search: Binding{"/"},
 		XrayExpand: Binding{"+"}, XrayCollapse: Binding{"-"}, XrayFilter: Binding{"/"},
@@ -288,6 +289,7 @@ var keyFields = []keyField{
 	{"xray", func(k *Keys) *Binding { return &k.Xray }},
 	{"multi_logs", func(k *Keys) *Binding { return &k.MultiLogs }},
 	{"favorites", func(k *Keys) *Binding { return &k.Favorites }},
+	{"theme", func(k *Keys) *Binding { return &k.Theme }},
 	{"xray_toggle", func(k *Keys) *Binding { return &k.XrayToggle }},
 	{"search", func(k *Keys) *Binding { return &k.Search }},
 	{"helm_mark", func(k *Keys) *Binding { return &k.HelmMark }},
@@ -363,7 +365,7 @@ var OldPaneKeys = map[string]Binding{
 }
 
 var globalKeys = map[string]bool{
-	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "split_down": true, "split_right": true, "close_pane": true,
+	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
 	"pane_left": true, "pane_right": true, "pane_up": true, "pane_down": true, "prev_pane": true, "next_pane": true, "last_pane": true,
 	"zoom": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true,
 	"tab_1": true, "tab_2": true, "tab_3": true, "tab_4": true, "tab_5": true, "tab_6": true, "tab_7": true, "tab_8": true, "tab_9": true,

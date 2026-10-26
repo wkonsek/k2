@@ -135,6 +135,13 @@ func (m *model) applyXray(msg xrayMsg) tea.Cmd {
 		if len(msg.roots) == 1 {
 			pick = msg.roots[0].ID()
 		}
+		if m.stage != "xray" {
+			sel := ""
+			if it, ok := m.selectedItem(); ok {
+				sel = it.id
+			}
+			m.vs.xrayFrom, m.vs.xrayKind, m.vs.xraySel = m.stage, m.kind, sel
+		}
 		m.vs.xray = xrayView{kind: msg.kind, name: msg.name, roots: msg.roots}.withDefaults()
 		m.vs.sortCol, m.vs.sortDesc = "", false
 		m.content.ResetFilter()
@@ -439,6 +446,20 @@ func (m model) xrayEnter(it item) (tea.Model, tea.Cmd) {
 		return m.openList("workpods", "pods")
 	}
 	return m.openList("res", kind)
+}
+
+func (m model) leaveXray() (tea.Model, tea.Cmd) {
+	from, kind, sel := m.vs.xrayFrom, m.vs.xrayKind, m.vs.xraySel
+	m.vs.xray = nil
+	m.vs.xrayFrom, m.vs.xrayKind, m.vs.xraySel = "", "", ""
+	m.vs.jumpFrom, m.vs.jumpSel = "", ""
+	if (from == "workpods" || from == "res") && kind != "" {
+		m.vs.pick = sel
+		return m.openList(from, kind)
+	}
+	m.stage = "nav"
+	m.status = m.context
+	return m, nil
 }
 
 func (m model) backToXray() (tea.Model, tea.Cmd) {

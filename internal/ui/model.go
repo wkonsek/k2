@@ -67,6 +67,9 @@ type viewState struct {
 	ml       *mlogView
 	jumpFrom string
 	jumpSel  string
+	xrayFrom string
+	xrayKind string
+	xraySel  string
 
 	listFrom string
 }
@@ -418,7 +421,7 @@ func initialModel(opts Options) model {
 		kroot:      st.KustomRoot,
 		forwards:   st.Forwards,
 		favs:       st.Favorites,
-		resuming:   forward.AnyDead(st.Forwards),
+		resuming:   resumeAny(cfg, st.Forwards),
 		logID:      newPaneID(),
 		cfg:        cfg,
 		cfgNote:    len(warnings) > 0,
@@ -443,8 +446,10 @@ func (m model) Init() tea.Cmd {
 		text := m.notice
 		cmds = append(cmds, func() tea.Msg { return noticeMsg{text: text} })
 	}
-	if forward.AnyDead(m.forwards) {
-		cmds = append(cmds, resumeForwards(m.k, m.logDir(), m.forwards))
+	if m.resuming {
+		cmds = append(cmds, resumeForwards(m.k, m.logDir(), m.forwards, func(f forward.Forward) bool {
+			return wantsAutoRestart(m.cfg, f)
+		}))
 	}
 	cmds = append(cmds, m.resumeStern()...)
 	return tea.Batch(cmds...)

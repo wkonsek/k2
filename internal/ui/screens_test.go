@@ -220,8 +220,11 @@ func TestXrayFromTableJumpAndBack(t *testing.T) {
 	}
 
 	m = pressSettle(t, m, "esc")
-	if m.stage != "nav" {
-		t.Fatalf("esc from the tree: %s", m.stage)
+	if m.stage != "res" || m.kind == "" {
+		t.Fatalf("esc from the tree: %s %s", m.stage, m.kind)
+	}
+	if it, _ := m.selectedItem(); it.id != "web" {
+		t.Fatalf("esc from the tree selected %q, want web", it.id)
 	}
 }
 
@@ -230,6 +233,10 @@ func TestXrayCommandAndErrors(t *testing.T) {
 	m := open(t, v7Model(t, f), "xray cronjob")
 	if m.stage != "xray" || !strings.Contains(strings.Join(rowIDs(m), " "), "job/shop/report-1") {
 		t.Fatalf("cronjob tree %s %v %s", m.stage, rowIDs(m), m.status)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.stage != "nav" {
+		t.Fatalf("esc from a command xray: %s", m.stage)
 	}
 	m = open(t, v7Model(t, f), "xray configmaps")
 	if m.stage == "xray" || !strings.Contains(m.status, "no owner tree") {
