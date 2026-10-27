@@ -34,5 +34,7 @@ func (m *model) retheme(pal theme.Palette) {
 		m.panes[i].portInput.PromptStyle, m.panes[i].portInput.TextStyle = keyStyle, itemStyle
 	}
 	m.spin.Style = lipgloss.NewStyle().Foreground(th.Accent)
+	clear(m.mlogStyles)
+	clear(m.mlogPaint)
 	m.fitContent(0, 0)
 }

@@ -346,7 +346,59 @@ func (m model) colorMlog(line string) string {
 	if !known {
 		return line
 	}
-	return lipgloss.NewStyle().Foreground(c).Render(src) + " " + rest
+	return m.coloredSource(c, src) + " " + rest
+}
+
+func (m model) mlogStyle(c color) lipgloss.Style {
+	if m.mlogStyles == nil {
+		return lipgloss.NewStyle().Foreground(c)
+	}
+	if s, ok := m.mlogStyles[c]; ok {
+		return s
+	}
+	s := lipgloss.NewStyle().Foreground(c)
+	m.mlogStyles[c] = s
+	return s
+}
+
+func (m model) coloredSource(c color, src string) string {
+	if m.mlogPaint != nil {
+		if s, ok := m.mlogPaint[src]; ok {
+			return s
+		}
+	}
+	s := m.mlogStyle(c).Render(src)
+	if m.mlogPaint != nil {
+		m.mlogPaint[src] = s
+	}
+	return s
+}
+
+// paintMlogRow colors the pod prefix on the first visual row. The line is
+// wrapped plain, so continuation rows stay uncolored and the fast path applies.
+func (m model) paintMlogRow(line string, rows []string) {
+	if len(rows) == 0 || m.vs.ml == nil {
+		return
+	}
+	src, _, ok := strings.Cut(line, " ")
+	if !ok {
+		src = line
+	}
+	if src == "" {
+		return
+	}
+	c, known := m.vs.ml.colors[src]
+	if !known {
+		return
+	}
+	head := rows[0]
+	if strings.HasPrefix(head, src) {
+		rows[0] = m.coloredSource(c, src) + head[len(src):]
+		return
+	}
+	if strings.HasPrefix(src, head) && head != "" {
+		rows[0] = m.mlogStyle(c).Render(head)
+	}
 }
 
 func (m model) mlogHeader() string {

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -155,5 +157,89 @@ func TestWrapLine(t *testing.T) {
 	rows := wrapLine("\x1b[31m"+strings.Repeat("r", 10)+"\x1b[0m", 4)
 	if len(rows) != 3 || ansi.Strip(strings.Join(rows, "")) != strings.Repeat("r", 10) {
 		t.Fatalf("colored wrap: %q", rows)
+	}
+}
+
+func TestMlogWrapIsCheap(t *testing.T) {
+	trueColor(t)
+	const n = 3000
+	src := "web-aaaa/app"
+	var b strings.Builder
+	b.Grow(n * (len(src) + 402))
+	payload := strings.Repeat("x", 400)
+	for i := 0; i < n; i++ {
+		b.WriteString(src)
+		b.WriteByte(' ')
+		b.WriteString(payload)
+		b.WriteByte('\n')
+	}
+	m := model{
+		stage:      "mlogs",
+		logID:      "pane",
+		logText:    b.String(),
+		logStick:   true,
+		vis:        map[string]*visCache{},
+		mlogStyles: map[color]lipgloss.Style{},
+		mlogPaint:  map[string]string{},
+		vs:         viewState{ml: &mlogView{colors: map[string]color{src: sourceColor(src)}}, wrapFlip: true},
+	}
+	if !m.wrapping() {
+		t.Fatal("wrap should be on")
+	}
+	start := time.Now()
+	lines := m.visualLines(80)
+	first := time.Since(start)
+	if len(lines) <= n {
+		t.Fatalf("expected wrapped rows, got %d", len(lines))
+	}
+	if !strings.Contains(lines[0].text, src) {
+		t.Fatalf("prefix lost: %q", lines[0].text)
+	}
+	if first > 500*time.Millisecond {
+		t.Fatalf("first wrap took %s", first)
+	}
+	start = time.Now()
+	again := m.visualLines(80)
+	second := time.Since(start)
+	if len(again) != len(lines) || again[0].text != lines[0].text {
+		t.Fatal("cache miss on the same buffer")
+	}
+	if second > 5*time.Millisecond {
+		t.Fatalf("cached wrap took %s", second)
+	}
+	m.logText += src + " tail\n"
+	more := m.visualLines(80)
+	if len(more) != len(lines)+1 {
+		t.Fatalf("append: %d want %d", len(more), len(lines)+1)
+	}
+	if !strings.HasSuffix(ansi.Strip(more[len(more)-1].text), "tail") {
+		t.Fatalf("last row %q", more[len(more)-1].text)
+	}
+}
+
+func TestMlogPrefixColoredWhenWrapOff(t *testing.T) {
+	trueColor(t)
+	src := "web-aaaa/app"
+	m := model{
+		stage:      "mlogs",
+		logID:      "pane",
+		logText:    src + " hello\n",
+		vis:        map[string]*visCache{},
+		mlogStyles: map[color]lipgloss.Style{},
+		mlogPaint:  map[string]string{},
+		vs:         viewState{ml: &mlogView{colors: map[string]color{src: sourceColor(src)}}},
+	}
+	if m.wrapping() {
+		t.Fatal("wrap should be off")
+	}
+	lines := m.visualLines(80)
+	if len(lines) != 1 || !strings.Contains(lines[0].text, sgr(sourceColor(src))) {
+		t.Fatalf("prefix not colored with wrap off: %q", lines[0].text)
+	}
+	m.stage = "logs"
+	m.logStick = true
+	m.logText = "line\n"
+	if body := ansi.Strip(m.logsBody(80)); !strings.HasPrefix(body, "follow  ") {
+		t.Fatalf("single-pod header %q", body)
 	}
 }

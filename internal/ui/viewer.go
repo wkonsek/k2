@@ -175,7 +175,7 @@ func (m model) logsBody(innerW int) string {
 		}
 		return b.String()
 	}
-	mode := "tail"
+	mode := "follow"
 	if !m.logStick {
 		mode = "paused"
 	}

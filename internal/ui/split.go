@@ -130,6 +130,7 @@ func (m *model) closePane() {
 	if m.ed.live() {
 		m.ed.t.Kill()
 	}
+	m.dropVis(m.logID)
 	m.commit()
 	t.root = t.root.Remove(m.logID)
 	m.panes = append(m.panes[:m.focus], m.panes[m.focus+1:]...)

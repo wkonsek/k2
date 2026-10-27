@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type navItem struct {
@@ -194,6 +195,9 @@ type model struct {
 	logAt       int
 	logStick    bool
 	logID       string
+	vis         map[string]*visCache
+	mlogStyles  map[color]lipgloss.Style
+	mlogPaint   map[string]string
 	width       int
 	height      int
 	quitting    bool
@@ -423,6 +427,9 @@ func initialModel(opts Options) model {
 		favs:       st.Favorites,
 		resuming:   resumeAny(cfg, st.Forwards),
 		logID:      newPaneID(),
+		vis:        map[string]*visCache{},
+		mlogStyles: map[color]lipgloss.Style{},
+		mlogPaint:  map[string]string{},
 		cfg:        cfg,
 		cfgNote:    len(warnings) > 0,
 		notice:     opts.Notice,

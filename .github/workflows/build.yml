@@ -1,0 +1,33 @@
+name: build
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: fmt
+        run: |
+          out=$(gofmt -s -l cmd internal)
+          if [ -n "$out" ]; then
+            echo "gofmt -s would change:"
+            printf '%s\n' "$out"
+            gofmt -s -d cmd internal
+            exit 1
+          fi
+
+      - name: vet
+        run: make vet
+
+      - name: test
+        run: make test

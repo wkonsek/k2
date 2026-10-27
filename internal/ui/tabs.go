@@ -67,6 +67,7 @@ func (m *model) closeTab() {
 	gone := map[string]bool{}
 	for _, id := range m.tabs[m.tab].root.Leaves() {
 		gone[id] = true
+		m.dropVis(id)
 		if e := m.paneEditor(id); e.live() {
 			e.t.Kill()
 		}
