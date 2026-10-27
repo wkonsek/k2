@@ -288,7 +288,7 @@ func TestMultiLogsFromDeployment(t *testing.T) {
 		}
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"follow", "2 pods", "4 lines", "logs · deployments/web"} {
+	for _, want := range []string{"follow", "2 pods", "1-4/4", "logs · deployments/web"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("view lacks %q:\n%s", want, view)
 		}

@@ -107,7 +107,7 @@ func cloneMarks(s []int) []int {
 func (m model) buildVisual(innerW int) []vline {
 	logical := m.textLines()
 	width := innerW
-	if m.stage == "logs" {
+	if m.stage == "logs" || m.stage == "mlogs" {
 		width = logRoom(innerW, len(logical))
 	}
 	colored := logical

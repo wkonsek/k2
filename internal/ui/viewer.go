@@ -100,18 +100,17 @@ func (m model) textLines() []string {
 }
 
 func (m *model) scroll(delta int) {
-	total := len(m.visualLines(m.viewerWidth()))
+	vis := m.visualLines(m.viewerWidth())
+	total := len(vis)
 	rows := m.textRows()
 	maxTop := total - rows
 	if maxTop < 1 {
 		m.logStick = true
 		m.logAt = 0
+		m.clearLogHold()
 		return
 	}
-	top := m.logAt
-	if m.logStick {
-		top = maxTop
-	}
+	top := m.shownTop(vis, rows)
 	top += delta
 	if top < 0 {
 		top = 0
@@ -119,10 +118,12 @@ func (m *model) scroll(delta int) {
 	if top >= maxTop {
 		m.logStick = true
 		m.logAt = 0
+		m.clearLogHold()
 		return
 	}
 	m.logStick = false
 	m.logAt = top
+	m.pinLog(vis, top)
 }
 
 func (m model) viewTop(total, rows int) int {
@@ -136,26 +137,119 @@ func (m model) viewTop(total, rows int) int {
 	return max(0, min(top, total-rows))
 }
 
+func (m model) shownTop(lines []vline, rows int) int {
+	total := len(lines)
+	if total <= rows {
+		return 0
+	}
+	if m.logStick {
+		return total - rows
+	}
+	if m.vs.logHold && (m.stage == "logs" || m.stage == "mlogs") {
+		if at := findVisual(lines, m.vs.logLine, m.vs.logSub); at >= 0 {
+			return max(0, min(at, total-rows))
+		}
+	}
+	return max(0, min(m.logAt, total-rows))
+}
+
+func (m *model) clearLogHold() {
+	m.vs.logHold = false
+	m.vs.logLine = 0
+	m.vs.logSub = 0
+}
+
+func (m *model) pinLog(vis []vline, top int) {
+	if m.stage != "logs" && m.stage != "mlogs" {
+		return
+	}
+	line, sub := anchorAt(vis, top)
+	m.vs.logHold = true
+	m.vs.logLine = line
+	m.vs.logSub = sub
+}
+
+func anchorAt(vis []vline, top int) (int, int) {
+	if len(vis) == 0 {
+		return 0, 0
+	}
+	if top < 0 {
+		top = 0
+	}
+	if top >= len(vis) {
+		top = len(vis) - 1
+	}
+	sub := 0
+	i := top
+	for i > 0 && vis[i].num < 0 {
+		i--
+		sub++
+	}
+	if vis[i].num >= 0 {
+		return vis[i].num, sub
+	}
+	return 0, 0
+}
+
+func findVisual(vis []vline, line, sub int) int {
+	if line < 0 {
+		return 0
+	}
+	for i, row := range vis {
+		if row.num != line {
+			continue
+		}
+		at := i + sub
+		for k := i + 1; k < len(vis) && k <= at; k++ {
+			if vis[k].num >= 0 {
+				return k - 1
+			}
+		}
+		if at >= len(vis) {
+			return len(vis) - 1
+		}
+		return at
+	}
+	return -1
+}
+
+func rewindHold(vs *viewState, dropped int, stick bool) {
+	if vs == nil || dropped <= 0 || stick || !vs.logHold {
+		return
+	}
+	vs.logLine -= dropped
+	if vs.logLine < 0 {
+		vs.logLine = 0
+		vs.logSub = 0
+	}
+}
+
 func (m model) logsBody(innerW int) string {
 	if m.load.active() {
 		return m.loadingBlock(innerW)
 	}
 	lines := m.visualLines(innerW)
 	rows := m.textRows()
-	top := m.viewTop(len(lines), rows)
+	top := m.shownTop(lines, rows)
 	end := min(len(lines), top+rows)
 	shown := lines[top:end]
 	logical := len(m.textLines())
 	wrapNote := m.wrapNote()
 	var b strings.Builder
 	if m.stage == "mlogs" {
-		b.WriteString(dimStyle.Render(m.mlogHeader()) + "\n")
+		b.WriteString(dimStyle.Render(m.mlogHeader(lineSpan(shown, logical))) + "\n")
+		gutter := logGutter(logical)
+		room := logRoom(innerW, logical)
 		for _, l := range shown {
 			if l.num == logMarkNum {
 				b.WriteString(logMarkBar(innerW) + "\n")
 				continue
 			}
-			b.WriteString(clipLine(l.text, innerW) + "\n")
+			num := strings.Repeat(" ", gutter)
+			if l.num >= 0 {
+				num = fmt.Sprintf("%*d", gutter, l.num+1)
+			}
+			b.WriteString(dimStyle.Render(num) + " " + clipLine(l.text, room) + "\n")
 		}
 		return b.String()
 	}
@@ -182,7 +276,7 @@ func (m model) logsBody(innerW int) string {
 	if m.vs.logPrev {
 		mode = "previous"
 	}
-	b.WriteString(dimStyle.Render(fmt.Sprintf("%s  %d lines    %s    %s    %s copy    %s mark    %s vim    %s previous", mode, logical, m.scrollKeys(), wrapNote, m.cfg.Keys.CopyMode.Short(), m.cfg.Keys.LogMark.Short(), m.cfg.Keys.Vim.Short(), m.cfg.Keys.Previous.Short())) + "\n")
+	b.WriteString(dimStyle.Render(fmt.Sprintf("%s  %s    %s    %s    %s copy    %s mark    %s vim    %s previous", mode, lineSpan(shown, logical), m.scrollKeys(), wrapNote, m.cfg.Keys.CopyMode.Short(), m.cfg.Keys.LogMark.Short(), m.cfg.Keys.Vim.Short(), m.cfg.Keys.Previous.Short())) + "\n")
 	gutter := logGutter(logical)
 	room := logRoom(innerW, logical)
 	for _, l := range shown {
@@ -225,7 +319,7 @@ func fetchLogs(k kube.Client, tail int, id, podRef, namespace, kubeconfig, conte
 }
 
 func (m *model) applyLogs(msg logsMsg) {
-	apply := func(text *string, marks *[]int, busy *bool, since *time.Time, key, stage string) {
+	apply := func(text *string, marks *[]int, busy *bool, since *time.Time, at *int, stick *bool, vs *viewState, key, stage, id string) {
 		*busy = false
 		if msg.pod != key || stage != "logs" {
 			return
@@ -238,7 +332,20 @@ func (m *model) applyLogs(msg logsMsg) {
 		}
 		if msg.partial {
 			merged := kube.AppendLogs(*text, msg.text)
-			trimmed, dropped := trimLogDrop(merged, m.cfg.Logs.MaxLines)
+			lines := strings.Split(merged, "\n")
+			anchor := 0
+			if !*stick {
+				anchor = m.paneAnchor(id, stage, *text, *at, *vs)
+			}
+			dropped := ringDropN(len(lines), m.cfg.Logs.MaxLines, anchor, *stick)
+			if dropped > 0 && !*stick {
+				*at = max(0, *at-m.paneShift(id, stage, *text, *at, *vs, dropped))
+				rewindHold(vs, dropped, false)
+			}
+			trimmed := merged
+			if dropped > 0 {
+				trimmed = strings.Join(lines[dropped:], "\n")
+			}
 			*text = trimmed
 			if dropped > 0 && marks != nil {
 				kept := make([]int, 0, len(*marks))
@@ -259,7 +366,7 @@ func (m *model) applyLogs(msg logsMsg) {
 	}
 	if m.logID == msg.id {
 		m.load = load{}
-		apply(&m.logText, &m.vs.logMarks, &m.logBusy, &m.logSince, logKey(m.logPod, m.vs.logOpts()), m.stage)
+		apply(&m.logText, &m.vs.logMarks, &m.logBusy, &m.logSince, &m.logAt, &m.logStick, &m.vs, logKey(m.logPod, m.vs.logOpts()), m.stage, m.logID)
 		return
 	}
 	for i := range m.panes {
@@ -268,7 +375,7 @@ func (m *model) applyLogs(msg logsMsg) {
 		}
 		m.panes[i].load = load{}
 		p := m.panes[i]
-		apply(&m.panes[i].logText, &m.panes[i].vs.logMarks, &m.panes[i].logBusy, &m.panes[i].logSince, logKey(p.logPod, p.vs.logOpts()), p.stage)
+		apply(&m.panes[i].logText, &m.panes[i].vs.logMarks, &m.panes[i].logBusy, &m.panes[i].logSince, &m.panes[i].logAt, &m.panes[i].logStick, &m.panes[i].vs, logKey(p.logPod, p.vs.logOpts()), p.stage, p.logID)
 		return
 	}
 }
@@ -524,6 +631,119 @@ func (m *model) toggleMlogMark() {
 	next.marks = append(marks, idx)
 	m.vs.ml = &next
 	m.status = "mark"
+}
+
+func lineSpan(shown []vline, total int) string {
+	first, last := -1, -1
+	for _, l := range shown {
+		if l.num < 0 {
+			continue
+		}
+		if first < 0 {
+			first = l.num
+		}
+		last = l.num
+	}
+	if first < 0 || total <= 0 {
+		return fmt.Sprintf("%d lines", total)
+	}
+	return fmt.Sprintf("%d-%d/%d", first+1, last+1, total)
+}
+
+// ringDropN is how many leading lines to drop so the buffer stays near limit.
+// While paused, lines at and below the anchor stay, so the viewport does not jump.
+// Past twice the limit the anchor gives way, so a paused view cannot grow without bound.
+func ringDropN(n, limit, anchor int, stick bool) int {
+	if limit <= 0 || n <= limit {
+		return 0
+	}
+	excess := n - limit
+	if stick {
+		return excess
+	}
+	drop := min(excess, max(anchor, 0))
+	hard := limit * 2
+	if n-drop > hard {
+		drop = n - hard
+	}
+	if drop < 0 {
+		drop = 0
+	}
+	if drop >= n && n > 0 {
+		drop = n - 1
+	}
+	return drop
+}
+
+func (m model) logicalAnchor() int {
+	vis := m.visualLines(m.viewerWidth())
+	if len(vis) == 0 {
+		return 0
+	}
+	top := m.viewTop(len(vis), m.textRows())
+	if top >= len(vis) {
+		top = len(vis) - 1
+	}
+	for top > 0 && vis[top].num < 0 {
+		top--
+	}
+	if vis[top].num >= 0 {
+		return vis[top].num
+	}
+	return 0
+}
+
+func (m model) rawAnchor() int {
+	if m.vs.logHold && (m.stage == "logs" || m.stage == "mlogs") {
+		n := m.vs.logLine
+		if m.stage == "mlogs" && m.vs.ml != nil && m.vs.ml.filter != "" {
+			if i := m.vs.ml.bufferIndex(n); i >= 0 {
+				return i
+			}
+		}
+		return max(n, 0)
+	}
+	n := m.logicalAnchor()
+	if m.stage == "mlogs" && m.vs.ml != nil && m.vs.ml.filter != "" {
+		if i := m.vs.ml.bufferIndex(n); i >= 0 {
+			return i
+		}
+	}
+	return n
+}
+
+func (m model) droppedVisual(droppedLogical int) int {
+	if droppedLogical <= 0 {
+		return 0
+	}
+	vis := m.visualLines(m.viewerWidth())
+	shift := 0
+	for _, row := range vis {
+		if row.num >= droppedLogical {
+			break
+		}
+		shift++
+	}
+	return shift
+}
+
+func (m model) withLog(id, stage, text string, at int, vs viewState) model {
+	alt := m
+	alt.logID = id
+	alt.stage = stage
+	alt.logText = text
+	alt.logStick = false
+	alt.logAt = at
+	alt.vs = vs
+	return alt
+}
+
+func (m model) paneAnchor(id, stage, text string, at int, vs viewState) int {
+	return m.withLog(id, stage, text, at, vs).rawAnchor()
+}
+
+func (m model) paneShift(id, stage, text string, at int, vs viewState, dropped int) int {
+	return m.withLog(id, stage, text, at, vs).droppedVisual(dropped)
 }
 
 func trimLogDrop(s string, max int) (string, int) {

@@ -452,11 +452,17 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewing() && !filtering {
 				m.logStick = false
 				m.logAt = 0
+				if m.stage == "logs" || m.stage == "mlogs" {
+					m.vs.logHold = true
+					m.vs.logLine = 0
+					m.vs.logSub = 0
+				}
 				return m, nil
 			}
 		case km.Bottom.Has(key):
 			if m.viewing() && !filtering {
 				m.logStick = true
+				m.clearLogHold()
 				return m, nil
 			}
 		case km.KustomizePath.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:

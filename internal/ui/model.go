@@ -54,6 +54,9 @@ type viewState struct {
 	logPrev   bool
 	logMarks  []int
 	wrapFlip  bool
+	logHold   bool
+	logLine   int
+	logSub    int
 
 	kpos map[string]kmark
 

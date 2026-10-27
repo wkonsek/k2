@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -173,4 +174,67 @@ func TestMlogMarkStaysUnderNewLines(t *testing.T) {
 	if len(m.vs.ml.lines) != 3 || len(m.vs.ml.marks) != 1 || m.vs.ml.marks[0] != 0 || m.vs.ml.lines[0].Text != "two" {
 		t.Fatalf("after trim lines %+v marks %v", m.vs.ml.lines, m.vs.ml.marks)
 	}
+}
+
+func TestPausedScrollStaysOnTheSameLine(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.height = 20
+	m.width = 100
+	var b strings.Builder
+	for i := 0; i < 100; i++ {
+		fmt.Fprintf(&b, "keep-%03d\n", i)
+	}
+	m.stage = "logs"
+	m.logText = b.String()
+	m.logStick = true
+	m.cfg.Logs.MaxLines = 100
+	m.scroll(-3)
+	if m.logStick || !m.vs.logHold {
+		t.Fatalf("not paused: stick %v hold %v line %d", m.logStick, m.vs.logHold, m.vs.logLine)
+	}
+	before := visibleKeeps(ansi.Strip(m.logsBody(80)))
+	m.applyLogs(logsMsg{id: m.logID, pod: logKey(m.logPod, m.vs.logOpts()), text: "fresh-line\n", partial: true})
+	after := visibleKeeps(ansi.Strip(m.logsBody(80)))
+	if m.logStick {
+		t.Fatal("follow came back")
+	}
+	if before != after || !strings.Contains(before, "keep-") {
+		t.Fatalf("paused view moved\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+
+	m = newTestModel(t, testEnv(t), nil)
+	m.height = 20
+	m.width = 120
+	t0 := time.Date(2026, 10, 27, 22, 0, 0, 0, time.UTC)
+	var lines []kube.LogLine
+	for i := 0; i < 80; i++ {
+		lines = append(lines, kube.LogLine{Pod: "kafka-0", Container: "kafka", At: t0.Add(time.Duration(i) * time.Second), Text: fmt.Sprintf("keep-%03d", i)})
+	}
+	v := &mlogView{lines: lines, colors: map[string]color{"kafka-0/kafka": "#ff3b30"}, polls: 1}
+	m.stage = "mlogs"
+	m.vs.ml = v
+	m.logText = v.render()
+	m.logStick = true
+	m.cfg.Logs.MultiMaxLines = 80
+	m.scroll(-3)
+	before = visibleKeeps(ansi.Strip(m.logsBody(100)))
+	m.applyMlog(mlogMsg{
+		pane:  m.logID,
+		key:   mlogKey(m.namespace, m.vs.ml.q),
+		lines: []kube.LogLine{{Pod: "kafka-0", Container: "kafka", At: t0.Add(time.Minute), Text: "fresh"}},
+	})
+	after = visibleKeeps(ansi.Strip(m.logsBody(100)))
+	if m.logStick || before != after || !strings.Contains(before, "keep-") {
+		t.Fatalf("stern paused moved stick %v\nbefore:\n%s\nafter:\n%s", m.logStick, before, after)
+	}
+}
+
+func visibleKeeps(body string) string {
+	var out []string
+	for _, line := range strings.Split(body, "\n") {
+		if i := strings.Index(line, "keep-"); i >= 0 {
+			out = append(out, line[i:])
+		}
+	}
+	return strings.Join(out, "\n")
 }

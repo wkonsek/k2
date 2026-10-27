@@ -222,7 +222,16 @@ func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 		next.cur, next.pods, next.note = cur, msg.pods, msg.note
 
 		next.lines = append(v.lines[:len(v.lines):len(v.lines)], fresh...)
-		if over := len(next.lines) - m.cfg.Logs.MultiMaxLines; over > 0 {
+		anchor := 0
+		if !m.logStick {
+			anchor = m.rawAnchor()
+		}
+		if over := ringDropN(len(next.lines), m.cfg.Logs.MultiMaxLines, anchor, m.logStick); over > 0 {
+			shown := v.shownPrefix(over)
+			if !m.logStick {
+				m.holdLogAt(shown)
+				rewindHold(&m.vs, shown, false)
+			}
 			next.lines = next.lines[over:]
 			next.dropped += over
 			kept := make([]int, 0, len(v.marks))
@@ -306,6 +315,33 @@ func (v *mlogView) renderedMarks() []int {
 		shown++
 	}
 	return out
+}
+
+func (v *mlogView) shownPrefix(n int) int {
+	if v == nil || n <= 0 {
+		return 0
+	}
+	if n > len(v.lines) {
+		n = len(v.lines)
+	}
+	if v.filter == "" {
+		return n
+	}
+	c := 0
+	for i := 0; i < n; i++ {
+		l := v.lines[i]
+		if v.matches(l.Source() + " " + l.Text) {
+			c++
+		}
+	}
+	return c
+}
+
+func (m *model) holdLogAt(droppedLogical int) {
+	if m.logStick || droppedLogical <= 0 {
+		return
+	}
+	m.logAt = max(0, m.logAt-m.droppedVisual(droppedLogical))
 }
 
 func (v *mlogView) lastShown() int {
@@ -401,7 +437,7 @@ func (m model) paintMlogRow(line string, rows []string) {
 	}
 }
 
-func (m model) mlogHeader() string {
+func (m model) mlogHeader(span string) string {
 	v := m.vs.ml
 	if v == nil {
 		return ""
@@ -410,7 +446,7 @@ func (m model) mlogHeader() string {
 	if !m.logStick {
 		mode = "paused"
 	}
-	parts := []string{mode, plural(len(v.pods), "pod", "pods"), fmt.Sprintf("%d lines", len(v.lines))}
+	parts := []string{mode, plural(len(v.pods), "pod", "pods"), span}
 	if v.dropped > 0 {
 		parts = append(parts, fmt.Sprintf("%d dropped", v.dropped))
 	}

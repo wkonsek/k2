@@ -55,6 +55,7 @@ func (m model) submitSearch() (tea.Model, tea.Cmd) {
 	if maxTop := len(lines) - m.textRows(); m.logAt > maxTop && maxTop > 0 {
 		m.logAt = maxTop
 	}
+	m.pinLog(lines, m.logAt)
 	m.status = fmt.Sprintf("%s: match %d of %d · %s again for the next", text, at+1, len(hits), m.cfg.Keys.Search.Short())
 	return m, nil
 }
