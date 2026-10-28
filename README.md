@@ -215,6 +215,7 @@ Then:
 | `Q` | quit; your shell switches to the focused pane's cluster |
 | `space` | select rows; `ctrl+d` deletes them, `M` tails those pods |
 | `ctrl+p` | save this layout as a profile (`:profile save dev`, `k2 --profile dev`) |
+| `:fresh` | close every tab and pane, leave one home pane (`k2 --fresh` does it at start) |
 
 Every key is listed in the **[keyboard cheatsheet](CHEATSHEET.md)**.
 
@@ -356,7 +357,9 @@ header shows exit code, outcome and duration.
 
 **Text viewers** (logs, describe, YAML, events, command output). `w` toggles
 wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom (`G` resumes
-tailing), `v` opens the text in vim. `y` enters copy mode: only the text at
+tailing), `v` opens the text in vim. On a resource's YAML (`enter`) or
+describe (`d`), `r` refreshes it every 2 seconds until `r` again, so a
+status on a CR stays live. `y` enters copy mode: only the text at
 full screen, so the terminal's own mouse selection copies cleanly (k2 never
 captures the mouse); there `v` selects lines, `y` copies them, `Y` copies
 everything (`ui.clipboard`). The legend still shows `y` when the pane is
@@ -427,8 +430,12 @@ and restores it on the next start:
   otherwise it stays on the list as dead until `r`;
 - the favorites you pinned and the last Kustomize directory.
 
-A missing or broken state file never stops k2; it just starts fresh. The
-theme and every other setting live in `~/.k2/config.yaml`.
+A missing or broken state file never stops k2; it just starts fresh.
+`k2 --fresh`, or `:fresh` inside a session, does that on purpose: every tab
+and pane is closed and one home pane is left. The focused kubeconfig,
+context and namespace stay, and so do port-forwards and favorites. The
+next ordinary start then restores that home pane. A `--profile` given with
+`--fresh` still opens the profile.
 
 On exit k2 also writes the focused pane's context and namespace into that
 pane's kubeconfig (current-context) and prints
@@ -560,7 +567,10 @@ Under the cluster info the sidebar shows how long the focused context's
 token stays valid: `token    ████████▌░░░ 5h12m`. The bar shrinks live
 (computed locally, no API calls), turns yellow below `ui.token_warn` (25 %)
 or under an hour, red below `ui.token_crit` (10 %) or under 15 minutes, and
-says `expired` with `^l or :login` on the next line once it has expired. `ctrl+l` or `:login`
+says `expired` with `^l or :login` on the next line once it has expired.
+A token that is present in the kubeconfig but that the API rejects, and
+that has no expiry of its own (a random string pasted into `:login`), says
+`invalid` with the same hint. `ctrl+l` or `:login`
 opens a box: paste the new token and it replaces that user's `token` in
 the kubeconfig (or rewrites `tokenFile`, when that is where the token
 lives). The token is not printed afterwards.
@@ -569,6 +579,7 @@ lives). The token is not printed afterwards.
 |---|---|
 | OpenShift `oc login` token (`sha256~…`), OCP 4.6+ | bar from the user's own `useroauthaccesstokens` object |
 | JWT bearer token with `exp` | bar from `exp` |
+| token the API rejects, with no expiry of its own | `invalid`, and the login hint |
 | token without a known expiry, client certificate, exec / auth-provider plugin | nothing |
 
 For OpenShift k2 asks the cluster once in the background (5 s timeout), and

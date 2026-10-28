@@ -64,6 +64,7 @@ type Keys struct {
 	Kubeconfig, Context, Namespace, Kustomize, Kubectl, Forwards Binding
 	PortForward                                                  Binding
 	Describe                                                     Binding
+	Watch                                                        Binding
 	Edit                                                         Binding
 	Decode                                                       Binding
 	Delete                                                       Binding
@@ -159,7 +160,7 @@ func DefaultKeys() Keys {
 	return Keys{
 		Kubeconfig: Binding{"C"}, Context: Binding{"c"}, Namespace: Binding{"n"},
 		Kustomize: Binding{"K"}, Kubectl: Binding{"U"}, Forwards: Binding{"f"},
-		PortForward: Binding{"ctrl+f", "F"}, Describe: Binding{"d"}, Edit: Binding{"e"}, Decode: Binding{"x"},
+		PortForward: Binding{"ctrl+f", "F"}, Describe: Binding{"d"}, Watch: Binding{"r"}, Edit: Binding{"e"}, Decode: Binding{"x"},
 		Delete: Binding{"ctrl+d"}, KustomizeDelete: Binding{"d"}, Apply: Binding{"a"}, Diff: Binding{"D"},
 		DeleteAll: Binding{"D"}, PfRestart: Binding{"r"}, PfAuto: Binding{"a"}, Scan: Binding{"s"}, Vim: Binding{"v"}, Wrap: Binding{"w"},
 		CopyMode: Binding{"y"}, LogMark: Binding{"m"}, CopySelect: Binding{"v"}, CopyYank: Binding{"y"}, CopyAll: Binding{"Y"},
@@ -213,6 +214,7 @@ var keyFields = []keyField{
 	{"forwards", func(k *Keys) *Binding { return &k.Forwards }},
 	{"port_forward", func(k *Keys) *Binding { return &k.PortForward }},
 	{"describe", func(k *Keys) *Binding { return &k.Describe }},
+	{"watch", func(k *Keys) *Binding { return &k.Watch }},
 	{"edit", func(k *Keys) *Binding { return &k.Edit }},
 	{"decode", func(k *Keys) *Binding { return &k.Decode }},
 	{"delete", func(k *Keys) *Binding { return &k.Delete }},
@@ -404,7 +406,7 @@ var screenKeys = func() map[string][]string {
 		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path"),
 		"forwards":  with("delete", "delete_all", "pf_restart", "pf_auto"),
 
-		"viewer": with("vim", "previous", "wrap", "copy_mode", "search", "all_namespaces"),
+		"viewer": with("vim", "previous", "wrap", "copy_mode", "search", "all_namespaces", "watch"),
 
 		"copy": {"copy_select", "copy_yank", "copy_all", "wrap", "back", "scroll_down", "scroll_up", "page_down", "page_up", "top", "bottom"},
 

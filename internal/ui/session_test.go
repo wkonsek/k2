@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"k2/internal/config"
+	"k2/internal/forward"
 	"k2/internal/layout"
 	"k2/internal/shell"
+	"k2/internal/state"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -175,5 +177,48 @@ func TestProfileTabCyclesFiles(t *testing.T) {
 	second := m.cmd.Value()
 	if first == second || first != "profile dev" && first != "profile lab" || second != "profile dev" && second != "profile lab" {
 		t.Fatalf("cycle %q -> %q", first, second)
+	}
+}
+
+func TestFreshDropsTabsAndPanes(t *testing.T) {
+	cfg := testEnv(t)
+	st := state.State{
+		Version: state.Version, Kubeconfig: "/kc", Context: "kind-dev", Namespace: "shop",
+		Panes: []state.Pane{
+			{Stage: "nav", Kubeconfig: "/kc", Context: "kind-dev", Namespace: "shop"},
+			{Stage: "workpods", Kubeconfig: "/kc", Context: "kind-dev", Namespace: "shop"},
+		},
+		Tabs: []state.Tab{{
+			Layout: state.Node{Split: "row", Kids: []state.Node{{Pane: 0}, {Pane: 1}}},
+			Focus:  1,
+		}},
+		Forwards: []forward.Forward{{Local: "8080", Remote: "80", Namespace: "shop", Pod: "web"}},
+	}
+	state.Save(cfg.StateDir, st)
+	kept := newTestModel(t, cfg, nil)
+	if len(kept.panes) != 2 || len(kept.tabs) != 1 {
+		t.Fatalf("restore panes %d tabs %d", len(kept.panes), len(kept.tabs))
+	}
+	fresh := initialModel(Options{Runner: kept.run, Config: &cfg, Fresh: true})
+	if len(fresh.panes) != 1 || len(fresh.tabs) != 1 || fresh.stage != "nav" || fresh.tabs[0].root.Count() != 1 {
+		t.Fatalf("flag panes %d tabs %d stage %q", len(fresh.panes), len(fresh.tabs), fresh.stage)
+	}
+	if fresh.context != "kind-dev" || fresh.namespace != "shop" || len(fresh.forwards) != 1 {
+		t.Fatalf("flag lost cluster ctx %q ns %q forwards %d", fresh.context, fresh.namespace, len(fresh.forwards))
+	}
+
+	m := kept
+	m = press(t, m, ":", "f", "r", "e", "tab")
+	if m.cmd.Value() != "fresh" {
+		t.Fatalf("complete %q hint %q", m.cmd.Value(), m.cmdHint)
+	}
+	next, cmd := m.runCommand("fresh")
+	m = settle(t, next.(model), cmd)
+	if len(m.tabs) != 1 || m.tabs[0].root.Count() != 1 || m.stage != "nav" || m.context != "kind-dev" || len(m.forwards) != 1 {
+		t.Fatalf("command panes %d stage %q ctx %q forwards %d", m.tabs[0].root.Count(), m.stage, m.context, len(m.forwards))
+	}
+	again := state.Load(cfg.StateDir)
+	if len(again.Panes) != 1 || len(again.Tabs) != 1 || again.Context != "kind-dev" {
+		t.Fatalf("saved panes %d tabs %d", len(again.Panes), len(again.Tabs))
 	}
 }

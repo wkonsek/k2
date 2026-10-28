@@ -72,6 +72,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.beat%max(1, m.cfg.UI.RefreshEvery) == 0 {
 			cmds = append(cmds, m.refreshVisible()...)
 		}
+		cmds = append(cmds, m.watchDue()...)
 		cmds = append(cmds, m.screenTick()...)
 		return m, tea.Batch(cmds...)
 	case spinner.TickMsg:
@@ -133,6 +134,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case describeMsg:
 		m.applyDescribe(msg)
+		return m, nil
+	case watchMsg:
+		m.applyWatch(msg)
 		return m, nil
 	case viewMsg:
 		m.applyView(msg)
@@ -385,6 +389,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case km.PfAuto.Has(key):
 				return m.toggleAuto()
 			}
+		}
+		if !filtering && km.Watch.Has(key) && (m.stage == "yaml" || m.stage == "describe") {
+			return m.toggleWatch()
 		}
 		if !filtering {
 			if next, cmd, ok := m.screenKey(key); ok {

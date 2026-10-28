@@ -119,8 +119,11 @@ func (m model) tokenRows(inner int) string {
 		return ""
 	}
 
+	if life.Invalid {
+		return m.tokenProblemRow(inner, "invalid")
+	}
 	if life.Expired && !life.Known {
-		return m.tokenExpiredRow(inner)
+		return m.tokenProblemRow(inner, "expired")
 	}
 	if !life.Known {
 		return ""
@@ -131,7 +134,7 @@ func (m model) tokenRows(inner int) string {
 	}
 	left := life.End.Sub(at)
 	if left <= 0 {
-		return m.tokenExpiredRow(inner)
+		return m.tokenProblemRow(inner, "expired")
 	}
 	start := life.Start
 	if start.IsZero() || !start.Before(life.End) {
@@ -165,14 +168,14 @@ func (m model) tokenRows(inner int) string {
 	return out
 }
 
-func (m model) tokenExpiredRow(inner int) string {
-	word := errStyle.Bold(true).Render("expired")
+func (m model) tokenProblemRow(inner int, word string) string {
+	label := errStyle.Bold(true).Render(word)
 	hint := ":login"
 	if s := m.cfg.Keys.Login.Short(); s != "" {
 		hint = s + " or :login"
 	}
 	var b strings.Builder
-	b.WriteString(clipLine(dimStyle.Render(padRight("token", infoPad))+word, inner) + "\n")
+	b.WriteString(clipLine(dimStyle.Render(padRight("token", infoPad))+label, inner) + "\n")
 	pad := infoPad
 	if pad >= inner {
 		pad = 0

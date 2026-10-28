@@ -27,6 +27,7 @@ const usage = `k2 - a terminal UI for working with several Kubernetes clusters s
 
 Usage:
   k2                  start the UI
+  k2 --fresh          one home pane; the saved tabs and panes are not restored
   k2 --profile NAME   open that profile (panes, contexts, views)
   k2 --version        print the version (also -v, version)
   k2 --help           print this help (also -h)
@@ -55,26 +56,32 @@ ctrl+a ctrl+a sends a literal ctrl+a to the in-pane vim / shell.
 Every key is configurable in ~/.k2/config.yaml; see CHEATSHEET.md for the full list and README.md.
 `
 
-func profileArg(args []string) (string, error) {
+func startArgs(args []string) (profile string, fresh bool, err error) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--" {
 			break
 		}
+		if a == "--fresh" {
+			fresh = true
+			continue
+		}
 		if name, ok := strings.CutPrefix(a, "--profile="); ok {
 			if name == "" {
-				return "", fmt.Errorf("k2: --profile needs a name")
+				return "", false, fmt.Errorf("k2: --profile needs a name")
 			}
-			return name, nil
+			profile = name
+			continue
 		}
 		if a == "--profile" {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return "", fmt.Errorf("k2: --profile needs a name")
+				return "", false, fmt.Errorf("k2: --profile needs a name")
 			}
-			return args[i+1], nil
+			profile = args[i+1]
+			i++
 		}
 	}
-	return "", nil
+	return profile, fresh, nil
 }
 
 func cliAction(args []string, version string) (string, bool) {

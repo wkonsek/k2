@@ -105,6 +105,11 @@ func TestTokenRows(t *testing.T) {
 	if plain := ansi.Strip(m.tokenRows(40)); plain != want {
 		t.Errorf("rejected token: %q", plain)
 	}
+	want = "token       invalid\n            ^l or :login\n"
+	m = tokenModel(t, kube.TokenLife{Invalid: true}, t0)
+	if plain := ansi.Strip(m.tokenRows(40)); plain != want {
+		t.Errorf("invalid token: %q", plain)
+	}
 
 	idle := day
 	idle.Idle = 8 * time.Hour
@@ -302,10 +307,31 @@ func TestTokenNothingWithoutExpiry(t *testing.T) {
 		if got != c.show {
 			t.Errorf("%s: shown %v want %v (%q)", name, got, c.show, ansi.Strip(m.tokenRows(30)))
 		}
-		if strings.Contains(name, "jwt") || name == "opaque" || name == "kind cert" || name == "exec plugin" {
+		switch name {
+		case "kind cert", "exec plugin", "no user", "jwt exp":
 			if len(f.Calls()) != 0 {
 				t.Errorf("%s: kubectl was called", name)
 			}
+		case "opaque", "jwt no exp":
+			if len(f.Calls()) != 1 || !strings.Contains(f.Calls()[0].Line(), "--raw") {
+				t.Errorf("%s: want one auth probe, calls %d", name, len(f.Calls()))
+			}
 		}
+	}
+}
+
+func TestGarbageTokenShowsInvalid(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		return shell.Fail(1, "error: You must be logged in to the server (Unauthorized)")
+	}}
+	m := newTestModel(t, testEnv(t), f)
+	m.kubeconfig, m.context = filepath.Join(t.TempDir(), "config"), "ctx"
+	writeTokenKubeconfig(t, m.kubeconfig, "    token: not-a-real-token\n", time.Now())
+	if !runToken(t, &m) {
+		t.Fatal("no lookup")
+	}
+	plain := ansi.Strip(m.tokenRows(40))
+	if !strings.Contains(plain, "invalid") || !strings.Contains(plain, ":login") {
+		t.Fatalf("sidebar %q", plain)
 	}
 }

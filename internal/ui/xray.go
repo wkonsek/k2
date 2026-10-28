@@ -505,6 +505,7 @@ func (m model) yamlOf(kind, ns, name, from string) (tea.Model, tea.Cmd) {
 	m.logStick = false
 	m.logAt = 0
 	m.stage = "yaml"
+	m.armWatch(kind, ns, name)
 	m.status = m.subject
 	pane, kc, ctx, k := m.logID, m.kubeconfig, m.context, m.k
 	fetch := func() tea.Msg {

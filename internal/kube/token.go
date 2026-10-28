@@ -60,6 +60,9 @@ type TokenLife struct {
 
 	Expired bool
 
+	// Invalid is a token the API rejected and that has no expiry of its own.
+	Invalid bool
+
 	Start, End time.Time
 
 	Idle time.Duration
@@ -488,8 +491,28 @@ func (c Client) Life(kubeconfigPath, context string, t Token) TokenLife {
 	case t.Empty():
 		return TokenLife{}
 	case t.OpenShift():
-		return c.OAuthLife(kubeconfigPath, context, t)
+		if life := c.OAuthLife(kubeconfigPath, context, t); life.Known || life.Expired {
+			return life
+		}
 	default:
-		return JWTLife(t)
+		if life := JWTLife(t); life.Known {
+			return life
+		}
 	}
+	return c.tokenAccepted(kubeconfigPath, context)
+}
+
+// tokenAccepted asks the API once. A token kubectl accepts, but whose
+// lifetime we cannot read, stays unknown (no sidebar row). A rejected
+// token is invalid.
+func (c Client) tokenAccepted(kubeconfigPath, context string) TokenLife {
+	args := append(targetArgs(kubeconfigPath, context), "get", "--raw", "/api", "--request-timeout="+InfoTimeout.String())
+	res := c.Run.Run(shell.Request{Name: "kubectl", Args: args})
+	if res.Err == nil {
+		return TokenLife{}
+	}
+	if tokenRejected(commandText(res)) {
+		return TokenLife{Invalid: true}
+	}
+	return TokenLife{}
 }

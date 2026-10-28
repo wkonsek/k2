@@ -57,6 +57,7 @@ func (m model) describeSelected() (tea.Model, tea.Cmd) {
 	m.logStick = false
 	m.logAt = 0
 	m.stage = "describe"
+	m.armWatch(kind, ns, name)
 	m.status = "describe " + m.subject
 	kc, ctx, pane, k := m.kubeconfig, m.context, m.logID, m.k
 	fetch := func() tea.Msg {

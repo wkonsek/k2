@@ -139,3 +139,42 @@ func TestDescribeEventColors(t *testing.T) {
 		t.Fatal("eventIsError")
 	}
 }
+
+func TestDescribeWatchRefreshesInPlace(t *testing.T) {
+	text := describeText
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		switch {
+		case len(r.Args) > 1 && r.Args[0] == "get" && r.Args[1] == "pods":
+			return shell.OK(podsJSON)
+		case len(r.Args) > 0 && r.Args[0] == "describe":
+			return shell.OK(text)
+		}
+		return shell.Fail(1, "not in this test")
+	}}
+	m := newTestModel(t, testEnv(t), f)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	n, c := m.openPods()
+	m = settle(t, n.(model), c)
+	m = pressSettle(t, m, "down", "d")
+	if m.stage != "describe" || m.vs.watchOn {
+		t.Fatalf("stage %q watch %v", m.stage, m.vs.watchOn)
+	}
+	m = press(t, m, "j")
+	at := m.logAt
+	m = pressSettle(t, m, "r")
+	if !m.vs.watchOn || !strings.Contains(m.status, "watching describe shop/web-1") || !strings.Contains(ansi.Strip(m.legend()), "r watching") {
+		t.Fatalf("status %q legend %q", m.status, ansi.Strip(m.legend()))
+	}
+	text = strings.Replace(describeText, "Pending", "Running", 1)
+	next, cmd := m.Update(tickMsg{})
+	m = next.(model)
+	next, cmd = m.Update(tickMsg{})
+	m = settle(t, next.(model), cmd)
+	if !strings.Contains(m.logText, "Running") || m.logAt != at || m.stage != "describe" {
+		t.Fatalf("refresh: stage %q at %d text %q", m.stage, m.logAt, m.logText)
+	}
+	m = press(t, m, "r")
+	if m.vs.watchOn || m.status != "watch off" {
+		t.Fatalf("stop: on %v status %q", m.vs.watchOn, m.status)
+	}
+}

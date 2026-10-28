@@ -70,12 +70,12 @@ func run(stdout, stderr *os.File) int {
 	}
 
 	notice, warn := firstStart()
-	profile, perr := profileArg(os.Args[1:])
+	profile, fresh, perr := startArgs(os.Args[1:])
 	if perr != nil {
 		fmt.Fprintln(stderr, perr.Error())
 		return 1
 	}
-	uiOpts := ui.Options{Runner: runner, Version: versionString(), Notice: notice, Profile: profile}
+	uiOpts := ui.Options{Runner: runner, Version: versionString(), Notice: notice, Profile: profile, Fresh: fresh}
 	if warn != "" {
 		uiOpts.Warnings = []string{warn}
 	}

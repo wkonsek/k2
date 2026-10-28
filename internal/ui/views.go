@@ -211,9 +211,17 @@ func (m model) paneView() string {
 	case "workpods":
 		return scopeLabel(m.namespace, "pods")
 	case "res", "yaml", "view":
-		return or(m.subject, or(m.kind, m.stage))
+		label := or(m.subject, or(m.kind, m.stage))
+		if m.stage == "yaml" && m.vs.watchOn {
+			label += " · watching"
+		}
+		return label
 	case "describe":
-		return "describe " + m.subject
+		label := "describe " + m.subject
+		if m.vs.watchOn {
+			label += " · watching"
+		}
+		return label
 	case "fwds":
 		return "forwards"
 	case "kdir", "kust":
@@ -318,6 +326,9 @@ func (m model) legend() string {
 		if m.stage == "logs" {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"))
 		}
+		if m.stage == "yaml" || m.stage == "describe" {
+			parts = append(parts, pair(k.Watch.Short(), m.watchLegend()))
+		}
 		if m.stage == "mlogs" {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))
 		}
@@ -351,6 +362,9 @@ func (m model) legend() string {
 			if m.stage == "logs" {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"))
 			}
+			if m.stage == "yaml" || m.stage == "describe" {
+				head = append(head, pair(k.Watch.Short(), m.watchLegend()))
+			}
 			if m.stage == "mlogs" {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))
 			}
@@ -361,6 +375,13 @@ func (m model) legend() string {
 	parts = append(parts, pair(k.Fullscreen.Short(), "full"))
 	parts = append(parts, pair(k.Quit.Short(), "quit"))
 	return "  " + strings.Join(parts, dimStyle.Render("    "))
+}
+
+func (m model) watchLegend() string {
+	if m.vs.watchOn {
+		return "watching"
+	}
+	return "watch"
 }
 
 func (m model) kindLegend() []string {

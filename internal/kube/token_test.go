@@ -244,19 +244,48 @@ func TestOAuthLife(t *testing.T) {
 		if l.Idle != c.idle {
 			t.Errorf("%s: idle %v", c.name, l.Idle)
 		}
+		raw := 0
 		for _, r := range f.Calls() {
 			line := r.Line()
 			if strings.Contains(line, "secretvalue") {
 				t.Fatalf("%s: token in a kubectl argument: %s", c.name, line)
 			}
+			if strings.Contains(line, "--raw") && strings.Contains(line, "/api") {
+				raw++
+				continue
+			}
 			if !strings.Contains(line, "useroauthaccesstokens.oauth.openshift.io") || !strings.Contains(line, "--request-timeout=5s") || !strings.Contains(line, "--context ctx") {
 				t.Errorf("%s: unexpected call %s", c.name, line)
 			}
+		}
+		if (c.known || c.expired) && raw != 0 {
+			t.Errorf("%s: probed a token that already has a life", c.name)
 		}
 	}
 
 	f := &shell.Fake{}
 	if New(f).Life("", "", Token{secret: jwt(`{"exp":1}`)}); len(f.Calls()) != 0 {
 		t.Fatal("a JWT must be read locally")
+	}
+}
+
+func TestGarbageTokenIsInvalid(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		return shell.Fail(1, "error: You must be logged in to the server (Unauthorized)")
+	}}
+	life := New(f).Life("/k/config", "ctx", Token{secret: "not-a-real-token"})
+	if !life.Invalid || life.Known || life.Expired {
+		t.Fatalf("life %+v", life)
+	}
+	if len(f.Calls()) != 1 || !strings.Contains(f.Calls()[0].Line(), "get --raw /api") {
+		t.Fatalf("probe %v", f.Calls())
+	}
+	if strings.Contains(f.Calls()[0].Line(), "not-a-real-token") {
+		t.Fatal("token leaked into kubectl")
+	}
+
+	ok := &shell.Fake{Handler: func(r shell.Request) shell.Result { return shell.OK(`{"versions":["v1"]}`) }}
+	if life := New(ok).Life("/k/config", "ctx", Token{secret: "static-opaque-token"}); life != (TokenLife{}) {
+		t.Fatalf("accepted opaque token should stay quiet: %+v", life)
 	}
 }

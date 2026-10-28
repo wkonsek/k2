@@ -151,6 +151,7 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		m.logAt = 0
 		m.stage = "yaml"
 		m.vs.vback = ""
+		m.armWatch(m.kind, ns, name)
 		m.status = m.subject
 		return m, tea.Batch(m.startLoad("loading yaml", false), m.fetchYAML(it.id, it.desc))
 	}

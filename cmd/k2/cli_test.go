@@ -33,6 +33,19 @@ func TestHelpDescribesExit(t *testing.T) {
 	}
 }
 
+func TestStartArgs(t *testing.T) {
+	profile, fresh, err := startArgs([]string{"--fresh"})
+	if err != nil || profile != "" || !fresh {
+		t.Fatalf("fresh: %q %v %v", profile, fresh, err)
+	}
+	profile, fresh, err = startArgs([]string{"--profile", "dev", "--fresh"})
+	if err != nil || profile != "dev" || !fresh {
+		t.Fatalf("both: %q %v %v", profile, fresh, err)
+	}
+	if _, _, err = startArgs([]string{"--profile"}); err == nil {
+		t.Fatal("bare --profile")
+	}
+}
 func TestReleaseString(t *testing.T) {
 	if v := versionString(); version == "dev" && !strings.HasPrefix(v, release+"-dev") {
 		t.Fatalf("versionString %q", v)

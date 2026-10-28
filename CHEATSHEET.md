@@ -97,6 +97,7 @@ pane with these keys or `:` commands.
 | `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
 | `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
 | `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
+| — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace) |
@@ -267,6 +268,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | Key | Config | What it does |
 |---|---|---|
 | `w` | `keys.wrap` | toggle line wrap in this pane (start state: `ui.wrap`) |
+| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every 2 seconds. `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
 | `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is zoomed (`Z`) |
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |

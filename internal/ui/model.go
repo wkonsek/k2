@@ -60,20 +60,25 @@ type viewState struct {
 
 	kpos map[string]kmark
 
-	vback    string
-	xray     *xrayView
-	helmAll  bool
-	helm     []kube.HelmRelease
-	hist     *helmHist
-	search   string
-	searchAt int
-	nsPrev   string
-	ml       *mlogView
-	jumpFrom string
-	jumpSel  string
-	xrayFrom string
-	xrayKind string
-	xraySel  string
+	vback     string
+	watchOn   bool
+	watchBusy bool
+	watchKind string
+	watchNS   string
+	watchName string
+	xray      *xrayView
+	helmAll   bool
+	helm      []kube.HelmRelease
+	hist      *helmHist
+	search    string
+	searchAt  int
+	nsPrev    string
+	ml        *mlogView
+	jumpFrom  string
+	jumpSel   string
+	xrayFrom  string
+	xrayKind  string
+	xraySel   string
 
 	listFrom string
 	homeAt   int
@@ -291,6 +296,8 @@ type Options struct {
 	Notice string
 
 	Profile string
+
+	Fresh bool
 }
 
 func New(opts Options) tea.Model { return initialModel(opts) }
@@ -455,7 +462,9 @@ func initialModel(opts Options) model {
 	m.version = opts.Version
 	m.panes = []paneSnap{m.snap()}
 	m.tabs = []tab{{root: layout.New(m.logID), focus: m.logID}}
-	m.restorePanes(st)
+	if !opts.Fresh {
+		m.restorePanes(st)
+	}
 	return m
 }
 
