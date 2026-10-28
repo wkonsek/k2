@@ -116,7 +116,7 @@ func TestShellScrollback(t *testing.T) {
 	if h.m.ed.scroll != 0 || !strings.Contains(ansi.Strip(h.m.View()), "line-80") {
 		t.Fatalf("esc did not return: scroll %d\n%s", h.m.ed.scroll, ansi.Strip(h.m.View()))
 	}
-	h.keys("F")
+	h.keys("Z")
 	full := ansi.Strip(h.m.View())
 	if strings.Contains(full, "╭") || strings.Contains(full, "│") {
 		t.Fatalf("fullscreen shell still has a frame:\n%s", full)
@@ -240,11 +240,11 @@ func TestEditorKeyRouting(t *testing.T) {
 	}
 
 	w0, _ := h.m.ed.t.Size()
-	h.keys("ctrl+a", "F")
+	h.keys("ctrl+a", "z")
 	if w1, _ := h.m.ed.t.Size(); !h.m.zoom || w1 <= w0 {
 		t.Fatalf("zoom %v width %d → %d", h.m.zoom, w0, w1)
 	}
-	h.keys("ctrl+a", "F")
+	h.keys("ctrl+a", "z")
 
 	h.keys("ctrl+a", "j")
 	if !strings.HasPrefix(h.m.status, "ctrl+a j: not a pane or tab key") {
@@ -347,11 +347,11 @@ func TestEditorPrefixRemapped(t *testing.T) {
 		if h.m.prefixOn {
 			t.Fatalf("%s: ctrl+a started a prefix", p)
 		}
-		h.keys(p, "F")
+		h.keys(p, "z")
 		if !h.m.zoom || !strings.Contains(ansi.Strip(h.m.View()), "vim · "+p+" k2") {
 			t.Fatalf("%s: zoom %v", p, h.m.zoom)
 		}
-		h.keys(p, "F", p, "v")
+		h.keys(p, "z", p, "v")
 		if len(h.m.tabIDs()) != 2 {
 			t.Fatalf("%s v did not split", p)
 		}

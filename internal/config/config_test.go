@@ -26,7 +26,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	k := c.Keys
 	want := map[string]Binding{
 		"kubeconfig": {"C"}, "context": {"c"}, "namespace": {"n"}, "kustomize": {"K"},
-		"kubectl": {"U"}, "forwards": {"f"}, "port_forward": {"ctrl+f"}, "describe": {"d"}, "edit": {"e"},
+		"kubectl": {"U"}, "forwards": {"f"}, "port_forward": {"ctrl+f", "F"}, "describe": {"d"}, "edit": {"e"},
 		"kustomize_delete": {"d"}, "page_down": {"pgdown", "}"}, "page_up": {"pgup", "{"},
 		"decode": {"x"}, "apply": {"a"}, "diff": {"D"}, "delete_all": {"D"},
 
@@ -41,7 +41,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 		"next_tab": {"direct ]", "n", "]"}, "prev_tab": {"direct [", "p", "["},
 		"wrap":  {"w"},
 		"tab_1": {"1"}, "tab_5": {"5"}, "tab_9": {"9"},
-		"fullscreen": {"F"}, "quit": {"Q", "ctrl+c"}, "back": {"q", "esc", "H"},
+		"fullscreen": {"Z"}, "quit": {"Q", "ctrl+c"}, "back": {"q", "esc", "H"},
 		"delete": {"ctrl+d"}, "output": {"ctrl+o"}, "jq": {"ctrl+j"}, "command": {":"},
 		"yes": {"y", "Y"}, "no": {"n", "N", "esc", "q"}, "vim": {"v"}, "complete": {"tab"},
 	}
@@ -405,7 +405,7 @@ func TestScreenKeyConflicts(t *testing.T) {
 		check      func(Keys) bool
 	}{
 		{"keys: {describe: e}", "keys.describe: e is already used by edit (using d)", func(k Keys) bool { return k.Describe.Has("d") }},
-		{"keys: {port_forward: ctrl+d}", "keys.port_forward: ctrl+d is already used by delete (using ctrl+f)", func(k Keys) bool { return k.PortForward.Has("ctrl+f") }},
+		{"keys: {port_forward: ctrl+d}", "keys.port_forward: ctrl+d is already used by delete (using ctrl+f, F)", func(k Keys) bool { return k.PortForward.Has("ctrl+f") && k.PortForward.Has("F") }},
 		{"keys: {page_down: ctrl+f}", "keys.page_down: ctrl+f is already used by port_forward (using pgdown, })", func(k Keys) bool { return k.PageDown.Has("pgdown") && !k.PageDown.Has("ctrl+f") }},
 		{"keys: {kustomize_delete: a}", "keys.kustomize_delete: a is already used by apply (using d)", func(k Keys) bool { return k.KustomizeDelete.Has("d") }},
 		{"keys: {describe: f}", "keys.describe: f is already used by forwards (using d)", func(k Keys) bool { return k.Describe.Has("d") }},

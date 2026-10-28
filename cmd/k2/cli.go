@@ -47,9 +47,9 @@ Use it through a shell function so the export line is evaluated, e.g. in ~/.zshr
 ` + shellWrapper + `
 
 Keys: c context, C kubeconfig, n namespace, K kustomize, U kubectl, f forwards,
-d describe, ctrl+f port-forward (pods/services), ctrl+t theme, w wrap (viewers), : command line, q back, Q quit.
+d describe, ctrl+f or F port-forward (pods/services), ctrl+t theme, w wrap (viewers), : command line, q back, Q quit.
 Panes and tabs: the prefix ctrl+a, then (tmux keys) " or h split down, % or v split right,
-o next pane, ; last pane, arrows move (repeat), x close pane, z zoom, c or t new tab,
+o next pane, ; last pane, arrows move (repeat), x close pane, z zoom (also Z), c or t new tab,
 & or w close tab, , rename tab, n/p next/previous tab (also ] and [ alone), 1..9 tab N.
 ctrl+a ctrl+a sends a literal ctrl+a to the in-pane vim / shell.
 Every key is configurable in ~/.k2/config.yaml; see CHEATSHEET.md for the full list and README.md.

@@ -95,7 +95,7 @@ func TestLogCopyLegendAndMark(t *testing.T) {
 		t.Fatalf("legend %q", leg)
 	}
 	m.zoom = true
-	if leg := ansi.Strip(m.legend()); !strings.Contains(leg, "y copy") || !strings.Contains(leg, "m mark") || !strings.Contains(leg, "F split") {
+	if leg := ansi.Strip(m.legend()); !strings.Contains(leg, "y copy") || !strings.Contains(leg, "m mark") || !strings.Contains(leg, "Z split") {
 		t.Fatalf("zoom legend %q", leg)
 	}
 	m.zoom = false

@@ -261,7 +261,7 @@ func (m model) legend() string {
 		parts := []string{
 			keyStyle.Render("vim") + " " + dimStyle.Render("· "+p+" k2"),
 			pair("^←→↑↓", "panes"),
-			pair(p+" "+k.Fullscreen.Label(), "full"),
+			pair(k.Fullscreen.Short(), "full"),
 			pair(k.ClosePane.PaneShort(k.Prefix), "close"),
 			pair(p+" "+k.Quit.Label(), "quit"),
 			pair(p+" "+p, "literal"),

@@ -22,7 +22,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | Key | Config | What it does |
 |---|---|---|
 | `ctrl+a` | `keys.prefix` | prefix for the pane and tab keys (also in vim / shell); twice = literal (formerly `keys.editor_prefix`) |
-| `F` | `keys.fullscreen` | zoom the focused pane / back to the split (also `ctrl+a F`) |
+| `Z`, `ctrl+a z` | `keys.fullscreen`, `keys.zoom` | zoom the focused pane / back to the split |
 | `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
@@ -40,7 +40,6 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | — (unbound) | `keys.prev_pane` | previous pane in the tab, round robin; no default key (use the arrows after the prefix) |
 | `ctrl+a ;` | `keys.last_pane` | back to the previously focused pane (toggles) |
 | `ctrl+a x` | `keys.close_pane` | close the focused pane (asks in a popup; red when vim / a shell runs there) |
-| `ctrl+a z` | `keys.zoom` | zoom the focused pane / back to the split (the same as `F`) |
 | `ctrl+a t`, `ctrl+a c` | `keys.new_tab` | new tab on the focused pane's target |
 | `ctrl+a w`, `ctrl+a &` | `keys.close_tab` | close the tab (asks in a popup; red when vim / a shell runs there) |
 | `ctrl+a ,` | `keys.rename_tab` | rename the tab in a popup (`enter` saves, `esc` cancels, empty = automatic name) |
@@ -139,7 +138,7 @@ catalogsources, `:rt` routes, `:proj` projects.
 | `x` | `keys.decode` | secrets: decode the selected secret |
 | `X` | `keys.xray` | owner tree (xray) of the selected row: deployments, statefulsets, daemonsets, replicasets, jobs, cronjobs, pods, services (k9s xray) |
 | `M` | `keys.multi_logs` | logs of all pods of the selected workload / service (its selector) or of a pod's siblings, stern-like |
-| `ctrl+f` | `keys.port_forward` | port-forward popup (pods, services, deployments, statefulsets) |
+| `ctrl+f`, `F` | `keys.port_forward` | port-forward popup (pods, services, deployments, statefulsets) |
 | `0` | `keys.all_namespaces` | all namespaces (title `all/<kind>`, NAMESPACE column, the selected object kept); again: back to the namespace before (remembered per pane, also across restarts). Cluster-scoped kinds: a `cluster-scoped` toast. An empty list says `no pods in shop — press 0 for all namespaces` |
 
 ## Pods
@@ -268,7 +267,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | Key | Config | What it does |
 |---|---|---|
 | `w` | `keys.wrap` | toggle line wrap in this pane (start state: `ui.wrap`) |
-| `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is fullscreen (`F`) |
+| `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is zoomed (`Z`) |
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |
 | `p` | `keys.previous` | logs: the previous container's log and back |
@@ -351,6 +350,6 @@ the jump keys.
 | any key | — | goes to vim / the shell |
 | `ctrl+arrows`, `ctrl+a` arrows | `keys.pane_left` … | focus another pane (the editor keeps running; arrows after the prefix repeat) |
 | `ctrl+a` then a pane / tab key | `keys.prefix` | k2's pane and tab keys (`ctrl+a n`, `ctrl+a x` …) |
-| `ctrl+a F` / `ctrl+a Q` | `keys.fullscreen` / `keys.quit` | fullscreen / quit k2 |
+| `Z`, `ctrl+a z` / `ctrl+a Q` | `keys.fullscreen` / `keys.quit` | zoom the pane / quit k2 |
 | `ctrl+a ctrl+a` | `keys.prefix` | send a literal `ctrl+a` (shell: line start; vim: increment the number) |
 | `q`, `esc` | `keys.back` | close the last screen of a failed edit / shell |

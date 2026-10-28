@@ -20,7 +20,7 @@ func TestPrefixKeys(t *testing.T) {
 		t.Fatalf("legend %q", l)
 	}
 
-	for _, want := range []string{`h/" split ↓`, "v/% split →", "o next pane", "; last", "t/c tab", "w/& close tab", ", rename", "n/p tabs", "z/F full"} {
+	for _, want := range []string{`h/" split ↓`, "v/% split →", "o next pane", "; last", "t/c tab", "w/& close tab", ", rename", "n/p tabs", "z/Z full"} {
 		if !strings.Contains(l, want) {
 			t.Fatalf("legend lacks %q: %q", want, l)
 		}
@@ -84,9 +84,9 @@ func TestPrefixKeys(t *testing.T) {
 		t.Fatalf("ctrl+a x y: panes %d", len(m.tabIDs()))
 	}
 
-	m = press(t, m, "ctrl+a", "F")
+	m = press(t, m, "ctrl+a", "z")
 	if !m.zoom {
-		t.Fatal("ctrl+a F")
+		t.Fatal("ctrl+a z")
 	}
 }
 

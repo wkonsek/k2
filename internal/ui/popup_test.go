@@ -67,6 +67,14 @@ func podsModel(t *testing.T, f *shell.Fake) model {
 	return m
 }
 
+func TestFAlsoOpensPortForward(t *testing.T) {
+	m := podsModel(t, podCluster())
+	m = press(t, m, "F")
+	if !m.pfOn || !strings.Contains(ansi.Strip(m.View()), "port-forward pod/web-1") {
+		t.Fatalf("F did not open the forward popup: pf %v status %q", m.pfOn, m.status)
+	}
+}
+
 func TestTeaPortForwardOpenCancel(t *testing.T) {
 	c := &forwardCluster{}
 	m := podsModel(t, c.fake())

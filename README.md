@@ -204,7 +204,7 @@ Then:
 | `c` / `C` / `n` | pick a context / kubeconfig / namespace |
 | `:` | command line: `:pods`, `:dp`, `:helm`, `:xray deploy`, `:logs app=web`, `:pulse` … (`tab` completes) |
 | `enter`, `d`, `e` | open (logs, YAML), describe, edit |
-| `ctrl+f`, `f` | port-forward the selected row, list forwards |
+| `ctrl+f`, `F`, `f` | port-forward the selected row (`F` on a pod too), list forwards |
 | `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
 | `ctrl+a %`, `ctrl+a "` | split right, split down |
@@ -370,14 +370,14 @@ scale, label and annotate, ask in one centered popup with the full target.
 Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
 
 **In-pane vim and shells.** All keys go to the program except `ctrl+arrows`
-and the prefix (`ctrl+a F` fullscreen, `ctrl+a x` close, `ctrl+a Q` quit …).
+and the prefix (`Z` or `ctrl+a z` zooms the pane, `ctrl+a x` close, `ctrl+a Q` quit …).
 vim follows splits and resizes; `kubectl edit` uses `KUBE_EDITOR=vim`, and a
 failed edit leaves its last screen for you to read. Quitting k2 kills all
 editors. `ui.editor_inline: false` opens vim fullscreen instead.
 
 ### Port-forwards
 
-- `ctrl+f` opens a popup with `local:remote` suggestions from the spec and
+- `ctrl+f` or `F` opens a popup with `local:remote` suggestions from the spec and
   matching services (`tab` / arrows cycle). If the local port is busy, k2
   offers to stop the holder and forward again (finding it uses `ss` or
   `lsof`).

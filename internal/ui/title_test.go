@@ -77,7 +77,7 @@ func TestPaneTitleEverywhere(t *testing.T) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
 	}
-	m = press(t, m, "F")
+	m = press(t, m, "Z")
 	if view = ansi.Strip(m.View()); !m.zoom || !strings.Contains(view, "╭ 2 kind-other · home") {
 		t.Errorf("fullscreen title:\n%s", view)
 	}

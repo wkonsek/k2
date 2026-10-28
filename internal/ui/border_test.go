@@ -27,7 +27,7 @@ func borderScreen(t *testing.T, style string, w, h int, keys ...string) string {
 }
 
 func TestActiveBorderKeepsLayout(t *testing.T) {
-	layouts := [][]string{nil, {"ctrl+n"}, {"ctrl+v"}, {"ctrl+n", "ctrl+v"}, {"ctrl+v", "F"}}
+	layouts := [][]string{nil, {"ctrl+n"}, {"ctrl+v"}, {"ctrl+n", "ctrl+v"}, {"ctrl+v", "Z"}}
 	for _, size := range [][2]int{{60, 20}, {100, 30}, {160, 48}} {
 		for _, keys := range layouts {
 			base := borderScreen(t, "normal", size[0], size[1], keys...)

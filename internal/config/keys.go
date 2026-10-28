@@ -159,7 +159,7 @@ func DefaultKeys() Keys {
 	return Keys{
 		Kubeconfig: Binding{"C"}, Context: Binding{"c"}, Namespace: Binding{"n"},
 		Kustomize: Binding{"K"}, Kubectl: Binding{"U"}, Forwards: Binding{"f"},
-		PortForward: Binding{"ctrl+f"}, Describe: Binding{"d"}, Edit: Binding{"e"}, Decode: Binding{"x"},
+		PortForward: Binding{"ctrl+f", "F"}, Describe: Binding{"d"}, Edit: Binding{"e"}, Decode: Binding{"x"},
 		Delete: Binding{"ctrl+d"}, KustomizeDelete: Binding{"d"}, Apply: Binding{"a"}, Diff: Binding{"D"},
 		DeleteAll: Binding{"D"}, PfRestart: Binding{"r"}, PfAuto: Binding{"a"}, Scan: Binding{"s"}, Vim: Binding{"v"}, Wrap: Binding{"w"},
 		CopyMode: Binding{"y"}, LogMark: Binding{"m"}, CopySelect: Binding{"v"}, CopyYank: Binding{"y"}, CopyAll: Binding{"Y"},
@@ -175,7 +175,7 @@ func DefaultKeys() Keys {
 		NewTab: Binding{"t", "c"}, CloseTab: Binding{"w", "&"}, RenameTab: Binding{","},
 		NextTab: Binding{DirectMark + "]", "n", "]"}, PrevTab: Binding{DirectMark + "[", "p", "["},
 		Tab:        [9]Binding{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"7"}, {"8"}, {"9"}},
-		Fullscreen: Binding{"F"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
+		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
 		Back: Binding{"q", "esc", "H"}, Left: Binding{"left", "h"},
 		Select: Binding{"enter", "right", "l"}, Submit: Binding{"enter"},
 		Cancel: Binding{"esc"}, ShellBack: Binding{"esc", "q"},

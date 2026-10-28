@@ -81,7 +81,7 @@
 #   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login)
 #   mark: space               # select rows in a list; delete and M use the selection
 #   profile: ctrl+p           # save the open panes as a profile (:profile save name)
-#   port_forward: ctrl+f
+#   port_forward: [ctrl+f, F]
 #   describe: d
 #   edit: e
 #   decode: x
@@ -150,7 +150,7 @@
 #   rename_tab: ","
 #   next_tab: ["direct ]", n, "]"]
 #   prev_tab: ["direct [", p, "["]
-#   zoom: z
+#   zoom: z                   # prefix form of fullscreen
 #   tab_1: "1"
 #   tab_2: "2"
 #   tab_3: "3"
@@ -164,7 +164,7 @@
 #   pane_right: ["direct ctrl+right", right]
 #   pane_up: ["direct ctrl+up", up]
 #   pane_down: ["direct ctrl+down", down]
-#   fullscreen: F
+#   fullscreen: Z
 #   last_error: "!"
 #   quit: [Q, ctrl+c]
 #   back: [q, esc, H]
