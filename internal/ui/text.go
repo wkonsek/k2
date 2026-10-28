@@ -64,6 +64,8 @@ func padPlain(s string, width int) string {
 	return s
 }
 
+const markSquare = "■"
+
 func iconSlot(s string) string {
 	w := ansi.StringWidth(s)
 	switch {

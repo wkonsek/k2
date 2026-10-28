@@ -36,8 +36,11 @@ func TestActiveBorderKeepsLayout(t *testing.T) {
 				if normalizeBorders(got) != base {
 					t.Fatalf("%s %v %v changes the layout:\n%s\n---\n%s", style, size, keys, got, base)
 				}
-				corner := map[string]string{"thick": "┏", "double": "╔"}[style]
-				if n := strings.Count(got, corner); n != 1 {
+				if style == "thick" {
+					if strings.ContainsAny(got, "┏┓┗┛") || !strings.Contains(got, "━") || !strings.Contains(got, "┃") {
+						t.Fatalf("thick should be heavy with round corners:\n%s", got)
+					}
+				} else if n := strings.Count(got, "╔"); n != 1 {
 					t.Fatalf("%s %v %v: %d focused corners\n%s", style, size, keys, n, got)
 				}
 				for i, line := range strings.Split(got, "\n") {
@@ -62,8 +65,8 @@ func TestActiveBorderProdStaysRed(t *testing.T) {
 	m.kubeconfig, m.context = "/kc", "prod-eu"
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	view := next.(model).View()
-	if colorBefore(view, "┏") != sgr(th.Danger) || !strings.Contains(ansi.Strip(view), skull) {
-		t.Fatalf("prod border not red: %q", colorBefore(view, "┏"))
+	if colorBefore(view, "┃") != sgr(th.Danger) || !strings.Contains(ansi.Strip(view), skull) {
+		t.Fatalf("prod border not red: %q", colorBefore(view, "┃"))
 	}
 }
 

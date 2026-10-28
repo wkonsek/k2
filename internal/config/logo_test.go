@@ -7,54 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func TestLogoAndTaglineDefaults(t *testing.T) {
-	c := Default()
-	if c.UI.Logo != "default" || c.UI.Tagline != DefaultTagline {
-		t.Fatalf("defaults: logo %q tagline %q", c.UI.Logo, c.UI.Tagline)
-	}
-}
-
-func TestLogoSetting(t *testing.T) {
-	for _, n := range LogoStyles {
-		c, w := Parse([]byte("ui:\n  logo: " + n + "\n"))
-		if len(w) != 0 || c.UI.Logo != n {
-			t.Fatalf("logo %s: got %q, warnings %v", n, c.UI.Logo, w)
-		}
-	}
-	c, w := Parse([]byte("ui:\n  logo: Simple\n"))
-	if len(w) != 0 || c.UI.Logo != "simple" {
-		t.Fatalf("Simple: %q %v", c.UI.Logo, w)
-	}
-	for _, bad := range []string{"0", "4", "6", "mountain"} {
-		c, w := Parse([]byte("ui:\n  logo: " + bad + "\n"))
-		if c.UI.Logo != "default" || len(w) != 1 || !strings.Contains(w[0], "ui.logo") {
-			t.Fatalf("logo %s: got %q, warnings %v", bad, c.UI.Logo, w)
-		}
-	}
-}
-
-func TestTaglineSetting(t *testing.T) {
-	cases := map[string]string{
-		`tagline: prod cockpit`:      "prod cockpit",
-		`tagline: "  spaced  "`:      "spaced",
-		`tagline: ""`:                "",
-		`tagline: "3"`:               "3",
-		`tagline: 4.5`:               "4.5",
-		`tagline: ~`:                 "",
-		`tagline: kubectl, elevated`: "kubectl, elevated",
-	}
-	for in, want := range cases {
-		c, w := Parse([]byte("ui:\n  " + in + "\n"))
-		if len(w) != 0 || c.UI.Tagline != want {
-			t.Fatalf("%s: got %q, warnings %v", in, c.UI.Tagline, w)
-		}
-	}
-	c, w := Parse([]byte("ui:\n  tagline: [a, b]\n"))
-	if c.UI.Tagline != DefaultTagline || len(w) != 1 || !strings.Contains(w[0], "ui.tagline") {
-		t.Fatalf("list: got %q, warnings %v", c.UI.Tagline, w)
-	}
-}
-
 func TestLogoTitleColorSetting(t *testing.T) {
 	if Default().UI.LogoTitleColor != "green" {
 		t.Fatalf("default %q", Default().UI.LogoTitleColor)

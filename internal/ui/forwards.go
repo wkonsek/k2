@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,7 +22,7 @@ func (m *model) showForwards() tea.Cmd {
 	m.stage = "fwds"
 	m.content.Title = "Forwards"
 	m.content.SetShowTitle(false)
-	m.content.SetDelegate(contentDelegate(m.tableWidth()))
+	m.content.SetDelegate(fwdDelegate{width: m.tableWidth()})
 	var cmd tea.Cmd
 	k := m.cfg.Keys
 	if len(m.forwards) == 0 {
@@ -71,9 +73,9 @@ func (m *model) stopAll() {
 var forwardCols = []string{"", "STATUS", "PORTS", "TARGET", "NAMESPACE", "CONTEXT", "AGE", "REASON"}
 
 func (m model) forwardCells(f forward.Forward) []string {
-	mark, state, age := "○", m.pfStatus(f), "-"
+	mark, state, age := markSquare, m.pfStatus(f), "-"
 	if forward.Up(f) {
-		mark, age = "●", forward.Age(f.Started)
+		age = forward.Age(f.Started)
 	}
 	if m.autoOn(f) {
 		state += " ↻"
@@ -109,6 +111,36 @@ func forwardRow(cells []string, widths []int) string {
 	return strings.TrimRight(strings.Join(parts, "  "), " ")
 }
 
+type fwdDelegate struct{ width int }
+
+func (d fwdDelegate) Height() int { return 1 }
+
+func (d fwdDelegate) Spacing() int { return 0 }
+
+func (d fwdDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
+
+func (d fwdDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
+	it, ok := li.(item)
+	if !ok {
+		return
+	}
+	text := it.title
+	if index == m.Index() {
+		fmt.Fprint(w, selectedItemStyle.Render(fitCell(" "+text, d.width)))
+		return
+	}
+	if strings.HasPrefix(text, markSquare) {
+		color := errStyle
+		if it.desc == "up" {
+			color = okStyle
+		}
+		rest := strings.TrimPrefix(text, markSquare)
+		fmt.Fprint(w, clipLine(" "+color.Render(markSquare)+itemStyle.Render(rest), d.width))
+		return
+	}
+	fmt.Fprint(w, itemStyle.Render(fitCell(" "+text, d.width)))
+}
+
 func (m model) forwardHeader() string {
 	return forwardRow(forwardCols, m.forwardWidths(m.forwards))
 }
@@ -118,7 +150,11 @@ func (m model) forwardItems() []list.Item {
 	widths := m.forwardWidths(fs)
 	items := make([]list.Item, len(fs))
 	for i, f := range fs {
-		items[i] = item{title: forwardRow(m.forwardCells(f), widths), id: strconv.Itoa(f.PID)}
+		up := ""
+		if forward.Up(f) {
+			up = "up"
+		}
+		items[i] = item{title: forwardRow(m.forwardCells(f), widths), desc: up, id: strconv.Itoa(f.PID)}
 	}
 	return items
 }

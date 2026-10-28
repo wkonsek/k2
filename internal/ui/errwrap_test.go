@@ -49,10 +49,13 @@ func rowsWidth(t *testing.T, view string, w int) {
 func joined(view string) string {
 	var b strings.Builder
 	for _, l := range strings.Split(ansi.Strip(view), "\n") {
-		if i := strings.LastIndex(l, "│││"); i >= 0 {
-			l = l[i+len("│││"):]
+		for _, wall := range []string{"││┃", "││║", "│││"} {
+			if i := strings.LastIndex(l, wall); i >= 0 {
+				l = l[i+len(wall):]
+				break
+			}
 		}
-		l = strings.Trim(l, "│ ")
+		l = strings.Trim(l, "│┃║ ")
 		b.WriteString(l + " ")
 	}
 	return strings.Join(strings.Fields(b.String()), " ")

@@ -28,79 +28,42 @@ func (m model) panel(focused bool, width int) lipgloss.Style {
 }
 
 func (m model) sidebarBody(boxW, height int) string {
-
-	sel, focused := -1, false
 	inner := boxW
 	if inner < 10 {
 		inner = 10
 	}
-	var b strings.Builder
-
-	rest := lineCount(m.whereBlock(inner)) + len(m.nav.Items()) + lineCount(m.fwdDock(inner))
-	if info := m.infoBlock(inner); info != "" {
-		rest += lineCount(info)
+	dock := m.fwdDock(inner)
+	info := m.infoBlock(inner)
+	rule := m.sideRule(inner)
+	body := func(big, withInfo bool) string {
+		var b strings.Builder
+		b.WriteString(m.mark(inner, big))
+		b.WriteString(m.identityBlock(inner))
+		b.WriteString(rule)
+		b.WriteString(m.menuBlock(inner))
+		if withInfo && info != "" {
+			b.WriteString(rule)
+			b.WriteString(info)
+		}
+		return b.String()
 	}
-	withLogo := strings.Count(m.mark(inner, true), "\n")+rest <= height
-	b.WriteString(m.mark(inner, withLogo))
-	b.WriteString(m.whereBlock(inner))
-	head := b.Len()
-	for i, raw := range m.nav.Items() {
-		n := raw.(navItem)
-		ready := false
-		switch n.id {
-		case "kube":
-			ready = m.kubeconfig != ""
-		case "ctx":
-			ready = m.context != ""
-		case "proj":
-			ready = m.namespace != ""
-		case "pods":
-			ready = m.namespace != ""
-		case "pf":
-			ready = m.pod != ""
-		case "fwds":
-			for _, f := range m.forwards {
-				if forward.Up(f) {
-					ready = true
-					break
-				}
-			}
-		case "kust":
-			ready = m.kroot != ""
-		}
-		key := n.key
-		if key == "" {
-			key = " "
-		}
-		dot := " "
-		if ready {
-			dot = "●"
-		}
-		gap := inner - lipgloss.Width(key+"  "+n.title+" "+dot)
-		if gap < 1 {
-			gap = 1
-		}
-		pad := strings.Repeat(" ", gap)
-		var line string
-		switch {
-		case i == sel && focused:
-			line = selectedItemStyle.Render(key + "  " + n.title + pad + " " + dot)
-		case i == sel:
-			line = lipgloss.NewStyle().Foreground(th.Accent).Render(key + "  " + n.title + pad + " " + dot)
-		default:
-			line = keyStyle.Render(key) + itemStyle.Render("  "+n.title+pad+" ")
-			if ready {
-				line += okStyle.Render("●")
-			} else {
-				line += " "
-			}
-		}
-		b.WriteString(clipLine(line, inner) + "\n")
+	fits := func(s string) bool { return lineCount(s)+lineCount(dock) <= height }
+	top := body(true, true)
+	if !fits(top) {
+		top = body(true, false)
 	}
-	top, dock := b.String(), m.fwdDock(inner)
-
-	if info := m.infoBlock(inner); info != "" && lineCount(top)+lineCount(info)+lineCount(dock) <= height {
-		top = top[:head] + info + top[head:]
+	if !fits(top) {
+		top = body(false, true)
+	}
+	if !fits(top) {
+		top = body(false, false)
+	}
+	if dock == "" {
+		lines := strings.Split(strings.TrimRight(top, "\n"), "\n")
+		if len(lines) > height {
+			lines = lines[:height]
+		}
+		return strings.Join(lines, "\n")
 	}
 	return pinBottom(top, dock, height)
 }
@@ -113,36 +76,50 @@ func lineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-func (m model) fwdDock(inner int) string {
-	var rows []string
-	var live []forward.Forward
-	for _, f := range m.forwards {
-		if forward.Up(f) {
-			live = append(live, f)
+func (m model) sideRule(inner int) string {
+	return dimStyle.Render(strings.Repeat("─", inner)) + "\n"
+}
+
+func (m model) menuBlock(inner int) string {
+	var b strings.Builder
+	for _, raw := range m.nav.Items() {
+		n := raw.(navItem)
+		key := strings.TrimSpace(n.key)
+		if key == "" {
+			key = "·"
 		}
+		line := keyStyle.Render(key) + itemStyle.Render("  "+n.title)
+		b.WriteString(clipLine(line, inner) + "\n")
 	}
-	head := dimStyle.Render(clipLine("⇄  forwards", inner))
-	if len(live) == 0 {
-		return head + "\n" + dimStyle.Render("   none")
+	return b.String()
+}
+
+func (m model) fwdDock(inner int) string {
+	if len(m.forwards) == 0 {
+		return ""
 	}
+	rows := []string{dimStyle.Render("forwards")}
 	shown := 0
-	for _, f := range live {
-		if len(rows) >= m.cfg.UI.ForwardDockRows {
-			rows = append(rows, dimStyle.Render(fmt.Sprintf("   +%d", len(live)-shown)))
+	for _, f := range m.forwards {
+		if shown >= m.cfg.UI.ForwardDockRows {
+			rows = append(rows, dimStyle.Render(fmt.Sprintf("+%d", len(m.forwards)-shown)))
 			break
 		}
-		ports := f.Local + " → " + f.Remote
-		rows = append(rows, okStyle.Render("● ")+itemStyle.Render(ports))
+		dot := okStyle.Render(markSquare)
+		if !forward.Up(f) {
+			dot = errStyle.Render(markSquare)
+		}
+		rows = append(rows, dot+itemStyle.Render(" "+f.Local+" → "+f.Remote))
 		name := f.Pod
 		if f.Namespace != "" {
 			name = f.Namespace + "/" + f.Pod
 		}
 		for _, line := range wrapText(name, max(6, inner-2)) {
-			rows = append(rows, itemStyle.Render("  "+line))
+			rows = append(rows, dimStyle.Render("  "+line))
 		}
 		shown++
 	}
-	return head + "\n" + strings.Join(rows, "\n")
+	return strings.Join(rows, "\n")
 }
 
 func pinBottom(top, bottom string, height int) string {
@@ -164,30 +141,27 @@ func pinBottom(top, bottom string, height int) string {
 	return strings.Join(append(topLines, botLines...), "\n")
 }
 
-func (m model) whereBlock(inner int) string {
-	n := len(m.tabIDs())
+func (m model) identityBlock(inner int) string {
 	ctx := or(m.context, "no context")
 	ctxStyle := titleStyle
-	if m.dangerous() {
+	if m.context == "" {
+		ctxStyle = dimStyle
+	}
+	if m.dangerous() && m.context != "" {
 		ctx = skull + " " + ctx
 		ctxStyle = errStyle
 	}
-	ns := or(m.namespace, "all namespaces")
-	path := config.HomePath(or(m.kubeconfig, "none"))
 	var b strings.Builder
-	line := func(s string) { b.WriteString(s + "\n") }
-	line(titleStyle.Render(clipLine(m.whereTitle(n), inner)))
-	line(itemStyle.Render(clipLine(m.paneView(), inner)))
-	line("")
-	line(dimStyle.Render("context"))
+	line := func(s string) { b.WriteString(clipLine(s, inner) + "\n") }
 	for _, part := range wrapText(ctx, inner) {
 		line(ctxStyle.Render(part))
 	}
-	line(dimStyle.Render("config"))
-	for _, part := range wrapText(path, inner) {
-		line(itemStyle.Render(part))
+	if m.kubeconfig != "" {
+		for _, part := range wrapText(config.HomePath(m.kubeconfig), inner) {
+			line(dimStyle.Render(part))
+		}
 	}
-	line(dimStyle.Render("namespace"))
+	ns := or(m.namespace, "all namespaces")
 	for _, part := range wrapText(ns, inner) {
 		line(itemStyle.Render(part))
 	}
@@ -440,46 +414,51 @@ func (m model) yn() string {
 }
 
 func (m model) statusBody(innerW int) string {
-	ctx := m.context
-	if ctx == "" {
-		ctx = "no context"
+	ctx := or(m.context, "no context")
+	ctxStyle := titleStyle
+	if m.context == "" {
+		ctxStyle = dimStyle
+	}
+	if m.dangerous() && m.context != "" {
+		ctx = skull + " " + ctx
+		ctxStyle = errStyle
 	}
 	lines := []string{
-		titleStyle.Render(iconSlot("◉") + " " + ctx),
-		dimStyle.Render(clipLine("   "+config.HomePath(or(m.kubeconfig, "no kubeconfig")), innerW)),
-		dimStyle.Render("   " + or(m.namespace, "all namespaces")),
 		"",
-		titleStyle.Render(iconSlot("⇄") + " forwards"),
+		"",
+		ctxStyle.Render(clipLine(ctx, innerW)),
+		dimStyle.Render(clipLine(config.HomePath(or(m.kubeconfig, "no kubeconfig")), innerW)),
+		itemStyle.Render(clipLine(or(m.namespace, "all namespaces"), innerW)),
+		"",
+		dimStyle.Render("forwards"),
 	}
 	if len(m.forwards) == 0 {
-		lines = append(lines, dimStyle.Render("   none"))
+		lines = append(lines, dimStyle.Render("none"))
 	}
 	for _, f := range m.forwards {
-		mark := errStyle.Render("○")
+		mark := errStyle.Render(markSquare)
 		age := "dead"
 		if f.Reason != "" {
 			age = "dead · " + f.Reason
 		}
 		if forward.Up(f) {
-			mark = okStyle.Render("●")
+			mark = okStyle.Render(markSquare)
 			age = forward.Age(f.Started)
 		}
-		where := fitWidth(forward.Where(f), max(12, innerW/2))
-		target := fitWidth(f.Namespace+"/"+f.Pod, max(8, innerW-len(f.Local)-len(where)-16))
-		row := clipLine(lipgloss.JoinHorizontal(lipgloss.Top,
-			mark,
-			itemStyle.Render(" "+f.Local),
-			dimStyle.Render("  "+where),
-			dimStyle.Render("  "+target),
-			dimStyle.Render("  "+age),
-		), innerW)
-		lines = append(lines, row)
+		target := f.Pod
+		if f.Namespace != "" {
+			target = f.Namespace + "/" + f.Pod
+		}
+		row := mark + itemStyle.Render(" "+f.Local+" → "+f.Remote) + dimStyle.Render("  "+target) + dimStyle.Render("  "+age)
+		lines = append(lines, clipLine(row, innerW))
 	}
-
-	lines = append(lines, "")
-	for _, row := range wrapLine(m.status, innerW) {
-		lines = append(lines, dimStyle.Render(row))
+	if strings.TrimSpace(m.status) != "" {
+		lines = append(lines, "")
+		for _, row := range wrapLine(m.status, innerW) {
+			lines = append(lines, dimStyle.Render(row))
+		}
 	}
+	lines = append(lines, "", dimStyle.Render(strings.Repeat("─", max(innerW, 1))))
 
 	k := m.cfg.Keys
 	hint := func(key, cmd, what string) string {
@@ -722,7 +701,7 @@ type boxGlyphs struct{ tl, tr, bl, br, h, v string }
 
 var (
 	roundGlyphs  = boxGlyphs{"╭", "╮", "╰", "╯", "─", "│"}
-	thickGlyphs  = boxGlyphs{"┏", "┓", "┗", "┛", "━", "┃"}
+	thickGlyphs  = boxGlyphs{"╭", "╮", "╰", "╯", "━", "┃"}
 	doubleGlyphs = boxGlyphs{"╔", "╗", "╚", "╝", "═", "║"}
 )
 

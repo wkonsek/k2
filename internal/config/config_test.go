@@ -17,7 +17,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {
 		t.Fatalf("log defaults: %+v", c.Logs)
 	}
-	if c.UI != (UI{Logo: "default", Tagline: "kubectl, elevated", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "normal", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true}) {
+	if c.UI != (UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true}) {
 		t.Fatalf("ui defaults: %+v", c.UI)
 	}
 	if c.StateDir != DefaultDir() || len(c.Prod) != 0 || len(c.Aliases) != 0 {
@@ -302,7 +302,7 @@ func TestUISwitches(t *testing.T) {
 		`config: ui.animations: "maybe" is not true or false (using true)`,
 		`config: ui.toasts: "" is not true or false (using true)`,
 		`config: ui.toast_seconds: 99 is out of range 1..30 (using 3)`,
-		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, logo, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_width, tabbar, tagline, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
+		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
 	}
 	if strings.Join(w, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("warnings:\n%s", strings.Join(w, "\n"))
@@ -585,7 +585,7 @@ func TestClusterInfoSwitch(t *testing.T) {
 
 func TestActiveBorderAndDimInactive(t *testing.T) {
 	d := Default()
-	if d.UI.ActiveBorder != "normal" || d.UI.DimInactive {
+	if d.UI.ActiveBorder != "thick" || d.UI.DimInactive {
 		t.Fatalf("defaults %q %v", d.UI.ActiveBorder, d.UI.DimInactive)
 	}
 	for _, in := range []string{"normal", "thick", "DOUBLE"} {
@@ -595,7 +595,7 @@ func TestActiveBorderAndDimInactive(t *testing.T) {
 		}
 	}
 	c, w := Parse([]byte("ui: {active_border: dotted}"))
-	if c.UI.ActiveBorder != "normal" || len(w) != 1 || !strings.Contains(w[0], `ui.active_border: "dotted" is not one of normal, thick, double (using normal)`) {
+	if c.UI.ActiveBorder != "thick" || len(w) != 1 || !strings.Contains(w[0], `ui.active_border: "dotted" is not one of normal, thick, double (using thick)`) {
 		t.Fatalf("bad value: %q %v", c.UI.ActiveBorder, w)
 	}
 }

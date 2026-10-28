@@ -72,7 +72,8 @@ func TestCopyModeRendersOnlyText(t *testing.T) {
 		}
 
 		m = press(t, m, "q")
-		if m.copy != nil || m.stage != "logs" || m.zoom != zoom || !strings.Contains(ansi.Strip(m.View()), "│") {
+		back := ansi.Strip(m.View())
+		if m.copy != nil || m.stage != "logs" || m.zoom != zoom || (!strings.Contains(back, "│") && !strings.Contains(back, "┃")) {
 			t.Fatal("q did not go back to the viewer")
 		}
 	}

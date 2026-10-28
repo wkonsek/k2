@@ -506,13 +506,13 @@ func (d dirDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	if index == m.Index() {
 		prefix := "  "
 		if mark {
-			prefix = "● "
+			prefix = markSquare + " "
 		}
 		fmt.Fprint(w, selectedItemStyle.Render(fitCell(prefix+name, d.width)))
 		return
 	}
 	if mark {
-		fmt.Fprint(w, okStyle.Render("●")+" "+itemStyle.Render(name))
+		fmt.Fprint(w, okStyle.Render(markSquare)+" "+itemStyle.Render(name))
 		return
 	}
 	if it.desc == "plain-file" && !kustomize.IsYAML(name) {
@@ -542,7 +542,7 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	if len(d.marks) > 0 {
 		mark = "  "
 		if d.marks[it.id] {
-			mark = "● "
+			mark = markSquare + " "
 		}
 	}
 	if index == m.Index() {
@@ -560,7 +560,7 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	}
 	dot := dimStyle.Render(mark)
 	if d.marks[it.id] {
-		dot = okStyle.Render("● ")
+		dot = okStyle.Render(markSquare + " ")
 	}
 	fmt.Fprint(w, clipLine(dot+it.title, d.width))
 }

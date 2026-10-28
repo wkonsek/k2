@@ -1,8 +1,14 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"k2/internal/forward"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestSidebarNeverFocused(t *testing.T) {
@@ -56,5 +62,51 @@ func TestForwardCommandOpensPods(t *testing.T) {
 		if m.stage != "workpods" || strings.HasPrefix(m.status, "unknown") {
 			t.Errorf(":%s: stage %q status %q", cmd, m.stage, m.status)
 		}
+	}
+}
+
+func TestSidebarIdentity(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig = filepath.Join(home, ".kube", "dppreprod1")
+	m.context = "kind-preprod"
+	m.namespace = "dp-preprod3"
+	m.forwards = []forward.Forward{
+		{Namespace: "shop", Pod: "web", Local: "8080", Remote: "80", PID: os.Getpid()},
+		{Namespace: "shop", Pod: "db", Local: "9090", Remote: "90", PID: -1, Reason: "pod gone"},
+	}
+	plain := ansi.Strip(m.sidebarBody(26, 40))
+	if strings.Contains(plain, "active ·") || strings.Contains(plain, "⇄") || strings.Contains(plain, "▟") || strings.HasPrefix(plain, " ") {
+		t.Fatalf("old chrome:\n%s", plain)
+	}
+	if !strings.HasPrefix(plain, wordmark[0]+"\n"+wordmark[1]+"\nkubectl, elevated\n") {
+		t.Fatalf("wordmark:\n%s", plain)
+	}
+	ctx := strings.Index(plain, "kind-preprod")
+	path := strings.Index(plain, "~/.kube/dppreprod1")
+	ns := strings.Index(plain, "dp-preprod3")
+	menu := strings.Index(plain, "Kubeconfig")
+	ver := strings.Index(plain, "k8s server")
+	head := strings.Index(plain, "\nforwards\n")
+	fwd := strings.Index(plain, "8080 → 80")
+	if ctx < 0 || path < ctx || ns < path || menu < ns || ver < menu || head < ver || fwd < head {
+		t.Fatalf("order ctx %d path %d ns %d menu %d ver %d head %d fwd %d\n%s", ctx, path, ns, menu, ver, head, fwd, plain)
+	}
+	styled := m.sidebarBody(26, 40)
+	if !strings.Contains(styled, okStyle.Render(markSquare)) || !strings.Contains(styled, errStyle.Render(markSquare)) {
+		t.Fatal("alive dot or dead dot missing")
+	}
+	if !strings.Contains(styled, keyStyle.Render("C")+itemStyle.Render("  Kubeconfig")) {
+		t.Fatal("shortcut has a background or the wrong gap")
+	}
+	if !strings.Contains(plain, "shop/web") || strings.Contains(plain, "\ncontext\n") || strings.Contains(plain, "\nnamespace\n") {
+		t.Fatalf("labels:\n%s", plain)
+	}
+	empty := newTestModel(t, testEnv(t), nil)
+	if strings.Contains(ansi.Strip(empty.sidebarBody(26, 40)), "\nforwards\n") {
+		t.Fatal("empty dock still has a heading")
 	}
 }

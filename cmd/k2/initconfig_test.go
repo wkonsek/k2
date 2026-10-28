@@ -111,11 +111,11 @@ func TestCheckConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte("theme: nope\nui:\n  logo: 9\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("theme: nope\nui:\n  sparkles: 9\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out, code = checkConfig()
-	if code != 1 || !strings.Contains(out, "unknown theme") || !strings.Contains(out, "ui.logo") || !strings.Contains(out, "2 problems") {
+	if code != 1 || !strings.Contains(out, "unknown theme") || !strings.Contains(out, "sparkles") || !strings.Contains(out, "2 problems") {
 		t.Fatalf("bad: %d %q", code, out)
 	}
 	if _, exit := cliAction([]string{"--check"}, "v"); !exit {

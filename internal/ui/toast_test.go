@@ -75,7 +75,7 @@ func TestToastRenderedInBorder(t *testing.T) {
 			t.Fatalf("%s: toast not in exactly one bottom border:\n%s", name, joined)
 		}
 		styled := toneStyle(toneOK).Bold(true).Render(" ✓ secret decoded ")
-		if !strings.Contains(out, styled) || !strings.Contains(ansi.Strip(out), "✓ secret decoded ──╯") {
+		if !strings.Contains(out, styled) || !strings.Contains(ansi.Strip(out), "✓ secret decoded ━━╯") {
 			t.Fatalf("%s: toast not right-aligned in the ok color", name)
 		}
 		m.notify(toneErr, "apply failed")

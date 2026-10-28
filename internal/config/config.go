@@ -52,15 +52,7 @@ type Favorite struct {
 	View       string
 }
 
-var LogoStyles = []string{"default", "simple"}
-
-const DefaultTagline = "kubectl, elevated"
-
 type UI struct {
-	Logo string
-
-	Tagline string
-
 	LogoTitleColor     string
 	SidebarWidth       int
 	SidebarNarrowWidth int
@@ -144,7 +136,7 @@ func Default() Config {
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{Logo: "default", Tagline: DefaultTagline, LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "normal", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true},
+		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true},
 		Keys:          DefaultKeys(),
 	}
 }
@@ -531,16 +523,6 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 					p.warn("ui.background: %q is not one of %s (using %s)", v.Value, strings.Join(BackgroundModes, ", "), ui.Background)
 				}
 			}
-		case k == "logo":
-			if s, ok := p.str("ui."+k, v); ok {
-				if s = strings.ToLower(s); contains(LogoStyles, s) {
-					ui.Logo = s
-				} else {
-					p.warn("ui.logo: %q is not one of %s (using %s)", v.Value, strings.Join(LogoStyles, ", "), ui.Logo)
-				}
-			}
-		case k == "tagline":
-			p.tagline(v, &ui.Tagline)
 		case k == "toast_seconds":
 			p.intIn("ui."+k, v, 1, 30, &ui.ToastSeconds)
 		case k == "metrics_every":
@@ -560,23 +542,11 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		case bools[k] != nil:
 			p.boolean("ui."+k, v, bools[k])
 		default:
-			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "tabbar", "tagline", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap")
+			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap")
 			sort.Strings(names)
 			p.warn("ui: unknown setting %q (have %s)", k, strings.Join(names, ", "))
 		}
 	}
-}
-
-func (p *parser) tagline(n *yaml.Node, dst *string) {
-	if n.Kind != yaml.ScalarNode {
-		p.warn("ui.tagline: expected a text (line %d, using %q)", n.Line, *dst)
-		return
-	}
-	if n.Tag == "!!null" {
-		*dst = ""
-		return
-	}
-	*dst = strings.TrimSpace(n.Value)
 }
 
 func themeList() string {

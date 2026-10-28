@@ -303,9 +303,10 @@ func TestPodMetricsBars(t *testing.T) {
 		m := resize(t, actionModel(t, f), size.w, 30)
 		m = tickOnce(t, m)
 		view := ansi.Strip(m.View())
+		pane := rightOfSidebar(m, view)
 		assertPaneWidths(t, m.View(), size.w)
-		if strings.Contains(view, "█") != size.bar || strings.Contains(view, "480m") != size.value || strings.Contains(view, "CPU") != size.cols {
-			t.Errorf("width %d: bar %v value %v cols %v\n%s", size.w, strings.Contains(view, "█"), strings.Contains(view, "480m"), strings.Contains(view, "CPU"), view)
+		if strings.Contains(pane, "█") != size.bar || strings.Contains(view, "480m") != size.value || strings.Contains(view, "CPU") != size.cols {
+			t.Errorf("width %d: bar %v value %v cols %v\n%s", size.w, strings.Contains(pane, "█"), strings.Contains(view, "480m"), strings.Contains(view, "CPU"), view)
 		}
 	}
 
@@ -318,7 +319,20 @@ func TestPodMetricsBars(t *testing.T) {
 	m = resize(t, actionModel(t, f), 200, 30)
 	m.cfg.UI.MetricsBars = false
 	m = tickOnce(t, m)
-	if strings.Contains(ansi.Strip(m.View()), "█") {
+	if strings.Contains(rightOfSidebar(m, ansi.Strip(m.View())), "█") {
 		t.Fatal("bars with metrics_bars: false")
 	}
+}
+
+func rightOfSidebar(m model, view string) string {
+	sideW, _, _ := m.layout()
+	cut := sideW + 4
+	var b strings.Builder
+	for _, line := range strings.Split(view, "\n") {
+		if w := ansi.StringWidth(line); w > cut {
+			b.WriteString(ansi.Cut(line, cut, w))
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
 }

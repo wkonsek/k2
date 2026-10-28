@@ -65,8 +65,8 @@ func TestKustomizeShowsAllFiles(t *testing.T) {
 	}
 	m.content.Select(0)
 	view := m.content.View()
-	if !strings.Contains(view, okStyle.Render("●")+" "+itemStyle.Render("kustomization.yaml")) ||
-		!strings.Contains(view, okStyle.Render("●")+" "+itemStyle.Render("base/")) {
+	if !strings.Contains(view, okStyle.Render(markSquare)+" "+itemStyle.Render("kustomization.yaml")) ||
+		!strings.Contains(view, okStyle.Render(markSquare)+" "+itemStyle.Render("base/")) {
 		t.Fatalf("green dots missing:\n%q", view)
 	}
 	if !strings.Contains(view, "base/") || !strings.Contains(view, "docs/") {

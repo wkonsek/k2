@@ -111,7 +111,7 @@ func (m *model) pulseTick() []tea.Cmd {
 }
 
 const (
-	markOK   = "● "
+	markOK   = markSquare + " "
 	markWarn = "▲ "
 	markErr  = "✖ "
 	markDim  = "· "

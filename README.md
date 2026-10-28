@@ -78,7 +78,7 @@ dead forward stays dead across restarts.
 <!-- GIF: docs/demo/port-forward.gif -->
 
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
-green dot and diffs, applies or deletes them. A plain YAML file has no dot;
+green square and diffs, applies or deletes them. A plain YAML file has no square;
 `a` applies it, `D` diffs it and `d` deletes it, all with `kubectl -f`. Apply and delete show a
 progress bar over the objects the kustomization renders to, every output
 line gets an icon and a color (`+` created, `~` configured, `−` deleted,
@@ -338,11 +338,11 @@ limits, the objects in trouble and the newest warning events; refreshed
 every `ui.refresh_every` seconds.
 
 **Kustomize (`K`).** Every file and directory is listed (only `.git`,
-`node_modules` and `vendor` are skipped); a green dot marks kustomizations.
-A plain YAML file has no dot; `a`, `D` and `d` use `kubectl -f`. Other files are
+`node_modules` and `vendor` are skipped); a green square marks kustomizations.
+A plain YAML file has no square; `a`, `D` and `d` use `kubectl -f`. Other files are
 dimmed. `s` scans for kustomizations, `p` jumps to a
 typed path with shell-like `tab` completion, `e` / `enter` opens a file in
-vim. `a` apply, `D` diff, `d` delete act on a green-dot row or a plain YAML
+vim. `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
 file. Apply and
 delete ask first, naming the path, context and object count. After a
 delete k2 shows `waiting for N to terminate…`. The summary ends with
@@ -536,10 +536,8 @@ theme: tokyo-night
 #   bright: "#ffffff"
 ui:
   background: transparent   # transparent (default) | theme
-  active_border: thick      # focused pane: normal (default) | thick | double
+  active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
-  logo: default             # default | simple
-  tagline: "kubectl, elevated"   # any text, "" none
   logo_title_color: green   # the bold "k2": green | accent
 ```
 
@@ -551,15 +549,18 @@ ui:
   on them shows a one-time hint.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
-- The sidebar shows `k2`, `kubectl`, `k8s server` and (when readable) `ocp`
-  versions of the focused context, fetched in the background
-  (`ui.cluster_info: false` hides them). The logo and the cluster info are
-  dropped first when the sidebar is short.
+- The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then the
+  focused context, the kubeconfig path and the namespace, then the actions.
+  Shortcut letters are plain. Under that, when it fits, are `k2`, `kubectl`,
+  `k8s server` and (when readable) `ocp` versions of the focused context,
+  fetched in the background (`ui.cluster_info: false` hides them). The big
+  `k2` and the cluster info are dropped first when the sidebar is short.
+  Port-forwards sit at the bottom only when there is one: a `forwards`
+  heading, a green square while it is alive and a red square when it is dead.
 - Pane titles show the context next to the view (`1 kind-kindest ·
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
-- The sidebar logo is `default` (the block mountain) or `simple`. The line
-  under `k2` is `tagline`; leave it empty for none.
+- The line under `k2` is always `kubectl, elevated`.
 
 ### Token lifetime
 

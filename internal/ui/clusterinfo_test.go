@@ -120,7 +120,7 @@ func TestClusterInfoOffAndSmall(t *testing.T) {
 	if strings.Contains(short, "kubectl ") || !strings.Contains(short, "Kustomize") {
 		t.Fatalf("short sidebar (%d rows):\n%s", h, short)
 	}
-	if tall := ansi.Strip(m.sidebarBody(20, h+6)); !strings.Contains(tall, "kubectl ") {
+	if tall := ansi.Strip(m.sidebarBody(20, h+8)); !strings.Contains(tall, "kubectl ") {
 		t.Fatalf("block missing with room:\n%s", tall)
 	}
 	narrow := m.sidebarBody(12, 40)

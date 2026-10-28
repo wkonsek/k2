@@ -52,7 +52,7 @@
 #   toasts: true
 #   toast_seconds: 3          # 1..30
 #   editor_inline: true       # false opens vim fullscreen
-#   active_border: normal     # normal | thick | double
+#   active_border: thick      # thick (default) | normal | double
 #   dim_inactive: false
 #   cluster_info: true
 #   pod_metrics: true
@@ -65,8 +65,6 @@
 #   token_crit: 10            # percent, 1..99
 #   wrap: false
 #   copy_mode_hint: true
-#   logo: default             # default | simple
-#   tagline: "kubectl, elevated"  # any text, "" hides it
 #   logo_title_color: green   # green | accent
 #   clipboard: auto           # auto | wl-copy | xclip | xsel | osc52
 # keys:                       # one key, or a list. "direct " means without the ctrl+a prefix

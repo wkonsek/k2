@@ -128,6 +128,11 @@ func (m *model) fitContent(mainW, panelH int) {
 			lst.SetDelegate(dirDelegate{width: listW})
 			return
 		}
+		if stage == "fwds" {
+			lst.SetShowTitle(false)
+			lst.SetDelegate(fwdDelegate{width: listW})
+			return
+		}
 		lst.SetShowTitle(true)
 		lst.SetDelegate(contentDelegate(listW))
 	}

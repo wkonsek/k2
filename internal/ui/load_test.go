@@ -75,7 +75,7 @@ func TestOpenPodsShowsSpinnerThenTable(t *testing.T) {
 	if !strings.Contains(view, "╭ 1 kc:kind-dev · home · ") || !strings.Contains(view, "loading pods… 0.8s") {
 		t.Fatalf("no spinner in the header:\n%s", view)
 	}
-	if !strings.Contains(view, "◉  kind-dev") {
+	if !strings.Contains(view, "/kc") || !strings.Contains(view, "shop") {
 		t.Fatal("pane went blank while loading")
 	}
 	m = settle(t, m, cmd)
