@@ -54,7 +54,7 @@ func podState(r shell.Runner, f Forward) (bool, error) {
 	if msg == "" {
 		msg = res.Err.Error()
 	}
-	return false, fmt.Errorf("%s", shell.OneLine(msg))
+	return false, fmt.Errorf("%s", msg)
 }
 
 func nsOr(ns string) string {

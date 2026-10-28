@@ -305,7 +305,7 @@ func GuessOwner(r shell.Runner, kc, ctx, ns, pod string) (string, error) {
 		"--kubeconfig", kc, "--context", ctx, "--request-timeout=10s",
 		"-o", `jsonpath={range .items[*]}{.kind}/{.metadata.name}{"\n"}{end}`)
 	if err != nil {
-		return "", fmt.Errorf("pod %s not found; no owner recorded, and the lookup failed: %s", pod, shell.OneLine(err.Error()))
+		return "", fmt.Errorf("pod %s not found; no owner recorded, and the lookup failed: %s", pod, shell.FailText([]byte(err.Error()), nil))
 	}
 	objs := map[string][]string{}
 	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {

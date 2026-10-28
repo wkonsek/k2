@@ -142,22 +142,40 @@ func (m *model) notKust() (tea.Model, tea.Cmd) {
 }
 
 func (m model) selectedKust() (string, bool) {
+	path, file, ok := m.selectedTarget()
+	if !ok || file {
+		return "", false
+	}
+	return path, true
+}
+
+func (m model) selectedTarget() (path string, file, ok bool) {
 	sel := m.content.SelectedItem()
 	if sel == nil {
-		return "", false
+		return "", false, false
 	}
 	it := sel.(item)
-	if it.desc != "kust" && it.desc != "kust-file" {
-		return "", false
+	switch it.desc {
+	case "kust", "kust-file":
+		if it.id == "" || it.id == ".." {
+			return "", false, false
+		}
+		return it.id, false, true
+	case "plain-file":
+		if !kustomize.IsYAML(it.title) {
+			return "", false, false
+		}
+		return filepath.Join(it.id, it.title), true, true
 	}
-	if it.id == "" || it.id == ".." {
-		return "", false
-	}
-	return it.id, true
+	return "", false, false
 }
 
 func (m model) kustomizeCmd(verb, dir string) tea.Cmd {
 	kc, ctx, pane, token, r := m.kubeconfig, m.context, m.logID, m.load.token, m.k.Run
+	file := false
+	if st, err := os.Stat(dir); err == nil && !st.IsDir() {
+		file = true
+	}
 	target := m.kustTarget(dir)
 	finish := func(text string, code int) kOutMsg {
 		return kOutMsg{id: pane, text: text, code: code, target: target, ctx: ctx}
@@ -171,7 +189,12 @@ func (m model) kustomizeCmd(verb, dir string) tea.Cmd {
 	return func() tea.Msg {
 		ch := make(chan tea.Msg, 16)
 		go func() {
-			total, _ := kustomize.Build(r, dir)
+			var total int
+			if file {
+				total = kustomize.KindCount(dir)
+			} else {
+				total, _ = kustomize.Build(r, dir)
+			}
 			ch <- progressMsg{id: pane, token: token, total: total, ch: ch}
 			done, deleted := 0, 0
 			text, code := kustomize.RunStream(r, verb, dir, kc, ctx, func(line string) {

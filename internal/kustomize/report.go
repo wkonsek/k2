@@ -2,6 +2,7 @@ package kustomize
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -125,8 +126,12 @@ func Build(r shell.Runner, dir string) (total int, ok bool) {
 	return total, total > 0
 }
 
-func RunStream(r shell.Runner, verb, dir, kc, ctx string, onLine func(string)) (string, int) {
-	return run(r, shell.Request{Name: "kubectl", Args: []string{verb, "-k", dir, "--kubeconfig", kc, "--context", ctx}, OnLine: onLine}, verb)
+func RunStream(r shell.Runner, verb, target, kc, ctx string, onLine func(string)) (string, int) {
+	flag := "-k"
+	if st, err := os.Stat(target); err == nil && !st.IsDir() {
+		flag = "-f"
+	}
+	return run(r, shell.Request{Name: "kubectl", Args: []string{verb, flag, target, "--kubeconfig", kc, "--context", ctx}, OnLine: onLine}, verb)
 }
 
 type Report struct {

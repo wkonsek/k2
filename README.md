@@ -78,7 +78,8 @@ dead forward stays dead across restarts.
 <!-- GIF: docs/demo/port-forward.gif -->
 
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
-green dot and diffs, applies or deletes them. Apply and delete show a
+green dot and diffs, applies or deletes them. A plain YAML file has no dot;
+`a` applies it with `kubectl apply -f`. Apply and delete show a
 progress bar over the objects the kustomization renders to, every output
 line gets an icon and a color (`+` created, `~` configured, `−` deleted,
 `✗` error), and a bordered summary closes the run. Diffs get one bold header
@@ -334,10 +335,12 @@ limits, the objects in trouble and the newest warning events; refreshed
 every `ui.refresh_every` seconds.
 
 **Kustomize (`K`).** Every file and directory is listed (only `.git`,
-`node_modules` and `vendor` are skipped); a green dot marks kustomizations,
-non-YAML files are dimmed. `s` scans for kustomizations, `p` jumps to a
+`node_modules` and `vendor` are skipped); a green dot marks kustomizations.
+A plain YAML file has no dot and `a` applies it with `-f`. Other files are
+dimmed. `s` scans for kustomizations, `p` jumps to a
 typed path with shell-like `tab` completion, `e` / `enter` opens a file in
-vim. `a` apply, `D` diff, `d` delete act on green-dot rows; apply and
+vim. `a` apply, `D` diff, `d` delete act on green-dot rows; `a` also applies
+a plain YAML file. Apply and
 delete ask first, naming the path, context and object count. After a
 delete k2 shows `waiting for N to terminate…`. The summary ends with
 `── exit N · done|failed|differences ──`, and the cursor stays on the same
@@ -539,7 +542,7 @@ ui:
   on them shows a one-time hint.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
-- The sidebar shows `k2`, `kubectl`, `server` and (when readable) `ocp`
+- The sidebar shows `k2`, `kubectl`, `k8s server` and (when readable) `ocp`
   versions of the focused context, fetched in the background
   (`ui.cluster_info: false` hides them). The logo and the cluster info are
   dropped first when the sidebar is short.
@@ -555,7 +558,10 @@ Under the cluster info the sidebar shows how long the focused context's
 token stays valid: `token    ████████▌░░░ 5h12m`. The bar shrinks live
 (computed locally, no API calls), turns yellow below `ui.token_warn` (25 %)
 or under an hour, red below `ui.token_crit` (10 %) or under 15 minutes, and
-says `token expired · run oc login` once it has expired.
+says `expired` with `^l or :login` on the next line once it has expired. `ctrl+l` or `:login`
+opens a box: paste the new token and it replaces that user's `token` in
+the kubeconfig (or rewrites `tokenFile`, when that is where the token
+lives). The token is not printed afterwards.
 
 | credential of the context's user | sidebar |
 |---|---|
@@ -568,8 +574,7 @@ again when the context changes or the kubeconfig gets a new token, so after
 `oc login` in another terminal the bar starts over by itself. When the
 cluster sets `inactivityTimeoutSeconds`, k2 adds `idle limit 8h00m` under
 the bar, since the token may end earlier. The token itself is never
-printed, logged, stored or passed to kubectl; k2 keeps only a hash of it in
-memory. `ui.token_bar: false` turns it off.
+printed, logged or passed to kubectl; k2 keeps only a hash of it in memory. `ui.token_bar: false` turns it off.
 
 ### Requirements
 

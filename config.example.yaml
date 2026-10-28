@@ -78,6 +78,7 @@
 #   forwards: f
 #   favorites: b
 #   theme: ctrl+t             # popup of themes for this context; saved to ui.context_themes
+#   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login)
 #   port_forward: ctrl+f
 #   describe: d
 #   edit: e

@@ -150,8 +150,8 @@ func (m *model) askKust(verb string) (tea.Model, tea.Cmd) {
 		m.status = "nothing selected"
 		return *m, nil
 	}
-	dir, ok := m.selectedKust()
-	if !ok {
+	target, file, ok := m.selectedTarget()
+	if !ok || (file && verb != "apply") {
 		return m.notKust()
 	}
 	if m.kubeconfig == "" || m.context == "" {
@@ -159,29 +159,39 @@ func (m *model) askKust(verb string) (tea.Model, tea.Cmd) {
 		return *m, nil
 	}
 	m.rememberK()
-	rel := dir
+	rel := target
 	if m.kroot != "" {
-		if r, err := filepath.Rel(m.kroot, dir); err == nil && r != "" && !strings.HasPrefix(r, "..") {
+		if r, err := filepath.Rel(m.kroot, target); err == nil && r != "" && !strings.HasPrefix(r, "..") {
 			rel = r
 		}
 	}
 	title := "⇪ kustomize apply"
+	if file {
+		title = "⇪ kubectl apply"
+	}
 	if verb == "delete" {
 		title = "✗ kustomize delete"
 	}
 	next := m.ask(askSpec{
 		title:    title,
 		question: verb + " " + rel + " on " + m.context + "?",
-		details:  []string{config.HomePath(dir), m.contextLine(), "resources: counting…"},
+		details:  []string{config.HomePath(target), m.contextLine(), "resources: counting…"},
 		danger:   true,
 		name:     rel,
 		onYes: func(m model) (tea.Model, tea.Cmd) {
-			return m.runKust(verb, dir)
+			return m.runKust(verb, target)
 		},
 	})
 	seq, r := next.dlgSeq, m.k.Run
+	if file {
+		n := kustomize.KindCount(target)
+		if n == 0 {
+			n = 1
+		}
+		return next, func() tea.Msg { return kcountMsg{seq: seq, n: n, ok: true} }
+	}
 	return next, func() tea.Msg {
-		n, ok := kustomize.Build(r, dir)
+		n, ok := kustomize.Build(r, target)
 		return kcountMsg{seq: seq, n: n, ok: ok}
 	}
 }

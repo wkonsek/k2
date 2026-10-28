@@ -218,7 +218,7 @@ func TestLastErrorPopup(t *testing.T) {
 	}
 	view := m.View()
 	rowsWidth(t, view, m.width)
-	if !strings.Contains(joined(view), "THE-END") || !strings.Contains(ansi.Strip(view), "✗ last error") {
+	if !strings.Contains(ansi.Strip(view), "THE-END") || !strings.Contains(ansi.Strip(view), "✗ last error") {
 		t.Fatalf("popup cuts the error:\n%s", ansi.Strip(view))
 	}
 	got := copyClip(t)
@@ -273,4 +273,32 @@ func TestKubectlOutputErrorsWrapped(t *testing.T) {
 		t.Fatalf("kubectl output cuts the error:\n%s", ansi.Strip(m.View()))
 	}
 	rowsWidth(t, m.View(), 100)
+}
+
+func TestErrorLogOpensFullResponses(t *testing.T) {
+	m := v4Model(t, v4Cluster())
+	first := "FIRST " + strings.Repeat("alpha ", 30) + "END-A"
+	second := "SECOND " + strings.Repeat("beta ", 30) + "END-B"
+	m.noteErr(first)
+	m.context = "other"
+	m.noteErr(second)
+	m = press(t, m, "!")
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "END-B") || !strings.Contains(view, "2/2") {
+		t.Fatalf("popup cut the error:\n%s", view)
+	}
+	m = press(t, m, "[")
+	if !strings.Contains(ansi.Strip(m.View()), "END-A") || !strings.Contains(ansi.Strip(m.View()), "1/2") {
+		t.Fatal("older error missing")
+	}
+	m = press(t, m, "enter")
+	if m.stage != "view" || !strings.Contains(m.logText, "END-A") || strings.Contains(m.logText, "END-B") {
+		t.Fatalf("one log stage %s text %q", m.stage, m.logText)
+	}
+	m.noteErr(first)
+	m.noteErr(second)
+	m = press(t, m, "!", "a")
+	if m.stage != "view" || !strings.Contains(m.logText, "END-A") || !strings.Contains(m.logText, "END-B") {
+		t.Fatalf("all log stage %s", m.stage)
+	}
 }

@@ -82,6 +82,9 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 	case km.Theme.Has(key):
 		next, cmd := m.openTheme()
 		return next, cmd, true
+	case km.Login.Has(key):
+		next, cmd := m.openLogin()
+		return next, cmd, true
 	case km.Favorites.Has(key):
 		next, cmd := m.openFavorites()
 		return next, cmd, true

@@ -104,6 +104,16 @@ func TestRun(t *testing.T) {
 	if got := f.Calls()[0].Line(); got != "kubectl apply -k /k/app --kubeconfig /kc --context ctx" {
 		t.Fatal(got)
 	}
+	file := filepath.Join(t.TempDir(), "app.yaml")
+	if err := os.WriteFile(file, []byte("kind: Application\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, code := Run(f, "apply", file, "/kc", "ctx"); code != 0 {
+		t.Fatal(code)
+	}
+	if got := f.Calls()[len(f.Calls())-1].Line(); got != "kubectl apply -f "+file+" --kubeconfig /kc --context ctx" {
+		t.Fatal(got)
+	}
 	if _, code := Run(f, "diff", "/k/app", "/kc", "ctx"); code != 1 {
 		t.Fatal(code)
 	}

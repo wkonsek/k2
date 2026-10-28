@@ -159,6 +159,9 @@ func (m model) runV07Command(raw string) (tea.Model, tea.Cmd, bool) {
 	case "theme", "themes":
 		next, cmd := m.openTheme()
 		return next, cmd, true
+	case "login", "token":
+		next, cmd := m.openLogin()
+		return next, cmd, true
 	}
 	return m, nil, false
 }
@@ -232,7 +235,7 @@ func cycleHint(cands []string, at int) string {
 
 func (m model) cmdCandidates(tok string) []string {
 	base := []string{"kubeconfig", "context", "namespace", "pods", "forward", "forwards", "kustomize", "kubectl",
-		"xray", "logs", "helm", "pulse", "fav", "theme"}
+		"xray", "logs", "helm", "pulse", "fav", "theme", "login"}
 	seen := map[string]bool{}
 	var out []string
 	add := func(s string) {

@@ -117,6 +117,69 @@ func TestTokenOf(t *testing.T) {
 	}
 }
 
+func TestSetContextToken(t *testing.T) {
+	dir := t.TempDir()
+	const secret = "sha256~new-token-value"
+	body := "# keep\napiVersion: v1\ncurrent-context: c-token\ncontexts:\n- name: c-token\n  context: {cluster: x, user: u-token}\n- name: c-file\n  context: {cluster: x, user: u-file}\n- name: c-exec\n  context: {cluster: x, user: u-exec}\nusers:\n- name: u-other\n  user: {token: leave-me}\n- name: u-token\n  user:\n    token: sha256~old # stay\n- name: u-file\n  user:\n    tokenFile: tok.txt\n- name: u-exec\n  user:\n    exec: {command: aws}\n"
+	path := filepath.Join(dir, "config")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "tok.txt"), []byte("filetoken\n"), 0o600)
+
+	got, err := SetContextToken(path, "c-token", "  "+secret+"\n")
+	if err != nil || got != path {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	text := string(data)
+	if !strings.Contains(text, "# keep") || !strings.Contains(text, "leave-me") || !strings.Contains(text, "# stay") {
+		t.Fatalf("rewrote too much:\n%s", text)
+	}
+	if !strings.Contains(text, `token: "`+secret+`"`) || strings.Contains(text, "sha256~old") {
+		t.Fatalf("token line:\n%s", text)
+	}
+	if strings.Contains(errString(err), secret) {
+		t.Fatal("error leaked the token")
+	}
+	if tok := TokenOf(path, "c-token"); tok.secret != secret {
+		t.Fatalf("read back %v", tok.Empty())
+	}
+
+	if _, err := SetContextToken(path, "c-file", secret); err != nil {
+		t.Fatal(err)
+	}
+	file, _ := os.ReadFile(filepath.Join(dir, "tok.txt"))
+	if string(file) != secret+"\n" {
+		t.Fatalf("tokenFile %q", file)
+	}
+	if strings.Contains(string(mustRead(path)), secret) && strings.Count(string(mustRead(path)), secret) != 1 {
+		t.Fatal("tokenFile secret written into the kubeconfig")
+	}
+
+	if _, err := SetContextToken(path, "c-exec", secret); err == nil || strings.Contains(err.Error(), secret) {
+		t.Fatalf("exec user: %v", err)
+	}
+	if _, err := SetContextToken(path, "missing", secret); err == nil {
+		t.Fatal("missing context")
+	}
+	if _, err := SetContextToken(path, "c-token", "two\nlines"); err == nil {
+		t.Fatal("newline token")
+	}
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func mustRead(path string) []byte {
+	b, _ := os.ReadFile(path)
+	return b
+}
+
 func TestTokenRedacted(t *testing.T) {
 	tok := Token{secret: "sha256~supersecret"}
 	type wrap struct{ T Token }

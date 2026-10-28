@@ -22,6 +22,7 @@ type clusterInfoMsg struct {
 }
 
 const infoGrace = time.Second
+const infoPad = 12
 
 func infoKey(kubeconfig, context string) string { return kubeconfig + "\x00" + context }
 
@@ -93,12 +94,12 @@ func (m model) infoBlock(inner int) string {
 	}
 	var b strings.Builder
 	row := func(label, val string) {
-		b.WriteString(clipLine(dimStyle.Render(padRight(label, 9))+val, inner) + "\n")
+		b.WriteString(clipLine(dimStyle.Render(padRight(label, infoPad))+val, inner) + "\n")
 	}
 	row("k2", itemStyle.Render(or(m.version, "dev")))
 	row("kubectl", value(ci.v.Client))
 	if m.context != "" {
-		row("server", value(ci.v.Server))
+		row("k8s server", value(ci.v.Server))
 		if ci.v.OpenShift != "" {
 			row("ocp", itemStyle.Render(ci.v.OpenShift))
 		}

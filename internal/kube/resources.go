@@ -119,11 +119,7 @@ func (c Client) ObjectsWhere(kubeconfig, context, kind, namespace, selector stri
 		out, err = run(false)
 	}
 	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, fmt.Errorf("%s", shell.OneLine(msg))
+		return nil, fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return ParseObjects(out)
 }

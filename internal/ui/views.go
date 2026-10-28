@@ -68,32 +68,31 @@ func (m model) sidebarBody(boxW, height int) string {
 		case "kust":
 			ready = m.kroot != ""
 		}
-		prefix := "  "
-		if i == sel {
-			prefix = "▸ "
+		key := n.key
+		if key == "" {
+			key = " "
 		}
 		dot := " "
 		if ready {
 			dot = "●"
 		}
-		label := iconSlot(n.icon) + " " + n.title
-		tail := " " + n.key + " " + dot
-		gap := inner - lipgloss.Width(prefix+label+tail)
+		gap := inner - lipgloss.Width(key+"  "+n.title+" "+dot)
 		if gap < 1 {
 			gap = 1
 		}
-		text := prefix + label + strings.Repeat(" ", gap) + tail
+		pad := strings.Repeat(" ", gap)
 		var line string
-		if i == sel && focused {
-			line = selectedItemStyle.Render(text)
-		} else if i == sel {
-			line = lipgloss.NewStyle().Foreground(th.Accent).Render(text)
-		} else {
-			line = itemStyle.Render(prefix+label+strings.Repeat(" ", gap)+" ") + keyStyle.Render(n.key) + " "
+		switch {
+		case i == sel && focused:
+			line = selectedItemStyle.Render(key + "  " + n.title + pad + " " + dot)
+		case i == sel:
+			line = lipgloss.NewStyle().Foreground(th.Accent).Render(key + "  " + n.title + pad + " " + dot)
+		default:
+			line = keyStyle.Render(key) + itemStyle.Render("  "+n.title+pad+" ")
 			if ready {
-				line += okStyle.Render(dot)
+				line += okStyle.Render("●")
 			} else {
-				line += dot
+				line += " "
 			}
 		}
 		b.WriteString(clipLine(line, inner) + "\n")

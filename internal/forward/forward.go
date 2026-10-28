@@ -228,11 +228,11 @@ func SpawnTarget(r shell.Runner, logDir, kc, ctx, ns, kind, name, local, remote 
 		if msg == "" {
 			msg = "could not start port-forward"
 		}
-		return Forward{}, fmt.Errorf("%s", shell.OneLine(msg))
+		return Forward{}, fmt.Errorf("%s", msg)
 	}
 	pid, err := strconv.Atoi(fields[len(fields)-1])
 	if err != nil {
-		return Forward{}, fmt.Errorf("%s", shell.OneLine(string(out)))
+		return Forward{}, fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
 	time.Sleep(spawnWait)
 	if !Alive(pid) {

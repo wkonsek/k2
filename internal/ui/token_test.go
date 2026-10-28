@@ -78,8 +78,10 @@ func TestTokenRows(t *testing.T) {
 			if !strings.HasPrefix(plain, "token") || !strings.Contains(plain, c.text) || !strings.Contains(out, stylePrefix(c.style)) {
 				t.Errorf("at %v inner %d: %q", c.at, inner, plain)
 			}
-			if w := ansi.StringWidth(strings.TrimSuffix(out, "\n")); w > inner {
-				t.Errorf("inner %d: row is %d cells", inner, w)
+			for _, line := range strings.Split(strings.TrimSuffix(out, "\n"), "\n") {
+				if w := ansi.StringWidth(line); w > inner {
+					t.Errorf("inner %d: row is %d cells: %q", inner, w, line)
+				}
 			}
 			if inner >= 26 && !strings.ContainsAny(plain, "█░") {
 				t.Errorf("inner %d: no bar in %q", inner, plain)
@@ -93,13 +95,14 @@ func TestTokenRows(t *testing.T) {
 		t.Errorf("< 1h should be yellow: %q", out)
 	}
 
+	want := "token       expired\n            ^l or :login\n"
 	m = tokenModel(t, day, day.End.Add(time.Minute))
-	if plain := ansi.Strip(m.tokenRows(40)); plain != "token    expired · run oc login\n" {
+	if plain := ansi.Strip(m.tokenRows(40)); plain != want {
 		t.Errorf("expired: %q", plain)
 	}
 
 	m = tokenModel(t, kube.TokenLife{Expired: true}, t0)
-	if plain := ansi.Strip(m.tokenRows(40)); plain != "token    expired · run oc login\n" {
+	if plain := ansi.Strip(m.tokenRows(40)); plain != want {
 		t.Errorf("rejected token: %q", plain)
 	}
 
@@ -242,6 +245,33 @@ func TestTokenLookupAndRelogin(t *testing.T) {
 		if strings.Contains(everything.String(), s) {
 			t.Fatalf("token %s leaked", s)
 		}
+	}
+}
+
+func TestLoginPopupReplacesToken(t *testing.T) {
+	const secret = "sha256~popup-token"
+	path := filepath.Join(t.TempDir(), "config")
+	writeTokenKubeconfig(t, path, "    token: sha256~old\n", time.Now())
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = path, "ctx"
+	m = press(t, m, "ctrl+l")
+	if m.dlg == nil || m.dlg.act != "login" {
+		t.Fatalf("popup %+v", m.dlg)
+	}
+	m.dlg.input.SetValue("  " + secret + "\n")
+	next, _ := m.submitLogin()
+	m = next.(model)
+	if m.dlg != nil || !strings.Contains(m.status, "token updated") || strings.Contains(m.status, secret) {
+		t.Fatalf("status %q dlg %v", m.status, m.dlg != nil)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), `"`+secret+`"`) || strings.Contains(string(data), "sha256~old") {
+		t.Fatalf("not replaced: %v\n%s", err, data)
+	}
+	next, _ = m.runCommand("login")
+	m = next.(model)
+	if m.dlg == nil || m.dlg.act != "login" {
+		t.Fatal(" :login did not open")
 	}
 }
 

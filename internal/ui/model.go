@@ -211,6 +211,7 @@ type model struct {
 	vs          viewState
 	dlgSeq      int
 	lastErr     lastErr
+	errLog      []lastErr
 	dlg         *dialog
 	pfOn        bool
 	pfKind      string

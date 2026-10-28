@@ -189,10 +189,7 @@ func (c Client) YAML(kubeconfig, context, kind, name, namespace string) (string,
 	out, err := shell.Combined(c.Run, "kubectl", args...)
 	text := strings.TrimSpace(string(out))
 	if err != nil {
-		if text == "" {
-			text = err.Error()
-		}
-		return "", fmt.Errorf("%s", shell.OneLine(text))
+		return "", fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return text, nil
 }
@@ -200,11 +197,7 @@ func (c Client) YAML(kubeconfig, context, kind, name, namespace string) (string,
 func (c Client) DeletePod(kubeconfig, context, namespace, name string) error {
 	out, err := shell.Combined(c.Run, "kubectl", "delete", "pod", name, "-n", namespace, "--kubeconfig", kubeconfig, "--context", context)
 	if err != nil {
-		text := strings.TrimSpace(string(out))
-		if text == "" {
-			text = err.Error()
-		}
-		return fmt.Errorf("%s", shell.OneLine(text))
+		return fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return nil
 }
@@ -229,10 +222,7 @@ func (c Client) Describe(kubeconfig, context, kind, name, namespace string) (str
 	out, err := shell.Combined(c.Run, "kubectl", DescribeArgs(kind, name, kubeconfig, context, namespace)...)
 	text := strings.TrimRight(string(out), "\n ")
 	if err != nil {
-		if strings.TrimSpace(text) == "" {
-			text = err.Error()
-		}
-		return "", fmt.Errorf("%s", shell.OneLine(text))
+		return "", fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return text, nil
 }

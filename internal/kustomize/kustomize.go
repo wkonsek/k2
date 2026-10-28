@@ -90,6 +90,20 @@ func IsYAML(name string) bool {
 	return ext == ".yaml" || ext == ".yml"
 }
 
+func KindCount(path string) int {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "kind:") {
+			n++
+		}
+	}
+	return n
+}
+
 func Find(root string) []string {
 	if root == "" {
 		return nil

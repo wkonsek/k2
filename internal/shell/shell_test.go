@@ -52,6 +52,10 @@ func TestOneLine(t *testing.T) {
 	if len([]rune(long)) != 140 || !strings.HasSuffix(long, "…") {
 		t.Fatalf("len %d", len([]rune(long)))
 	}
+	full := FailText([]byte("Error from server (Forbidden): secrets is forbidden: User \"dev\" cannot list secrets in the namespace"), nil)
+	if !strings.HasSuffix(full, "namespace") || strings.Contains(full, "…") {
+		t.Fatalf("FailText cut the response: %q", full)
+	}
 }
 
 func TestExecOnLine(t *testing.T) {

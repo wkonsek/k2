@@ -136,3 +136,20 @@ func OneLine(s string) string {
 	}
 	return s
 }
+
+// FailText is the full command output for an error. The status line shortens
+// it later; the last-error popup and the error log keep this text.
+func FailText(out []byte, err error) string {
+	text := strings.TrimSpace(string(out))
+	if text == "" && err != nil {
+		text = strings.TrimSpace(err.Error())
+	}
+	if text == "" {
+		return "request failed"
+	}
+	const max = 256 * 1024
+	if len(text) > max {
+		return text[:max] + "\n… truncated"
+	}
+	return text
+}

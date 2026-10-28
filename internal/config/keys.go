@@ -130,6 +130,7 @@ type Keys struct {
 	MultiLogs     Binding
 	Favorites     Binding
 	Theme         Binding
+	Login         Binding
 	XrayToggle    Binding
 	Search        Binding
 	HelmMark      Binding
@@ -183,6 +184,7 @@ func DefaultKeys() Keys {
 		Yes: Binding{"y", "Y"}, No: Binding{"n", "N", "esc", "q"},
 
 		Xray: Binding{"X"}, MultiLogs: Binding{"M"}, Favorites: Binding{"b"}, Theme: Binding{"ctrl+t"},
+		Login:      Binding{"ctrl+l"},
 		XrayToggle: Binding{" "}, Yaml: Binding{"y"},
 		HelmMark: Binding{" "}, HelmDiff: Binding{"D"}, Search: Binding{"/"},
 		XrayExpand: Binding{"+"}, XrayCollapse: Binding{"-"}, XrayFilter: Binding{"/"},
@@ -290,6 +292,7 @@ var keyFields = []keyField{
 	{"multi_logs", func(k *Keys) *Binding { return &k.MultiLogs }},
 	{"favorites", func(k *Keys) *Binding { return &k.Favorites }},
 	{"theme", func(k *Keys) *Binding { return &k.Theme }},
+	{"login", func(k *Keys) *Binding { return &k.Login }},
 	{"xray_toggle", func(k *Keys) *Binding { return &k.XrayToggle }},
 	{"search", func(k *Keys) *Binding { return &k.Search }},
 	{"helm_mark", func(k *Keys) *Binding { return &k.HelmMark }},

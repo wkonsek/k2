@@ -150,9 +150,9 @@ func (m model) tokenRows(inner int) string {
 		style = warnStyle
 	}
 	text := tokenLeft(left)
-	label := dimStyle.Render(padRight("token", 9))
+	label := dimStyle.Render(padRight("token", infoPad))
 	row := label
-	if w := min(tokenBarMax, inner-9-1-len(text)); w >= 4 {
+	if w := min(tokenBarMax, inner-infoPad-1-len(text)); w >= 4 {
 		full, part, empty := tokenBar(frac, w)
 		row += style.Render(full+part) + dimStyle.Render(empty) + " "
 	}
@@ -160,18 +160,27 @@ func (m model) tokenRows(inner int) string {
 	out := clipLine(row, inner) + "\n"
 	if life.Idle > 0 {
 
-		out += clipLine(dimStyle.Render(padRight("", 9)+"idle limit "+tokenLeft(life.Idle)), inner) + "\n"
+		out += clipLine(dimStyle.Render(padRight("", infoPad)+"idle limit "+tokenLeft(life.Idle)), inner) + "\n"
 	}
 	return out
 }
 
 func (m model) tokenExpiredRow(inner int) string {
-	label := dimStyle.Render(padRight("token", 9))
-	hint := "log in again"
-	if m.tok.oshift {
-		hint = "run oc login"
+	word := errStyle.Bold(true).Render("expired")
+	hint := ":login"
+	if s := m.cfg.Keys.Login.Short(); s != "" {
+		hint = s + " or :login"
 	}
-	return clipLine(label+errStyle.Bold(true).Render("expired")+dimStyle.Render(" · "+hint), inner) + "\n"
+	var b strings.Builder
+	b.WriteString(clipLine(dimStyle.Render(padRight("token", infoPad))+word, inner) + "\n")
+	pad := infoPad
+	if pad >= inner {
+		pad = 0
+	}
+	for _, part := range wrapText(hint, max(inner-pad, 1)) {
+		b.WriteString(clipLine(strings.Repeat(" ", pad)+dimStyle.Render(part), inner) + "\n")
+	}
+	return b.String()
 }
 
 var tokenEighths = []string{"▏", "▎", "▍", "▌", "▋", "▊", "▉"}
@@ -203,4 +212,32 @@ func tokenLeft(d time.Duration) string {
 		return fmt.Sprintf("%dm%02ds", int(d/time.Minute), int(d%time.Minute/time.Second))
 	}
 	return fmt.Sprintf("%ds", int(d/time.Second))
+}
+
+func (m model) openLogin() (tea.Model, tea.Cmd) {
+	if m.context == "" && m.kubeconfig == "" {
+		m.status = "select a context first"
+		return m, nil
+	}
+	d := m.newDialog("login", "token", "", "", "").
+		withField("", "paste token", "replaces this context's token in the kubeconfig")
+	d.input.CharLimit = 16384
+	m.dlg = d
+	return m, nil
+}
+
+func (m model) submitLogin() (tea.Model, tea.Cmd) {
+	token := strings.TrimSpace(m.dlg.input.Value())
+	m.dlg = nil
+	if token == "" {
+		m.status = "empty token"
+		return m, nil
+	}
+	if _, err := kube.SetContextToken(m.kubeconfig, m.context, token); err != nil {
+		m.status = err.Error()
+		return m, nil
+	}
+	m.tok = tokenState{}
+	m.status = "token updated · " + m.context
+	return m, m.tokenCmd()
 }

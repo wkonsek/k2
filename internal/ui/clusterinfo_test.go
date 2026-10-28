@@ -52,12 +52,12 @@ func TestClusterInfoInSidebar(t *testing.T) {
 	m.kubeconfig, m.context = "/kc", "dev"
 
 	side := sidebarText(m)
-	if !strings.Contains(side, "k2       v0.4.1") || strings.Contains(side, "N/A") {
+	if !strings.Contains(side, "k2          v0.4.1") || strings.Contains(side, "N/A") {
 		t.Fatalf("before fetch:\n%s", side)
 	}
 	m = tickOnce(t, m)
 	side = sidebarText(m)
-	for _, want := range []string{"kubectl  v1.31.2", "server   v1.29.3", "ocp      4.16.3"} {
+	for _, want := range []string{"kubectl     v1.31.2", "k8s server  v1.29.3", "ocp         4.16.3"} {
 		if !strings.Contains(side, want) {
 			t.Fatalf("missing %q:\n%s", want, side)
 		}
@@ -72,14 +72,14 @@ func TestClusterInfoInSidebar(t *testing.T) {
 	m.context = "broken"
 	m = tickOnce(t, m)
 	side = sidebarText(m)
-	if calls != 2 || !strings.Contains(side, "server   N/A") || !strings.Contains(side, "kubectl  v1.31.2") || strings.Contains(side, "ocp") {
+	if calls != 2 || !strings.Contains(side, "k8s server  N/A") || !strings.Contains(side, "kubectl     v1.31.2") || strings.Contains(side, "ocp") {
 		t.Fatalf("broken context (calls %d):\n%s", calls, side)
 	}
 
 	m.context = "dev"
 	m = tickOnce(t, m)
 	m = tickOnce(t, m)
-	if calls != 3 || !strings.Contains(sidebarText(m), "server   v1.29.3") {
+	if calls != 3 || !strings.Contains(sidebarText(m), "k8s server  v1.29.3") {
 		t.Fatalf("back to dev: calls %d", calls)
 	}
 }

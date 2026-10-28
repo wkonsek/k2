@@ -22,11 +22,7 @@ func (c Client) Secret(kubeconfig, context, namespace, name string) (string, err
 	}
 	out, err := shell.Combined(c.Run, "kubectl", args...)
 	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return "", fmt.Errorf("%s", shell.OneLine(msg))
+		return "", fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return DecodeSecret(out)
 }

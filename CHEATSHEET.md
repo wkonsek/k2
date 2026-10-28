@@ -23,7 +23,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 |---|---|---|
 | `ctrl+a` | `keys.prefix` | prefix for the pane and tab keys (also in vim / shell); twice = literal (formerly `keys.editor_prefix`) |
 | `F` | `keys.fullscreen` | zoom the focused pane / back to the split (also `ctrl+a F`) |
-| `!` | `keys.last_error` | the last error in full, in a popup: `y` copies it, `esc` closes (also `ctrl+a !`) |
+| `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
 | `q`, `esc`, `H` | `keys.back` | back one screen (or clear a filter) |
@@ -95,7 +95,8 @@ pane with these keys or `:` commands.
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
 | `f` | `keys.forwards` | running port-forwards (`:forwards`, `:pf`, `:fwd`, `:fwds`, `:f`) |
 | `b` | `keys.favorites` | favorites picker: pinned context + namespace (+ view) (`:fav`, `:favorites`); every screen, not in text inputs |
-| `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`.
+| `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
+| `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace) |
@@ -278,7 +279,8 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 
 In output views (kustomize and kubectl results, viewer errors) error and
 warning lines always wrap in full, whatever `w` says; `!`
-(`keys.last_error`) shows the last error from anywhere in full.
+(`keys.last_error`) shows the last error from anywhere in full. `enter` in that
+popup opens the response as a log; `a` opens every error from this session.
 
 ## Copy mode (`y` in a text viewer)
 

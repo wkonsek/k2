@@ -39,10 +39,7 @@ func (c Client) Logs(name, namespace, kubeconfig, context string, since time.Tim
 	out, err := shell.Combined(c.Run, "kubectl", LogsArgs(name, namespace, kubeconfig, context, since, tail, opt)...)
 	text := strings.TrimSpace(string(out))
 	if err != nil {
-		if text == "" {
-			text = err.Error()
-		}
-		return "", fmt.Errorf("%s", shell.OneLine(text))
+		return "", fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return text, nil
 }
@@ -54,7 +51,7 @@ func (c Client) AllLogs(name, namespace, kubeconfig, context string, opt LogOpts
 		return nil, err
 	}
 	if err != nil && !strings.Contains(string(out), "\n") {
-		return nil, fmt.Errorf("%s", shell.OneLine(string(out)))
+		return nil, fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return out, nil
 }

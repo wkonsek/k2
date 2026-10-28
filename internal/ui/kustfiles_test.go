@@ -82,7 +82,7 @@ func TestKustomizeShowsAllFiles(t *testing.T) {
 
 func TestKustomizeActionsNeedKustomization(t *testing.T) {
 	root := kustTree(t)
-	for _, row := range []string{"deploy.yaml", "README.md", "docs"} {
+	for _, row := range []string{"README.md", "docs"} {
 		for _, k := range []string{"a", "D", "d"} {
 			m := browseModel(t, root)
 			selectTitle(t, &m, row)
@@ -94,6 +94,19 @@ func TestKustomizeActionsNeedKustomization(t *testing.T) {
 				t.Fatalf("%s on %s: toast %q", k, row, m.toast.text)
 			}
 		}
+	}
+	for _, k := range []string{"D", "d"} {
+		m := browseModel(t, root)
+		selectTitle(t, &m, "deploy.yaml")
+		m = press(t, m, k)
+		if m.asking() != "" || m.toast.text != "not a kustomization" {
+			t.Fatalf("%s on deploy.yaml: confirm %q toast %q", k, m.asking(), m.toast.text)
+		}
+	}
+	m := browseModel(t, root)
+	selectTitle(t, &m, "deploy.yaml")
+	if got := press(t, m, "a"); got.asking() != "⇪ kubectl apply" {
+		t.Fatalf("a on deploy.yaml: confirm %q", got.asking())
 	}
 
 	for _, row := range []string{"kustomization.yaml", "base"} {

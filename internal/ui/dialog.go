@@ -34,6 +34,7 @@ type dialog struct {
 	danger  bool
 	onYes   func(m model) (tea.Model, tea.Cmd)
 	seq     int
+	errAt   int
 	images  []imageField
 
 	cands    []string
@@ -161,6 +162,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		return m.openLogs(d.ns+"/"+d.name, d.picked(), d.act == "prevlogs")
 	case "theme":
 		return m.applyThemePick(d.picked())
+	case "login":
+		return m.submitLogin()
 	case "shell":
 		m.dlg = nil
 		return m.openShell(d.ns, d.name, d.picked())
@@ -265,15 +268,54 @@ func (m model) dialogBox(width int) string {
 	if hot {
 		title = skull + " " + title
 	}
-	lines := []string{dimStyle.Render(fitWidth(d.where, inner)), ""}
+	lines := []string{}
+	if d.act == "error" {
+		for _, l := range wrapLine(d.where, inner) {
+			lines = append(lines, dimStyle.Render(l))
+		}
+		lines = append(lines, "")
+	} else {
+		lines = append(lines, dimStyle.Render(fitWidth(d.where, inner)), "")
+	}
 
 	var det []string
 	for _, l := range d.details {
 		det = append(det, wrapLine(l, inner)...)
 	}
-	if room := max(3, m.height-10); d.act == "error" && len(det) > room {
-		more := len(det) - room + 1
-		det = append(det[:room-1], dimStyle.Render(moreRows(more)))
+	room := max(3, m.height-10)
+	if d.act == "error" {
+		room = max(8, m.height-8)
+	}
+	if d.act == "error" && len(det) > room {
+		top := d.idx
+		if top < 0 {
+			top = 0
+		}
+		if top > len(det)-room {
+			top = len(det) - room
+		}
+		var win []string
+		if top > 0 {
+			win = append(win, "↑ "+plural(top, "row", "rows"))
+		}
+		take := room
+		if top > 0 {
+			take = room - 1
+		}
+		end := top + take
+		more := 0
+		if end < len(det) {
+			more = len(det) - end
+			end = top + take - 1
+			if end < top {
+				end = top
+			}
+		}
+		win = append(win, det[top:end]...)
+		if more > 0 {
+			win = append(win, moreRows(more))
+		}
+		det = win
 	}
 	for _, l := range det {
 		st := itemStyle
@@ -328,7 +370,12 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, st.Render(d.ask+"  "+m.yn()))
 		lines = append(lines, dimStyle.Render("default no · enter does nothing"))
 	case d.act == "error":
-		lines = append(lines, keyStyle.Render(k.CopyYank.Short())+dimStyle.Render(" copy  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" close"))
+		lines = append(lines, keyStyle.Render("j/k")+dimStyle.Render(" scroll  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" log  ")+
+			keyStyle.Render("a")+dimStyle.Render(" all  ")+
+			keyStyle.Render("[ ]")+dimStyle.Render(" older  ")+
+			keyStyle.Render(k.CopyYank.Short())+dimStyle.Render(" copy  ")+
+			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" close"))
 	case d.msg != "" && d.act == "setimage" && len(d.images) == 0:
 		lines = append(lines, dimStyle.Render(d.msg))
 	case d.msg != "":

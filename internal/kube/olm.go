@@ -128,7 +128,7 @@ func (c Client) Object(kubeconfig, context, kind, namespace, name string) (Objec
 	}
 	out, err := shell.Combined(c.Run, "kubectl", args...)
 	if err != nil {
-		return Object{}, fmt.Errorf("%s", shell.OneLine(strings.TrimSpace(string(out))))
+		return Object{}, fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	var o Object
 	if json.Unmarshal(out, &o) != nil || json.Unmarshal(out, &o.Raw) != nil {
