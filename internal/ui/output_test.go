@@ -111,6 +111,16 @@ func TestKustomizeFailureWithoutTotal(t *testing.T) {
 	}
 }
 
+func TestColoredDiffIsKept(t *testing.T) {
+	line := "\x1b[32m+ one document added:\x1b[0m"
+	if got := colorOut(line, "kust"); got != line {
+		t.Fatalf("ansi rewritten: %q", got)
+	}
+	if !strings.Contains(colorOut("+ replicas: 2", "kust"), "+ replicas: 2") {
+		t.Fatal("plain addition lost")
+	}
+}
+
 func TestKustomizeDiffRendering(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(termenv.Ascii)

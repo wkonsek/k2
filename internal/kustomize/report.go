@@ -131,7 +131,11 @@ func RunStream(r shell.Runner, verb, target, kc, ctx string, onLine func(string)
 	if st, err := os.Stat(target); err == nil && !st.IsDir() {
 		flag = "-f"
 	}
-	return run(r, shell.Request{Name: "kubectl", Args: []string{verb, flag, target, "--kubeconfig", kc, "--context", ctx}, OnLine: onLine}, verb)
+	req := shell.Request{Name: "kubectl", Args: []string{verb, flag, target, "--kubeconfig", kc, "--context", ctx}, OnLine: onLine}
+	if verb == "diff" {
+		req.TTY = true
+	}
+	return run(r, req, verb)
 }
 
 type Report struct {

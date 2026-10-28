@@ -126,6 +126,9 @@ var valueFlags = map[string]bool{
 }
 
 func colorOut(line, mode string) string {
+	if strings.Contains(line, "\x1b[") {
+		return line
+	}
 	switch {
 	case strings.HasPrefix(line, "╭") || strings.HasPrefix(line, "│") || strings.HasPrefix(line, "╰"):
 		return colorBox(line)

@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/creack/pty"
 )
 
 type Request struct {
@@ -20,6 +22,10 @@ type Request struct {
 	Stdin string
 
 	Combined bool
+
+	// TTY gives the command a terminal for stdout. Diff tools such as dyff
+	// only colorize when stdout is a terminal.
+	TTY bool
 
 	OnLine func(line string)
 }
@@ -44,11 +50,19 @@ type Exec struct{}
 
 func (Exec) Run(req Request) Result {
 	cmd := exec.Command(req.Name, req.Args...)
-	if len(req.Env) > 0 {
+	if len(req.Env) > 0 || req.TTY {
 		cmd.Env = append(os.Environ(), req.Env...)
+		if req.TTY {
+			cmd.Env = append(cmd.Env, "TERM=xterm-256color")
+		}
 	}
 	if req.Stdin != "" {
 		cmd.Stdin = strings.NewReader(req.Stdin)
+	}
+	if req.TTY {
+		if res, ok := runTTY(cmd, req); ok {
+			return res
+		}
 	}
 	var stdout, stderr bytes.Buffer
 	var out io.Writer = &stdout
@@ -82,6 +96,36 @@ func (Exec) Run(req Request) Result {
 		}
 	}
 	return res
+}
+
+func runTTY(cmd *exec.Cmd, req Request) (Result, bool) {
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: 240, Rows: 60})
+	if err != nil {
+		return Result{}, false
+	}
+	defer ptmx.Close()
+	var buf bytes.Buffer
+	out := io.Writer(&buf)
+	var lines *lineWriter
+	if req.OnLine != nil {
+		lines = &lineWriter{fn: req.OnLine}
+		out = io.MultiWriter(&buf, lines)
+	}
+	_, _ = io.Copy(out, ptmx)
+	if lines != nil {
+		lines.flush()
+	}
+	err = cmd.Wait()
+	res := Result{Stdout: buf.Bytes(), Err: err}
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			res.Code = ee.ExitCode()
+		} else {
+			res.Code = -1
+		}
+	}
+	return res, true
 }
 
 type lineWriter struct {

@@ -27,6 +27,17 @@ func TestExecSeparatesAndCombinesStreams(t *testing.T) {
 	}
 }
 
+func TestTTYForcesColor(t *testing.T) {
+	res := Exec{}.Run(Request{
+		Name: "sh",
+		Args: []string{"-c", `[ -t 1 ] && printf '\033[32mgreen\033[0m\n' || echo nocolor`},
+		TTY:  true,
+	})
+	if !strings.Contains(string(res.Stdout), "\033[32mgreen") || res.Code != 0 {
+		t.Fatalf("tty color: %q code %d err %v", res.Stdout, res.Code, res.Err)
+	}
+}
+
 func TestFakeRecordsCalls(t *testing.T) {
 	f := &Fake{Handler: func(r Request) Result { return OK(r.Line()) }, Missing: []string{"oc"}}
 	out, err := Output(f, "kubectl", "get", "pods")
