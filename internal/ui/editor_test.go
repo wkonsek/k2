@@ -81,6 +81,75 @@ func (h *edHarness) screen() string {
 	return h.m.ed.t.Plain()
 }
 
+func TestShellScrollback(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\ni=1\nwhile [ \"$i\" -le 80 ]; do printf 'line-%02d\\n' \"$i\"; i=$((i+1)); done\nread x\n"
+	if err := os.WriteFile(filepath.Join(bin, "kubectl"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	h := newEdHarness(t, selectRow(t, actionModel(t, actionCluster()), "db-0"))
+	h.m.width, h.m.height = 80, 16
+	h.keys("s")
+	if !h.m.ed.live() {
+		t.Fatalf("no shell: %s", h.m.status)
+	}
+	h.pump(func() bool { return strings.Contains(h.m.ed.t.Plain(), "line-80") }, "output")
+	live := ansi.Strip(h.m.View())
+	if strings.Contains(live, "line-01") {
+		t.Fatalf("first line still visible:\n%s", live)
+	}
+	h.keys("pgup")
+	if h.m.ed.scroll == 0 {
+		t.Fatal("pgup stayed on the live screen")
+	}
+	scrolled := ansi.Strip(h.m.View())
+	if scrolled == live || !strings.Contains(scrolled, "line-") {
+		t.Fatalf("scrollback view:\n%s", scrolled)
+	}
+	before := h.m.ed.scroll
+	h.send(tea.MouseMsg{Button: tea.MouseButtonWheelDown})
+	if h.m.ed.scroll >= before {
+		t.Fatalf("wheel %d -> %d", before, h.m.ed.scroll)
+	}
+	h.keys("esc")
+	if h.m.ed.scroll != 0 || !strings.Contains(ansi.Strip(h.m.View()), "line-80") {
+		t.Fatalf("esc did not return: scroll %d\n%s", h.m.ed.scroll, ansi.Strip(h.m.View()))
+	}
+	h.keys("F")
+	full := ansi.Strip(h.m.View())
+	if strings.Contains(full, "╭") || strings.Contains(full, "│") {
+		t.Fatalf("fullscreen shell still has a frame:\n%s", full)
+	}
+	row := -1
+	for i, l := range strings.Split(full, "\n") {
+		if strings.Contains(l, "line-80") {
+			row = i
+			break
+		}
+	}
+	if row < 0 {
+		t.Fatalf("line-80 not on screen:\n%s", full)
+	}
+	var got string
+	old := clipboardRun
+	t.Cleanup(func() { clipboardRun = old })
+	clipboardRun = func(mode, text string) (string, error) { got = text; return "test", nil }
+	h.send(tea.MouseMsg{X: 0, Y: row, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	h.send(tea.MouseMsg{X: 6, Y: row, Button: tea.MouseButtonLeft, Action: tea.MouseActionRelease})
+	h.pump(func() bool { return strings.HasPrefix(h.m.status, "copied") }, "copy")
+	if got != "line-80" {
+		t.Fatalf("drag copied %q", got)
+	}
+	h.keys("ctrl+a", "y")
+	if h.m.copy == nil || !strings.Contains(h.m.View(), "COPY") {
+		t.Fatalf("copy mode:\n%s", ansi.Strip(h.m.View()))
+	}
+	if !strings.Contains(strings.Join(h.m.shellYank, "\n"), "line-01") {
+		t.Fatal("yank buffer lost the start of the output")
+	}
+}
+
 func needVim(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("vim"); err != nil {

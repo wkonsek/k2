@@ -647,6 +647,11 @@ func (m model) renderNode(n *layout.Node, w, h int) string {
 }
 
 func (m model) zoomView() string {
+	if m.ed.live() && m.ed.kind == "shell" {
+		w, h := m.editorSize(m.logID)
+		body := m.ed.body(!m.pfOn && m.dlg == nil, w, h, m.cfg.Keys.Back.Label())
+		return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left, body, m.legend())), max(1, m.width))
+	}
 	_, mainW, panelH := m.layout()
 	box := m.paneBlock(m.focus, mainW, panelH)
 	return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left, box, m.legend())), max(1, m.width))

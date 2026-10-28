@@ -217,6 +217,18 @@ func (t *Term) Text(s string) {
 	}
 }
 
+func (t *Term) ScrollbackLen() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.emu.ScrollbackLen()
+}
+
+func (t *Term) AltScreen() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.emu.IsAltScreen()
+}
+
 func (t *Term) Plain() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -237,21 +249,56 @@ func (t *Term) Plain() string {
 }
 
 func (t *Term) View(cursor bool) string {
+	return t.viewAt(cursor, 0, -1, -1, -1, -1)
+}
+
+// ViewOffset shows the screen shifted up by lines of scrollback.
+// Zero is the live screen. The shift is clamped to the scrollback length.
+func (t *Term) ViewOffset(cursor bool, up int) string {
+	return t.viewAt(cursor, up, -1, -1, -1, -1)
+}
+
+// ViewSelected is ViewOffset with a reversed drag selection. Coordinates are
+// cells of the visible screen. A negative x0 draws no selection.
+func (t *Term) ViewSelected(cursor bool, up, x0, y0, x1, y1 int) string {
+	return t.viewAt(cursor, up, x0, y0, x1, y1)
+}
+
+func (t *Term) viewAt(cursor bool, up, x0, y0, x1, y1 int) string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	w, h := t.w, t.h
+	sb := t.emu.ScrollbackLen()
+	if t.emu.IsAltScreen() {
+		up = 0
+	}
+	up = max(0, min(up, sb))
 	cur := t.emu.CursorPosition()
-	showCur := cursor && !t.emu.CursorHidden()
+	showCur := cursor && up == 0 && !t.emu.CursorHidden()
+	mark := x0 >= 0
 	var out strings.Builder
 	line := make(uv.Line, w)
 	for y := range h {
+		idx := sb - up + y
 		for x := range w {
-			c := t.emu.CellAt(x, y)
+			c := t.cellAt(idx, sb, x)
 			if c == nil {
 				line[x] = uv.EmptyCell
 				continue
 			}
 			line[x] = *c
+		}
+		if mark {
+			for x := range w {
+				if !cellSelected(x, y, x0, y0, x1, y1) {
+					continue
+				}
+				c := &line[x]
+				if c.Content == "" {
+					c.Content, c.Width = " ", 1
+				}
+				c.Style.Attrs |= uv.AttrReverse
+			}
 		}
 		if showCur && y == cur.Y && cur.X >= 0 && cur.X < w {
 			c := &line[cur.X]
@@ -273,6 +320,93 @@ func (t *Term) View(cursor bool) string {
 		out.WriteString(s)
 	}
 	return out.String()
+}
+
+func (t *Term) cellAt(idx, sb, x int) *uv.Cell {
+	if idx < sb {
+		return t.emu.ScrollbackCellAt(x, idx)
+	}
+	return t.emu.CellAt(x, idx-sb)
+}
+
+func cellSelected(x, y, x0, y0, x1, y1 int) bool {
+	if y0 > y1 || (y0 == y1 && x0 > x1) {
+		x0, y0, x1, y1 = x1, y1, x0, y0
+	}
+	if y < y0 || y > y1 {
+		return false
+	}
+	if y == y0 && x < x0 {
+		return false
+	}
+	if y == y1 && x > x1 {
+		return false
+	}
+	return true
+}
+
+// Transcript is the scrollback plus the live screen, one line per row.
+func (t *Term) Transcript() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	w, h := t.w, t.h
+	sb := t.emu.ScrollbackLen()
+	lines := make([]string, 0, sb+h)
+	for idx := 0; idx < sb+h; idx++ {
+		lines = append(lines, t.rowString(idx, sb, w))
+	}
+	for len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// Selected returns the drag selection on the visible screen, scrollback included when up > 0.
+func (t *Term) Selected(up, x0, y0, x1, y1 int) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	w, h := t.w, t.h
+	sb := t.emu.ScrollbackLen()
+	if t.emu.IsAltScreen() {
+		up = 0
+	}
+	up = max(0, min(up, sb))
+	if y0 > y1 || (y0 == y1 && x0 > x1) {
+		x0, y0, x1, y1 = x1, y1, x0, y0
+	}
+	y0, y1 = max(0, y0), min(h-1, y1)
+	var rows []string
+	for y := y0; y <= y1; y++ {
+		row := []rune(t.rowString(sb-up+y, sb, w))
+		a, b := 0, len(row)
+		if y == y0 {
+			a = min(x0, len(row))
+		}
+		if y == y1 {
+			b = min(x1+1, len(row))
+		}
+		if a > b {
+			a = b
+		}
+		rows = append(rows, strings.TrimRight(string(row[a:b]), " "))
+	}
+	return strings.Join(rows, "\n")
+}
+
+func (t *Term) rowString(idx, sb, w int) string {
+	var b strings.Builder
+	for x := 0; x < w; x++ {
+		c := t.cellAt(idx, sb, x)
+		if c == nil || c.IsZero() || c.Content == "" {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteString(c.Content)
+		if c.Width > 1 {
+			x += c.Width - 1
+		}
+	}
+	return strings.TrimRight(b.String(), " ")
 }
 
 func hasEnv(env []string, k string) bool {

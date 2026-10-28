@@ -82,6 +82,9 @@ func (m model) textRows() int {
 }
 
 func (m model) textLines() []string {
+	if m.copy != nil && m.shellYank != nil {
+		return m.shellYank
+	}
 	text := strings.TrimRight(m.logText, "\n")
 	if text == "" {
 		if m.stage == "logs" {

@@ -260,6 +260,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 
+	case tea.MouseMsg:
+		return m.shellWheel(msg)
+
 	case tea.KeyMsg:
 		km := m.cfg.Keys
 		key := msg.String()

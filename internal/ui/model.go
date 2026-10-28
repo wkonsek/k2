@@ -225,6 +225,7 @@ type model struct {
 	ed          *editor
 	prefixOn    bool
 	copy        *copyState
+	shellYank   []string
 	prefixTok   int
 	repeatOn    bool
 	repeatTok   int

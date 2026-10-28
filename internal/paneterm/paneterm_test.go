@@ -59,6 +59,30 @@ func TestResizeReachesChild(t *testing.T) {
 	}
 }
 
+func TestScrollbackMovesTheView(t *testing.T) {
+	var script strings.Builder
+	script.WriteString("i=1; while [ $i -le 40 ]; do printf 'line-%02d\\n' $i; i=$((i+1)); done\n")
+	term, err := Start("p1", exec.Command("sh", "-c", script.String()), 20, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitExit(t, term)
+	live := term.View(false)
+	if !strings.Contains(live, "line-40") || strings.Contains(live, "line-01") {
+		t.Fatalf("live screen:\n%s", live)
+	}
+	if term.ScrollbackLen() < 10 {
+		t.Fatalf("scrollback %d", term.ScrollbackLen())
+	}
+	older := term.ViewOffset(false, term.ScrollbackLen())
+	if !strings.Contains(older, "line-01") {
+		t.Fatalf("top of scrollback:\n%s", older)
+	}
+	if older == live {
+		t.Fatal("scroll did not change the view")
+	}
+}
+
 func TestKill(t *testing.T) {
 	term, err := Start("p1", exec.Command("sleep", "30"), 20, 3)
 	if err != nil {

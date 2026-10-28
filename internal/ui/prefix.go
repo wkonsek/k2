@@ -89,6 +89,10 @@ func (m model) afterPrefix(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	}
+	if m.ed.live() && m.ed.kind == "shell" && km.CopyMode.Has(key) {
+		next, cmd := m.enterShellCopy()
+		return next, cmd, true
+	}
 	if name := km.PrefixedAction(key); name != "" {
 		next, cmd, ok := m.paneAction(name)
 		if !ok {

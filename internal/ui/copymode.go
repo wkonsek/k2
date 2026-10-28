@@ -93,9 +93,11 @@ func (m model) copyKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case km.Back.Has(key):
 		m.copy = nil
-		return m, nil
+		m.shellYank = nil
+		return m, m.mouseForShells()
 	case km.Quit.Has(key) && key == "ctrl+c":
 		m.copy = nil
+		m.shellYank = nil
 		m.killEditors()
 		m.quitting = true
 		return m, tea.Quit
