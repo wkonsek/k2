@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func v71Cluster(t *testing.T, nameCalls *int) *shell.Fake {
-	base := v7Cluster(t)
+func nameCluster(t *testing.T, nameCalls *int) *shell.Fake {
+	base := appCluster(t)
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		line := strings.Join(r.Args, " ")
 		switch {
@@ -37,7 +37,7 @@ func cmdLine(t *testing.T, m model, s string) model {
 }
 
 func TestXrayWideStartsFolded(t *testing.T) {
-	m := open(t, v7Model(t, v7Cluster(t)), "xray pods")
+	m := open(t, appModel(t, appCluster(t)), "xray pods")
 	if m.stage != "xray" {
 		t.Fatalf("stage %s: %s", m.stage, m.status)
 	}
@@ -68,14 +68,14 @@ func TestXrayWideStartsFolded(t *testing.T) {
 		}
 	}
 
-	m = open(t, v7Model(t, v7Cluster(t)), "xray pod db-0")
+	m = open(t, appModel(t, appCluster(t)), "xray pod db-0")
 	if ids := strings.Join(rowIDs(m), " "); !strings.Contains(ids, "container/shop/db-0/") {
 		t.Fatalf("single tree folded: %s", ids)
 	}
 
 	cfg := testEnv(t)
 	cfg.Keys.XrayExpand, cfg.Keys.XrayCollapse = config.Binding{"E"}, config.Binding{"ctrl+e"}
-	m = newTestModel(t, cfg, v7Cluster(t))
+	m = newTestModel(t, cfg, appCluster(t))
 	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
 	if h := m.xrayHint(); !strings.Contains(h, "E/^e expand/collapse all") {
 		t.Fatalf("hint %q", h)
@@ -83,7 +83,7 @@ func TestXrayWideStartsFolded(t *testing.T) {
 }
 
 func TestXrayFilterKeepsAncestors(t *testing.T) {
-	m := open(t, v7Model(t, v7Cluster(t)), "xray deploy")
+	m := open(t, appModel(t, appCluster(t)), "xray deploy")
 	m = pressSettle(t, m, "/")
 	if m.dlg == nil || m.dlg.act != "xrayfilter" {
 		t.Fatalf("no filter dialog: %+v", m.dlg)
@@ -120,7 +120,7 @@ func TestXrayFilterKeepsAncestors(t *testing.T) {
 func TestXrayCompletion(t *testing.T) {
 	at := fakeNow(t)
 	n := 0
-	m := v7Model(t, v71Cluster(t, &n))
+	m := appModel(t, nameCluster(t, &n))
 	m = cmdLine(t, m, "xray ")
 	if m.cmdHint != "deploy  sts  ds  rs  job  cronjob  pod  svc" {
 		t.Fatalf("kinds %q", m.cmdHint)
@@ -186,7 +186,7 @@ func TestXrayCompletion(t *testing.T) {
 }
 
 func TestXrayBareCommandSuggestsKinds(t *testing.T) {
-	m := v7Model(t, v7Cluster(t))
+	m := appModel(t, appCluster(t))
 	m = cmdLine(t, m, "xray")
 	m = pressSettle(t, m, "enter")
 	if !m.cmdOn || m.cmd.Value() != "xray " || m.cmdHint != "deploy  sts  ds  rs  job  cronjob  pod  svc" || m.toast.tone == toneErr {
@@ -201,7 +201,7 @@ func TestXrayBareCommandSuggestsKinds(t *testing.T) {
 
 func TestLogsAndFavCompletion(t *testing.T) {
 	n := 0
-	m := v7Model(t, v71Cluster(t, &n))
+	m := appModel(t, nameCluster(t, &n))
 	m = cmdLine(t, m, "logs db")
 	if m.cmdHint != "db-0" {
 		t.Fatalf("pods %q", m.cmdHint)
@@ -235,7 +235,7 @@ func TestLogsAndFavCompletion(t *testing.T) {
 
 func TestBracePaging(t *testing.T) {
 
-	m := open(t, v7Model(t, v7Cluster(t)), "xray pods")
+	m := open(t, appModel(t, appCluster(t)), "xray pods")
 	m = pressSettle(t, m, "+")
 	m.content.Select(0)
 	m = pressSettle(t, m, "}")
@@ -256,7 +256,7 @@ func TestBracePaging(t *testing.T) {
 		t.Fatalf("g j in the tree: %d", m.content.Index())
 	}
 
-	m = open(t, v7Model(t, v7Cluster(t)), "helm all")
+	m = open(t, appModel(t, appCluster(t)), "helm all")
 	m.content.Select(0)
 	if m = pressSettle(t, m, "G"); m.content.Index() != len(m.content.Items())-1 || len(m.content.Items()) < 2 {
 		t.Fatal("G in the helm table")
@@ -266,7 +266,7 @@ func TestBracePaging(t *testing.T) {
 	}
 
 	for _, q := range []string{"pulse", "logs app=web"} {
-		m = open(t, v7Model(t, v7Cluster(t)), q)
+		m = open(t, appModel(t, appCluster(t)), q)
 		m.logText = strings.Repeat("line\n", 400)
 		m.logStick, m.logAt = false, 0
 		m = pressSettle(t, m, "}")
@@ -280,7 +280,7 @@ func TestBracePaging(t *testing.T) {
 		}
 	}
 
-	m = cmdLine(t, v7Model(t, v7Cluster(t)), "{}")
+	m = cmdLine(t, appModel(t, appCluster(t)), "{}")
 	if m.cmd.Value() != "{}" {
 		t.Fatalf("typed %q", m.cmd.Value())
 	}

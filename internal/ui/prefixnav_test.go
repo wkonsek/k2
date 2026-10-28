@@ -85,7 +85,7 @@ func TestPrefixArrowRepeatEndsOnOtherKey(t *testing.T) {
 	}
 	m = press(t, m, "esc")
 
-	m = v4Model(t, v4Cluster())
+	m = actionModel(t, actionCluster())
 	m = press(t, m, "ctrl+a", "v")
 	m = press(t, m, "ctrl+a", "left")
 	at := m.content.Index()

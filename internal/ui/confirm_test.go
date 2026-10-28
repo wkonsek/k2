@@ -11,7 +11,7 @@ import (
 )
 
 func deleteCluster() *shell.Fake {
-	base := v4Cluster()
+	base := actionCluster()
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		if len(r.Args) >= 2 && r.Args[0] == "get" && r.Args[1] == "configmaps" {
 			return shell.OK(`{"items":[{"metadata":{"name":"cfg","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},"data":{"a":"1"}}]}`)
@@ -45,14 +45,14 @@ type popupCase struct {
 
 func popupCases() []popupCase {
 	pods := func(t *testing.T, f *shell.Fake, prod bool) model {
-		m := v4Model(t, f)
+		m := actionModel(t, f)
 		if prod {
 			m.cfg.Prod = []string{"kind-dev"}
 		}
 		return selectRow(t, m, "web-1")
 	}
 	fwds := func(t *testing.T, f *shell.Fake, prod bool) model {
-		m := v4Model(t, f)
+		m := actionModel(t, f)
 		if prod {
 			m.cfg.Prod = []string{"kind-dev"}
 		}
@@ -61,7 +61,7 @@ func popupCases() []popupCase {
 		return settle(t, next.(model), cmd)
 	}
 	kust := func(t *testing.T, f *shell.Fake, prod bool) model {
-		m := v4Model(t, f)
+		m := actionModel(t, f)
 		if prod {
 			m.cfg.Prod = []string{"kind-dev"}
 		}
@@ -138,7 +138,7 @@ func TestDestructivePopups(t *testing.T) {
 
 func TestDestructivePopupsYes(t *testing.T) {
 	f := deleteCluster()
-	m := pressSettle(t, selectRow(t, v4Model(t, f), "web-1"), "ctrl+d", "y")
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "ctrl+d", "y")
 	if d := calls(f, "delete"); len(d) != 1 || !strings.HasPrefix(d[0], "delete pod web-1") && !strings.Contains(d[0], "web-1") {
 		t.Fatalf("pod delete %v", d)
 	}
@@ -146,7 +146,7 @@ func TestDestructivePopupsYes(t *testing.T) {
 		t.Fatalf("after delete: load %v toast %q", m.load.active(), m.toast.text)
 	}
 	f = deleteCluster()
-	m = selectRow(t, open(t, v4Model(t, f), "cm"), "cfg")
+	m = selectRow(t, open(t, actionModel(t, f), "cm"), "cfg")
 	m = pressSettle(t, m, "ctrl+d", "y")
 	if d := calls(f, "delete"); len(d) != 1 || !strings.HasPrefix(d[0], "delete configmaps cfg -n shop --kubeconfig /kc --context kind-dev") {
 		t.Fatalf("resource delete %v", d)
@@ -156,7 +156,7 @@ func TestDestructivePopupsYes(t *testing.T) {
 	}
 
 	f = deleteCluster()
-	m = v4Model(t, f)
+	m = actionModel(t, f)
 	_ = m.showKList("/k", []string{"/k/overlays/dev"})
 	next, cmd := m.Update(key(t, "d"))
 	m = next.(model)
@@ -178,7 +178,7 @@ func TestDestructivePopupsYes(t *testing.T) {
 		t.Fatalf("y: stage %q subject %q", m.stage, m.subject)
 	}
 
-	m = v4Model(t, deleteCluster())
+	m = actionModel(t, deleteCluster())
 	m.forwards = append(m.forwards, forwardFor(-1, "8080", "80", "svc", "web"), forwardFor(-2, "9090", "90", "", "db-0"))
 	next, c := m.runCommand("pf")
 	m = settle(t, next.(model), c)
@@ -194,7 +194,7 @@ func TestDestructivePopupsYes(t *testing.T) {
 
 func TestPopupSwallowsKeys(t *testing.T) {
 	f := deleteCluster()
-	m := press(t, selectRow(t, v4Model(t, f), "web-1"), "ctrl+d")
+	m := press(t, selectRow(t, actionModel(t, f), "web-1"), "ctrl+d")
 	for _, k := range []string{"j", "ctrl+d", "r", "S", "x", "enter", "ctrl+a"} {
 		m = pressSettle(t, m, k)
 		if m.dlg == nil || m.dlg.title != "✗ delete pod" {

@@ -34,7 +34,7 @@ const copyLog = "first line\n\tat org.Example.run(Example.java:12)\nthird \x1b[3
 
 func TestCopyModeRendersOnlyText(t *testing.T) {
 	for _, zoom := range []bool{false, true} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m = pressSettle(t, m, "ctrl+a", "v")
 		m = showLog(m, copyLog)
 		m.zoom = zoom
@@ -77,7 +77,7 @@ func TestCopyModeRendersOnlyText(t *testing.T) {
 		}
 	}
 
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m.cfg.UI.CopyModeHint = false
 	m = showLog(m, copyLog)
 	m = press(t, m, "y")
@@ -93,7 +93,7 @@ func TestCopyModeRendersOnlyText(t *testing.T) {
 func TestCopyModeSelectAndYank(t *testing.T) {
 	trueColor(t)
 	got := copyClip(t)
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = showLog(m, copyLog)
 	m.logStick = false
 	m = press(t, m, "y")
@@ -140,7 +140,7 @@ func TestCopyModeSelectAndYank(t *testing.T) {
 func TestCopyModeWrap(t *testing.T) {
 	got := copyClip(t)
 	long := strings.Repeat("word ", 60) + "END"
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = showLog(m, "a\n"+long+"\nb\n")
 	m.logStick, m.logAt = false, 0
 	m = press(t, m, "y")
@@ -164,13 +164,13 @@ func TestCopyModeWrap(t *testing.T) {
 }
 
 func TestCopyModeOnlyInViewers(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = press(t, m, "y")
 	if m.copy != nil {
 		t.Fatal("copy mode from a table")
 	}
 	for _, stage := range []string{"describe", "yaml", "view", "kout"} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m.stage, m.logText = stage, "x\ny\n"
 		m = press(t, m, "y")
 		if m.copy == nil {

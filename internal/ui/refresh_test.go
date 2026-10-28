@@ -22,7 +22,7 @@ const rollingSts = `{"items":[
   "spec":{"replicas":2},"status":{"readyReplicas":1,"replicas":2}}]}`
 
 func rollingCluster() *shell.Fake {
-	base := v4Cluster()
+	base := actionCluster()
 	var acted atomic.Bool
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		if len(r.Args) >= 2 && r.Args[0] == "get" {
@@ -77,7 +77,7 @@ func TestRowProblemsWithoutStatusColumn(t *testing.T) {
 
 func TestRollingDeploymentLists(t *testing.T) {
 	f := rollingCluster()
-	m := v4Model(t, f)
+	m := actionModel(t, f)
 	noPanic(t, "list statefulsets", func() {
 		m = open(t, m, "sts")
 		if !strings.Contains(ansi.Strip(m.View()), "1/2") {
@@ -88,7 +88,7 @@ func TestRollingDeploymentLists(t *testing.T) {
 
 func TestRefreshAfterRestartNoSort(t *testing.T) {
 	f := rollingCluster()
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	if m.vs.sortCol != "" {
 		t.Fatalf("sort %q, want none", m.vs.sortCol)
 	}
@@ -104,7 +104,7 @@ func TestRefreshAfterRestartNoSort(t *testing.T) {
 
 func TestRefreshAfterScaleNoSort(t *testing.T) {
 	f := rollingCluster()
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	noPanic(t, "S 3 enter", func() {
 		m = pressSettle(t, m, "S", "ctrl+u")
 		m = typeText(t, m, "3")
@@ -139,7 +139,7 @@ func TestActionKeysAudit(t *testing.T) {
 			for _, ks := range runs {
 				name := fmt.Sprintf("%dx%d split=%v :%s %v", sh.w, sh.h, sh.split, v, ks)
 				noPanic(t, name, func() {
-					m := v4Model(t, rollingCluster())
+					m := actionModel(t, rollingCluster())
 					n, c := m.Update(tea.WindowSizeMsg{Width: sh.w, Height: sh.h})
 					m = settle(t, n.(model), c)
 					if sh.split {
@@ -188,7 +188,7 @@ func TestMoreKeysAudit(t *testing.T) {
 	}
 
 	noPanic(t, "empty picker", func() {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m.dlg = m.newDialog("logs", "x", "pod", "shop", "web-1")
 		m = pressSettle(t, m, "enter")
 		_ = m.View()
@@ -230,7 +230,7 @@ func showLog(m model, text string) model {
 func TestLogTabsKeepPaneWidth(t *testing.T) {
 	trueColor(t)
 	for _, size := range [][2]int{{120, 40}, {80, 24}, {57, 20}} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		n, c := m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
 		m = settle(t, n.(model), c)
 		m = showLog(m, kafkaTrace)
@@ -248,7 +248,7 @@ func TestLogTabsKeepPaneWidth(t *testing.T) {
 func TestViewerTabsKeepPaneWidth(t *testing.T) {
 	trueColor(t)
 	for _, stage := range []string{"describe", "yaml", "view", "kout"} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m.stage, m.logText = stage, kafkaTrace
 		assertPaneWidths(t, m.View(), m.width)
 	}
@@ -283,7 +283,7 @@ func TestSanitizeLine(t *testing.T) {
 }
 
 func failingActions() *shell.Fake {
-	base := v4Cluster()
+	base := actionCluster()
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		if len(r.Args) > 0 {
 			switch r.Args[0] {
@@ -311,11 +311,11 @@ func TestActionSpinnerStops(t *testing.T) {
 	for name, a := range actions {
 		for _, fail := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s fail=%v", name, fail), func(t *testing.T) {
-				f := v4Cluster()
+				f := actionCluster()
 				if fail {
 					f = failingActions()
 				}
-				m := open(t, v4Model(t, f), a.view)
+				m := open(t, actionModel(t, f), a.view)
 				m = pressSettle(t, m, a.keys...)
 				if a.text != "" {
 					m = typeText(t, m, a.text)
@@ -361,7 +361,7 @@ func TestActionSpinnerStops(t *testing.T) {
 
 func TestActionResultFollowsItsPane(t *testing.T) {
 	f := rollingCluster()
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	origin := m.logID
 	m = pressSettle(t, m, "r")
 	next, cmd := m.Update(key(t, "y"))

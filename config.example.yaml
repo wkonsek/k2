@@ -184,21 +184,8 @@
 #   complete: tab
 #   yes: [y, Y]
 #   no: [n, N, esc, q]
-# profiles are files in ~/.k2/profiles/<name>.yaml, not entries in this config.
+# profiles are files in ~/.k2/profiles/<name>.yaml
 # ctrl+p or :profile save name writes the open panes and the split tree.
 # tab after :profile cycles the names in that directory.
-# layout.split right puts children left to right, down puts them top to bottom.
-# layout pane: N is panes[N].
-# example of a wide top pane, then a bottom row whose right side is stacked:
-#   layout:
-#     split: down
-#     children:
-#       - pane: 0
-#       - split: right
-#         children:
-#           - pane: 1
-#           - split: down
-#             children:
-#               - pane: 2
-#               - pane: 3
+
 

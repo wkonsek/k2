@@ -29,7 +29,7 @@ func wrapLog() string {
 func TestWrapToggleInLogs(t *testing.T) {
 	trueColor(t)
 	for _, size := range [][2]int{{120, 40}, {80, 24}, {57, 20}} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		n, c := m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
 		m = settle(t, n.(model), c)
 		m = showLog(m, wrapLog())
@@ -80,7 +80,7 @@ func TestWrapToggleInLogs(t *testing.T) {
 }
 
 func TestWrapConfigDefaultAndPerPane(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m.cfg.UI.Wrap = true
 	m = showLog(m, wrapLog())
 	if !m.wrapping() {
@@ -103,7 +103,7 @@ func TestWrapConfigDefaultAndPerPane(t *testing.T) {
 func TestWrapAllViewers(t *testing.T) {
 	trueColor(t)
 	for _, stage := range []string{"describe", "yaml", "view", "kout"} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m.stage, m.logText = stage, "key: "+strings.Repeat("value ", 40)+"TAIL\n\t"+strings.Repeat("x", 300)+"\n"
 		if strings.Contains(ansi.Strip(m.View()), "TAIL") {
 			t.Fatalf("%s: wrap off shows the cut text", stage)
@@ -119,7 +119,7 @@ func TestWrapAllViewers(t *testing.T) {
 	t.Cleanup(func() { clipboardRun = old })
 	copied := ""
 	clipboardRun = func(mode, text string) (string, error) { copied = text; return "test", nil }
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = pressSettle(t, m, "w")
 	if copied == "" {
 		t.Fatal("w in a table did not copy")

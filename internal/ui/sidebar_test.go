@@ -51,7 +51,7 @@ func (m model) navTarget() string {
 
 func TestForwardCommandOpensPods(t *testing.T) {
 	for _, cmd := range []string{"forward", "p"} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		m = pressSettle(t, m, append([]string{":"}, append(strings.Split(cmd, ""), "enter")...)...)
 		if m.stage != "workpods" || strings.HasPrefix(m.status, "unknown") {
 			t.Errorf(":%s: stage %q status %q", cmd, m.stage, m.status)

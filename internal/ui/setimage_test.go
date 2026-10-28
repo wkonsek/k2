@@ -14,7 +14,7 @@ const deployJSON = `{"kind":"Deployment","metadata":{"name":"web","namespace":"s
  "containers":[{"name":"app","image":"acme/app:1.0"},{"name":"side","image":"envoy:1.30"}]}}}}`
 
 func imageCluster(setErr string) *shell.Fake {
-	base := v4Cluster()
+	base := actionCluster()
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		line := strings.Join(r.Args, " ")
 		switch {
@@ -45,7 +45,7 @@ func TestPodSpecPaths(t *testing.T) {
 
 func TestSetImage(t *testing.T) {
 	f := imageCluster("")
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	m = pressSettle(t, m, "i")
 	if m.dlg == nil || m.dlg.act != "setimage" || len(m.dlg.images) != 3 {
 		t.Fatalf("popup %+v", m.dlg)
@@ -97,7 +97,7 @@ func TestSetImage(t *testing.T) {
 
 func TestSetImageCancel(t *testing.T) {
 	f := imageCluster("")
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	m = pressSettle(t, m, "i", "esc")
 	if m.dlg != nil {
 		t.Fatal("esc did not close")
@@ -116,7 +116,7 @@ func TestSetImageCancel(t *testing.T) {
 
 func TestSetImageError(t *testing.T) {
 	f := imageCluster(`error: unable to find container named "nope"`)
-	m := open(t, v4Model(t, f), "deploy")
+	m := open(t, actionModel(t, f), "deploy")
 	m = pressSettle(t, m, "i")
 	m = typeText(t, m, "-rc")
 	m = pressSettle(t, m, "enter", "y")
@@ -128,9 +128,9 @@ func TestSetImageError(t *testing.T) {
 		if strings.Contains(strings.Join(r.Args, " "), "-o json") {
 			return shell.Fail(1, `Error from server (Forbidden): deployments.apps "web" is forbidden`)
 		}
-		return v4Cluster().Handler(r)
+		return actionCluster().Handler(r)
 	}}
-	m = open(t, v4Model(t, f2), "deploy")
+	m = open(t, actionModel(t, f2), "deploy")
 	m = pressSettle(t, m, "i")
 	if m.dlg != nil || !strings.Contains(m.lastErr.text, "forbidden") {
 		t.Fatalf("read error: dlg %v err %q", m.dlg != nil, m.lastErr.text)
@@ -139,7 +139,7 @@ func TestSetImageError(t *testing.T) {
 
 func TestSetImageProd(t *testing.T) {
 	f := imageCluster("")
-	m := v4Model(t, f)
+	m := actionModel(t, f)
 	m.cfg.Prod = []string{"kind-dev"}
 	m = open(t, m, "deploy")
 	m = pressSettle(t, m, "i")

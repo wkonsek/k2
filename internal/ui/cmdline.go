@@ -57,7 +57,7 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	if next, cmd, ok := m.profileCommand(raw); ok {
 		return next, cmd
 	}
-	if next, cmd, ok := m.runV07Command(raw); ok {
+	if next, cmd, ok := m.runViewCommand(raw); ok {
 		return next, cmd
 	}
 	q := strings.ToLower(strings.TrimSpace(raw))
@@ -114,7 +114,7 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	return m.openResource(kind)
 }
 
-func (m model) runV07Command(raw string) (tea.Model, tea.Cmd, bool) {
+func (m model) runViewCommand(raw string) (tea.Model, tea.Cmd, bool) {
 	word, rest, _ := strings.Cut(raw, " ")
 	rest = strings.TrimSpace(rest)
 	switch strings.ToLower(word) {

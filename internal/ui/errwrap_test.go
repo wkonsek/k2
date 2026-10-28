@@ -198,7 +198,7 @@ func TestCopyModeInKustomizeResult(t *testing.T) {
 }
 
 func TestLastErrorPopup(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = press(t, m, "!")
 	if m.dlg != nil || m.status != "no error so far" {
 		t.Fatalf("no error yet: %+v %q", m.dlg, m.status)
@@ -245,7 +245,7 @@ func TestLastErrorPopup(t *testing.T) {
 
 func TestActionAndViewerErrorsKeptWhole(t *testing.T) {
 	long := "error: " + strings.Repeat("deployments.apps \"web\" is forbidden ", 6) + "THE-END"
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	next, _ := m.Update(editDoneMsg{what: "restarted deploy/web", err: errors.New(long)})
 	m = next.(model)
 	if m.lastErr.text != long || !strings.HasSuffix(m.toast.text, "! details") {
@@ -276,7 +276,7 @@ func TestKubectlOutputErrorsWrapped(t *testing.T) {
 }
 
 func TestErrorLogOpensFullResponses(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	first := "FIRST " + strings.Repeat("alpha ", 30) + "END-A"
 	second := "SECOND " + strings.Repeat("beta ", 30) + "END-B"
 	m.noteErr(first)

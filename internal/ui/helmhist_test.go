@@ -41,7 +41,7 @@ func histHelm() string {
 }
 
 func histCluster(t *testing.T) *shell.Fake {
-	base := v7Cluster(t)
+	base := appCluster(t)
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		line := strings.Join(r.Args, " ")
 		all := strings.Contains(line, " -A")
@@ -70,7 +70,7 @@ func histOpen(t *testing.T, f *shell.Fake) model {
 	t.Helper()
 	lookPath = func(string) (string, error) { return "/usr/bin/helm", nil }
 	t.Cleanup(func() { lookPath = defaultLookPath })
-	m := v7Model(t, f)
+	m := appModel(t, f)
 	m.cfg.Prod = []string{"kind-dev"}
 	m = pressSettle(t, selectRow(t, open(t, m, "helm"), "web"), "t")
 	if m.stage != "helmhist" || m.load.active() {
@@ -203,7 +203,7 @@ func TestViewerSearch(t *testing.T) {
 }
 
 func TestHelmEmptyStateHint(t *testing.T) {
-	m := v7Model(t, histCluster(t))
+	m := appModel(t, histCluster(t))
 	m.namespace = "empty"
 	m = open(t, m, "helm")
 	want := "no releases in empty — press 0 for all namespaces"
@@ -214,7 +214,7 @@ func TestHelmEmptyStateHint(t *testing.T) {
 
 func TestAllNamespacesToggle(t *testing.T) {
 	f := histCluster(t)
-	m := open(t, v7Model(t, f), "pods")
+	m := open(t, appModel(t, f), "pods")
 	if m.stage != "workpods" {
 		t.Fatalf("stage %s: %s", m.stage, m.status)
 	}
@@ -251,7 +251,7 @@ func TestAllNamespacesToggle(t *testing.T) {
 }
 
 func TestAllNamespacesClusterScoped(t *testing.T) {
-	m := v7Model(t, histCluster(t))
+	m := appModel(t, histCluster(t))
 	m.resources = []string{"nodes", "pods", "deployments"}
 	m = open(t, m, "nodes")
 	if m.stage != "res" {
@@ -264,7 +264,7 @@ func TestAllNamespacesClusterScoped(t *testing.T) {
 }
 
 func TestScaleDialogAcceptsZero(t *testing.T) {
-	m := open(t, v7Model(t, histCluster(t)), "deploy")
+	m := open(t, appModel(t, histCluster(t)), "deploy")
 	m = pressSettle(t, selectRow(t, m, "web"), "S")
 	if m.dlg == nil || m.dlg.act != "scale" {
 		t.Fatalf("no scale dialog: %+v", m.dlg)
@@ -277,7 +277,7 @@ func TestScaleDialogAcceptsZero(t *testing.T) {
 }
 
 func TestAllNamespacesEmptyNamespace(t *testing.T) {
-	m := v7Model(t, histCluster(t))
+	m := appModel(t, histCluster(t))
 	m.namespace = ""
 	m.vs.nsPrev = "empty"
 	m = open(t, m, "pods")
@@ -301,7 +301,7 @@ func TestAllNamespacesEmptyNamespace(t *testing.T) {
 
 func TestAllNamespacesXrayLogsPulse(t *testing.T) {
 	f := histCluster(t)
-	m := open(t, v7Model(t, f), "xray pods")
+	m := open(t, appModel(t, f), "xray pods")
 	m = pressSettle(t, m, "0")
 	if m.stage != "xray" || m.namespace != "" || !strings.Contains(ansi.Strip(m.View()), "all/xray") {
 		t.Fatalf("xray all: %s %q\n%s", m.stage, m.namespace, ansi.Strip(m.View()))
@@ -315,7 +315,7 @@ func TestAllNamespacesXrayLogsPulse(t *testing.T) {
 		t.Fatalf("xray back: %q %s", m.namespace, m.stage)
 	}
 
-	m = open(t, v7Model(t, f), "logs app=web")
+	m = open(t, appModel(t, f), "logs app=web")
 	if m.stage != "mlogs" || !strings.Contains(m.logText, "web-7d9f-aaaaa/app hello") || strings.Contains(m.logText, "shop/web-7d9f-aaaaa") {
 		t.Fatalf("logs in shop:\n%s", m.logText)
 	}
@@ -328,7 +328,7 @@ func TestAllNamespacesXrayLogsPulse(t *testing.T) {
 		t.Fatalf("logs back in shop:\n%s", m.logText)
 	}
 
-	m = open(t, v7Model(t, f), "pulse")
+	m = open(t, appModel(t, f), "pulse")
 	m = pressSettle(t, m, "0")
 	if m.namespace != "shop" || !strings.Contains(m.status, "one namespace") {
 		t.Fatalf("pulse: %q %q", m.namespace, m.status)

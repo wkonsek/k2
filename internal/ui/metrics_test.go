@@ -68,7 +68,7 @@ func TestPodMetricsColumns(t *testing.T) {
 	var n int32
 	var args []string
 	f := metricsCluster("web-1   480m   40Mi\ndb-0   12m   900Mi\n", &n, &args)
-	m := v4Model(t, f)
+	m := actionModel(t, f)
 	if got := m.content.Items()[0].(item).heads; strings.Join(got, " ") != "NAME READY STATUS RESTARTS CPU MEM IP NODE AGE" {
 		t.Fatalf("heads %v", got)
 	}
@@ -126,7 +126,7 @@ func TestPodMetricsUnavailable(t *testing.T) {
 	trueColor(t)
 	var n int32
 	var args []string
-	m := v4Model(t, metricsCluster("", &n, &args))
+	m := actionModel(t, metricsCluster("", &n, &args))
 	m = tickOnce(t, m)
 	cpu, it := cellOf(t, m, "web-1", "CPU")
 	if cpu != "N/A" || it.tones[4] != toneMuted || it.tones[5] != toneMuted {
@@ -160,7 +160,7 @@ func TestPodMetricsLimitColors(t *testing.T) {
 	var n int32
 	var args []string
 
-	m := v4Model(t, metricsCluster("web-1 480m 110Mi\ndb-0 900m 900Mi\ncache-0 1m 1Mi\n", &n, &args))
+	m := actionModel(t, metricsCluster("web-1 480m 110Mi\ndb-0 900m 900Mi\ncache-0 1m 1Mi\n", &n, &args))
 	m.cfg.UI.MetricsBars = false
 	m = tickOnce(t, m)
 	_, web := cellOf(t, m, "web-1", "CPU")
@@ -180,7 +180,7 @@ func TestPodMetricsLimitColors(t *testing.T) {
 func TestPodMetricsSort(t *testing.T) {
 	var n int32
 	var args []string
-	m := v4Model(t, metricsCluster("web-1 1 64Mi\ndb-0 250m 1Gi\n", &n, &args))
+	m := actionModel(t, metricsCluster("web-1 1 64Mi\ndb-0 250m 1Gi\n", &n, &args))
 	m = tickOnce(t, m)
 	ids := func() string {
 		var out []string
@@ -210,7 +210,7 @@ func TestPodMetricsSort(t *testing.T) {
 func TestPodMetricsNarrowAndOff(t *testing.T) {
 	var n int32
 	var args []string
-	m := v4Model(t, metricsCluster("web-1 480m 40Mi\n", &n, &args))
+	m := actionModel(t, metricsCluster("web-1 480m 40Mi\n", &n, &args))
 	m = tickOnce(t, m)
 	for _, w := range []int{40, 60, 120, 200} {
 		reflowList(&m.content, w)
@@ -300,7 +300,7 @@ func TestPodMetricsBars(t *testing.T) {
 		bar, value bool
 		cols       bool
 	}{{200, true, true, true}, {115, true, false, true}, {110, false, true, true}, {80, false, false, false}} {
-		m := resize(t, v4Model(t, f), size.w, 30)
+		m := resize(t, actionModel(t, f), size.w, 30)
 		m = tickOnce(t, m)
 		view := ansi.Strip(m.View())
 		assertPaneWidths(t, m.View(), size.w)
@@ -309,13 +309,13 @@ func TestPodMetricsBars(t *testing.T) {
 		}
 	}
 
-	m := resize(t, v4Model(t, f), 200, 30)
+	m := resize(t, actionModel(t, f), 200, 30)
 	m = tickOnce(t, m)
 	if _, it := cellOf(t, m, "db-0", "CPU"); it.meters[4].ok || !it.meters[5].ok {
 		t.Fatalf("db-0 meters %+v", it.meters)
 	}
 
-	m = resize(t, v4Model(t, f), 200, 30)
+	m = resize(t, actionModel(t, f), 200, 30)
 	m.cfg.UI.MetricsBars = false
 	m = tickOnce(t, m)
 	if strings.Contains(ansi.Strip(m.View()), "█") {

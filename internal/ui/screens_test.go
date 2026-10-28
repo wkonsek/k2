@@ -18,7 +18,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func v7Tree(t *testing.T) string {
+func appTree(t *testing.T) string {
 	t.Helper()
 	b, err := os.ReadFile("../kube/testdata/xray.json")
 	if err != nil {
@@ -27,10 +27,10 @@ func v7Tree(t *testing.T) string {
 	return string(b)
 }
 
-const v7Deploy = `{"kind":"Deployment","metadata":{"name":"web","namespace":"shop","creationTimestamp":"2026-10-23T08:00:00Z"},
+const appDeploy = `{"kind":"Deployment","metadata":{"name":"web","namespace":"shop","creationTimestamp":"2026-10-23T08:00:00Z"},
  "spec":{"replicas":2,"selector":{"matchLabels":{"app":"web"}},"template":{"metadata":{"labels":{"app":"web"}}}},"status":{"readyReplicas":1}}`
 
-const v7Pods = `{"items":[
+const appPods = `{"items":[
  {"metadata":{"name":"web-7d9f-aaaaa","namespace":"shop","creationTimestamp":"2026-10-23T08:01:00Z"},"spec":{"containers":[{"name":"app"}]},
   "status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":0,"state":{"running":{}}}]}},
  {"metadata":{"name":"web-7d9f-bbbbb","namespace":"shop","creationTimestamp":"2026-10-23T08:02:00Z"},"spec":{"containers":[{"name":"app"}]},
@@ -45,7 +45,7 @@ func helmPayload(rel map[string]any) string {
 	return base64.StdEncoding.EncodeToString([]byte(base64.StdEncoding.EncodeToString(gz.Bytes())))
 }
 
-func v7Helm() string {
+func appHelm() string {
 	rel := func(name, ns string, rev int, status string) string {
 		r := map[string]any{"name": name, "namespace": ns, "version": rev,
 			"info":     map[string]any{"status": status, "last_deployed": "2026-10-2" + fmt.Sprint(rev) + "T08:00:00Z", "notes": "open http://" + name},
@@ -58,9 +58,9 @@ func v7Helm() string {
 	return `{"kind":"List","items":[` + rel("web", "shop", 1, "superseded") + "," + rel("web", "shop", 2, "deployed") + "," + rel("api", "lab", 1, "failed") + `]}`
 }
 
-func v7Cluster(t *testing.T) *shell.Fake {
-	tree := v7Tree(t)
-	helm := v7Helm()
+func appCluster(t *testing.T) *shell.Fake {
+	tree := appTree(t)
+	helm := appHelm()
 
 	var list struct {
 		Items []map[string]any `json:"items"`
@@ -91,11 +91,11 @@ func v7Cluster(t *testing.T) *shell.Fake {
 		case strings.HasPrefix(line, "get secrets") && strings.Contains(line, "owner=helm"):
 			return shell.OK(helm)
 		case strings.HasPrefix(line, "get deployments web -o json"), strings.HasPrefix(line, "get deploy web -o json"):
-			return shell.OK(v7Deploy)
+			return shell.OK(appDeploy)
 		case strings.HasPrefix(line, "get deployments -o json"), strings.HasPrefix(line, "get deploy -o json"):
-			return shell.OK(`{"items":[` + v7Deploy + `]}`)
+			return shell.OK(`{"items":[` + appDeploy + `]}`)
 		case strings.HasPrefix(line, "get pods -o json") && strings.Contains(line, "-l app=web"):
-			return shell.OK(v7Pods)
+			return shell.OK(appPods)
 		case strings.HasPrefix(line, "get pods -o json"):
 			return shell.OK(treePods)
 		case strings.HasPrefix(line, "get") && strings.Contains(line, "-o yaml"):
@@ -110,7 +110,7 @@ func v7Cluster(t *testing.T) *shell.Fake {
 	}}
 }
 
-func v7Model(t *testing.T, f *shell.Fake) model {
+func appModel(t *testing.T, f *shell.Fake) model {
 	t.Helper()
 	m := newTestModel(t, testEnv(t), f)
 	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
@@ -136,8 +136,8 @@ func helmCalls(f *shell.Fake) []string {
 }
 
 func TestXrayFromTableJumpAndBack(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "deploy")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "deploy")
 	if m.stage != "res" {
 		t.Fatalf("stage %s: %s", m.stage, m.status)
 	}
@@ -229,8 +229,8 @@ func TestXrayFromTableJumpAndBack(t *testing.T) {
 }
 
 func TestXrayCommandAndErrors(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "xray cronjob")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "xray cronjob")
 	if m.stage != "xray" || !strings.Contains(strings.Join(rowIDs(m), " "), "job/shop/report-1") {
 		t.Fatalf("cronjob tree %s %v %s", m.stage, rowIDs(m), m.status)
 	}
@@ -238,25 +238,25 @@ func TestXrayCommandAndErrors(t *testing.T) {
 	if m.stage != "nav" {
 		t.Fatalf("esc from a command xray: %s", m.stage)
 	}
-	m = open(t, v7Model(t, f), "xray configmaps")
+	m = open(t, appModel(t, f), "xray configmaps")
 	if m.stage == "xray" || !strings.Contains(m.status, "no owner tree") {
 		t.Fatalf("bad kind %s %s", m.stage, m.status)
 	}
-	m = open(t, v7Model(t, f), "xray deploy nope")
+	m = open(t, appModel(t, f), "xray deploy nope")
 	if m.stage == "xray" || m.load.active() || !strings.Contains(m.status, "no deploy/nope") {
 		t.Fatalf("missing %s %s", m.stage, m.status)
 	}
 
 	bad := &shell.Fake{Handler: func(shell.Request) shell.Result { return shell.Fail(1, "Forbidden") }}
-	m = open(t, v7Model(t, bad), "xray deploy")
+	m = open(t, appModel(t, bad), "xray deploy")
 	if m.stage == "xray" || m.load.active() || !strings.Contains(m.status, "Forbidden") {
 		t.Fatalf("error %s %v %s", m.stage, m.load.active(), m.status)
 	}
 }
 
 func TestXrayRefreshKeepsCollapseAndCursor(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "xray deploy web")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "xray deploy web")
 	m = pressSettle(t, selectRow(t, m, "rs/shop/web-old"), " ")
 	m = selectRow(t, m, "svc/shop/web")
 	m.beat = m.cfg.UI.RefreshEvery - 1
@@ -268,8 +268,8 @@ func TestXrayRefreshKeepsCollapseAndCursor(t *testing.T) {
 }
 
 func TestMultiLogsFromDeployment(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "deploy")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "deploy")
 	m = pressSettle(t, selectRow(t, m, "web"), "M")
 	if m.stage != "mlogs" || m.load.active() {
 		t.Fatalf("stage %s load %v %s", m.stage, m.load.active(), m.status)
@@ -333,8 +333,8 @@ func TestMultiLogsFromDeployment(t *testing.T) {
 
 func TestMultiLogsRingBufferAndColors(t *testing.T) {
 	trueColor(t)
-	f := v7Cluster(t)
-	m := v7Model(t, f)
+	f := appCluster(t)
+	m := appModel(t, f)
 	m.cfg.Logs.MultiMaxLines = 3
 	m = open(t, m, "logs app=web --tail=5")
 	if m.stage != "mlogs" || m.vs.ml.q.Selector != "app=web" {
@@ -355,12 +355,12 @@ func TestMultiLogsRingBufferAndColors(t *testing.T) {
 		t.Fatalf("prefix not colored: %q", got)
 	}
 
-	f2 := v7Cluster(t)
-	m = open(t, v7Model(t, f2), "logs ^web-7d9f-b")
+	f2 := appCluster(t)
+	m = open(t, appModel(t, f2), "logs ^web-7d9f-b")
 	if c := calls(f2, "logs"); len(c) != 1 || !strings.HasPrefix(c[0], "logs web-7d9f-b ") {
 		t.Fatalf("regex calls %v", c)
 	}
-	m = open(t, v7Model(t, f2), "logs --since=x web")
+	m = open(t, appModel(t, f2), "logs --since=x web")
 	if m.stage == "mlogs" || !strings.Contains(m.status, "logs:") {
 		t.Fatalf("bad query %s %s", m.stage, m.status)
 	}
@@ -382,10 +382,10 @@ func TestSiblingsRegex(t *testing.T) {
 }
 
 func TestHelmReleasesView(t *testing.T) {
-	f := v7Cluster(t)
+	f := appCluster(t)
 	lookPath = func(string) (string, error) { return "", errors.New("not found") }
 	t.Cleanup(func() { lookPath = defaultLookPath })
-	m := open(t, v7Model(t, f), "helm")
+	m := open(t, appModel(t, f), "helm")
 	if m.stage != "helm" || m.load.active() {
 		t.Fatalf("stage %s %s", m.stage, m.status)
 	}
@@ -461,10 +461,10 @@ func TestHelmReleasesView(t *testing.T) {
 var defaultLookPath = lookPath
 
 func TestHelmRollbackAndUninstallConfirm(t *testing.T) {
-	f := v7Cluster(t)
+	f := appCluster(t)
 	lookPath = func(string) (string, error) { return "/usr/bin/helm", nil }
 	t.Cleanup(func() { lookPath = defaultLookPath })
-	m := v7Model(t, f)
+	m := appModel(t, f)
 	m.cfg.Prod = []string{"kind-dev"}
 	m = selectRow(t, open(t, m, "helm"), "web")
 	if !strings.Contains(m.status, "r rollback, ctrl+d uninstall") {
@@ -512,7 +512,7 @@ func TestHelmRollbackAndUninstallConfirm(t *testing.T) {
 }
 
 func TestFavoritesPicker(t *testing.T) {
-	f := v7Cluster(t)
+	f := appCluster(t)
 	cfg := testEnv(t)
 	cfg.Favorites = []config.Favorite{{Name: "lab", Context: "kind-lab", Namespace: "lab", View: "helm all"}}
 	m := newTestModel(t, cfg, f)
@@ -587,7 +587,7 @@ func TestFavoritesPicker(t *testing.T) {
 }
 
 func TestFavoritesKeyInTextFields(t *testing.T) {
-	m := v7Model(t, v7Cluster(t))
+	m := appModel(t, appCluster(t))
 	m = pressSettle(t, m, ":")
 	m = typeText(t, m, "b")
 	if m.dlg != nil || m.cmd.Value() != "b" {
@@ -596,8 +596,8 @@ func TestFavoritesKeyInTextFields(t *testing.T) {
 }
 
 func TestPulse(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "pulse")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "pulse")
 	if m.stage != "pulse" || m.load.active() {
 		t.Fatalf("stage %s %s", m.stage, m.status)
 	}
@@ -620,7 +620,7 @@ func TestPulse(t *testing.T) {
 		t.Fatal("no refresh")
 	}
 
-	m2 := v7Model(t, f)
+	m2 := appModel(t, f)
 	m2.namespace = ""
 	m2 = open(t, m2, "pulse")
 	if m2.stage == "pulse" || !strings.Contains(m2.status, "needs a namespace") {
@@ -633,7 +633,7 @@ func TestPulse(t *testing.T) {
 }
 
 func TestPulseUsageColors(t *testing.T) {
-	m := v7Model(t, v7Cluster(t))
+	m := appModel(t, appCluster(t))
 	if got := m.usageLine("cpu", 95, 100, false, cpuText); !strings.HasPrefix(got, "  "+markErr) || !strings.Contains(got, " 95%") {
 		t.Fatalf("crit %q", got)
 	}
@@ -649,8 +649,8 @@ func TestPulseUsageColors(t *testing.T) {
 }
 
 func TestExtraScreensSurviveSave(t *testing.T) {
-	f := v7Cluster(t)
-	m := open(t, v7Model(t, f), "helm")
+	f := appCluster(t)
+	m := open(t, appModel(t, f), "helm")
 	m.save()
 	st := state.Load(m.cfg.StateDir)
 	if len(st.Panes) == 0 || st.Panes[0].Stage != "helm" || st.Panes[0].Namespace != "shop" {

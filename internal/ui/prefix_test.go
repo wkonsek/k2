@@ -10,7 +10,7 @@ import (
 )
 
 func TestPrefixKeys(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = press(t, m, "ctrl+a")
 	if !m.prefixOn || !strings.HasPrefix(m.status, "prefix ctrl+a") {
 		t.Fatalf("no indicator: %v %q", m.prefixOn, m.status)
@@ -91,7 +91,7 @@ func TestPrefixKeys(t *testing.T) {
 }
 
 func TestPrefixNotInInputs(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = press(t, m, ":", "a", "b", "c", "left", "left", "ctrl+a", "v")
 	if m.prefixOn || len(m.tabIDs()) != 1 || m.cmd.Value() != "vabc" {
 		t.Fatalf(": line: prefix %v panes %d value %q", m.prefixOn, len(m.tabIDs()), m.cmd.Value())
@@ -136,7 +136,7 @@ func TestPrefixOverridesAndDirect(t *testing.T) {
 }
 
 func TestTabKeysDirectAndPrefixed(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = press(t, m, "ctrl+a", "t", "ctrl+a", "t")
 	m = press(t, m, "]")
 	if m.tab != 0 {

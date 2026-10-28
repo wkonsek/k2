@@ -152,7 +152,7 @@ func TestCopyToastNamesMethod(t *testing.T) {
 	t.Cleanup(func() { clipboardRun = old })
 	var gotMode string
 	clipboardRun = func(mode, text string) (string, error) { gotMode = mode; return "wl-copy", nil }
-	m := pressSettle(t, selectRow(t, v4Model(t, v4Cluster()), "db-0"), "w")
+	m := pressSettle(t, selectRow(t, actionModel(t, actionCluster()), "db-0"), "w")
 	if gotMode != "auto" || m.toast.text != "copied db-0 (wl-copy)" || m.toast.tone != toneOK {
 		t.Fatalf("mode %q toast %q", gotMode, m.toast.text)
 	}

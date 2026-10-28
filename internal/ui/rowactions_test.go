@@ -17,7 +17,7 @@ import (
 	"github.com/muesli/termenv"
 )
 
-const v4Pods = `{"items":[
+const actionPods = `{"items":[
  {"metadata":{"name":"web-1","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"nodeName":"n","initContainers":[{"name":"migrate"}],"containers":[{"name":"app"},{"name":"side"}]},
   "status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":5,"state":{}},{"ready":true,"restartCount":0,"state":{}}]}},
@@ -29,31 +29,31 @@ const v4Pods = `{"items":[
   "status":{"phase":"Pending","containerStatuses":[{"ready":false,"restartCount":0,"state":{}}]}}
 ]}`
 
-const v4JobPods = `{"items":[
+const actionJobPods = `{"items":[
  {"metadata":{"name":"pi-x7","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"containers":[{"name":"pi"}]},"status":{"phase":"Succeeded"}}]}`
 
-const v4Deploys = `{"items":[
+const actionDeploys = `{"items":[
  {"metadata":{"name":"web","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"replicas":3},"status":{"readyReplicas":3,"updatedReplicas":3,"availableReplicas":3}}]}`
 
-const v4Cron = `{"items":[
+const actionCron = `{"items":[
  {"metadata":{"name":"nightly","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"schedule":"0 2 * * *"},"status":{}}]}`
 
-const v4Jobs = `{"items":[
+const actionJobs = `{"items":[
  {"metadata":{"name":"pi","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"completions":1},"status":{"succeeded":1,"conditions":[{"type":"Complete","status":"True"}]}},
  {"metadata":{"name":"zz","namespace":"shop","creationTimestamp":"2026-10-22T10:00:00Z"},
   "spec":{"completions":1},"status":{"failed":1,"conditions":[{"type":"Failed","status":"True"}]}}]}`
 
-const v4Events = `{"items":[
+const actionEvents = `{"items":[
  {"metadata":{"name":"e1","namespace":"shop"},"type":"Warning","reason":"BackOff","message":"Back-off restarting",
   "involvedObject":{"kind":"Pod","name":"web-1"},"lastTimestamp":"2026-10-22T10:05:00Z"},
  {"metadata":{"name":"e0","namespace":"shop"},"type":"Normal","reason":"Pulled","message":"pulled image",
   "involvedObject":{"kind":"Pod","name":"web-1"},"lastTimestamp":"2026-10-22T10:01:00Z"}]}`
 
-func v4Cluster() *shell.Fake {
+func actionCluster() *shell.Fake {
 	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		if len(r.Args) < 2 {
 			return shell.Fail(1, "?")
@@ -63,17 +63,17 @@ func v4Cluster() *shell.Fake {
 			switch r.Args[1] {
 			case "pods":
 				if strings.Contains(strings.Join(r.Args, " "), "-l job-name=pi") {
-					return shell.OK(v4JobPods)
+					return shell.OK(actionJobPods)
 				}
-				return shell.OK(v4Pods)
+				return shell.OK(actionPods)
 			case "deployments", "deploy", "dp":
-				return shell.OK(v4Deploys)
+				return shell.OK(actionDeploys)
 			case "cronjobs":
-				return shell.OK(v4Cron)
+				return shell.OK(actionCron)
 			case "jobs":
-				return shell.OK(v4Jobs)
+				return shell.OK(actionJobs)
 			case "events", "ev":
-				return shell.OK(v4Events)
+				return shell.OK(actionEvents)
 			}
 			return shell.Fail(1, `error: the server doesn't have a resource type "`+r.Args[1]+`"`)
 		case "logs":
@@ -91,7 +91,7 @@ func trueColor(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
 }
 
-func v4Model(t *testing.T, f *shell.Fake) model {
+func actionModel(t *testing.T, f *shell.Fake) model {
 	t.Helper()
 	m := newTestModel(t, testEnv(t), f)
 	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
@@ -137,8 +137,8 @@ func open(t *testing.T, m model, q string) model {
 }
 
 func TestContainerPickerForLogs(t *testing.T) {
-	f := v4Cluster()
-	m := selectRow(t, v4Model(t, f), "web-1")
+	f := actionCluster()
+	m := selectRow(t, actionModel(t, f), "web-1")
 	m = pressSettle(t, m, "enter")
 	if m.dlg == nil || strings.Join(m.dlg.options, ",") != "app,side,migrate" || m.dlg.notes[2] != "init" {
 		t.Fatalf("picker %+v", m.dlg)
@@ -159,23 +159,23 @@ func TestContainerPickerForLogs(t *testing.T) {
 		t.Fatalf("label %q", l)
 	}
 
-	m = pressSettle(t, selectRow(t, v4Model(t, f), "web-1"), "enter", "esc")
+	m = pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "enter", "esc")
 	if m.dlg != nil || m.stage != "workpods" {
 		t.Fatalf("cancel: %s", m.stage)
 	}
 }
 
 func TestSingleContainerNoPicker(t *testing.T) {
-	f := v4Cluster()
-	m := pressSettle(t, selectRow(t, v4Model(t, f), "db-0"), "enter")
+	f := actionCluster()
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "enter")
 	if m.dlg != nil || m.stage != "logs" || m.vs.logCont != "" {
 		t.Fatalf("stage %s dlg %v", m.stage, m.dlg)
 	}
 }
 
 func TestPreviousLogsToggle(t *testing.T) {
-	f := v4Cluster()
-	m := pressSettle(t, selectRow(t, v4Model(t, f), "db-0"), "enter", "p")
+	f := actionCluster()
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "enter", "p")
 	logs := calls(f, "logs")
 	if !m.vs.logPrev || !strings.Contains(logs[len(logs)-1], "--previous") {
 		t.Fatalf("prev %v %v", m.vs.logPrev, logs)
@@ -208,8 +208,8 @@ func TestShellArgsAndPicker(t *testing.T) {
 	if shellScript != "command -v bash >/dev/null && exec bash || exec sh" {
 		t.Fatal(shellScript)
 	}
-	f := v4Cluster()
-	m := pressSettle(t, selectRow(t, v4Model(t, f), "web-1"), "s")
+	f := actionCluster()
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "s")
 	if m.dlg == nil || m.dlg.act != "shell" || !strings.Contains(ansi.Strip(m.View()), "shell · container") {
 		t.Fatalf("no picker %+v", m.dlg)
 	}
@@ -233,8 +233,8 @@ func TestShellArgsAndPicker(t *testing.T) {
 
 func TestScale(t *testing.T) {
 	trueColor(t)
-	f := v4Cluster()
-	m := open(t, v4Model(t, f), "deploy")
+	f := actionCluster()
+	m := open(t, actionModel(t, f), "deploy")
 	if m.stage != "res" || len(m.content.Items()) != 1 {
 		t.Fatalf("deploy table: %s %d", m.stage, len(m.content.Items()))
 	}
@@ -261,7 +261,7 @@ func TestScale(t *testing.T) {
 		t.Fatalf("toast %q", m.toast.text)
 	}
 
-	f = v4Cluster()
+	f = actionCluster()
 	cfg := testEnv(t)
 	cfg.Prod = []string{"kind-dev"}
 	m = newTestModel(t, cfg, f)
@@ -286,8 +286,8 @@ func TestScale(t *testing.T) {
 }
 
 func TestRolloutRestart(t *testing.T) {
-	f := v4Cluster()
-	m := open(t, v4Model(t, f), "deploy")
+	f := actionCluster()
+	m := open(t, actionModel(t, f), "deploy")
 	m = pressSettle(t, m, "r")
 	if m.dlg == nil || !strings.Contains(ansi.Strip(m.View()), "rollout restart deploy/web?") {
 		t.Fatal("no question")
@@ -304,7 +304,7 @@ func TestRolloutRestart(t *testing.T) {
 		t.Fatalf("toast %q", m.toast.text)
 	}
 
-	m = pressSettle(t, v4Model(t, f), "r")
+	m = pressSettle(t, actionModel(t, f), "r")
 	if m.dlg != nil {
 		t.Fatal("restart on pods")
 	}
@@ -318,7 +318,7 @@ func TestCopyOSC52(t *testing.T) {
 	t.Setenv("WAYLAND_DISPLAY", "")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("TMUX", "")
-	m := pressSettle(t, selectRow(t, v4Model(t, v4Cluster()), "db-0"), "w")
+	m := pressSettle(t, selectRow(t, actionModel(t, actionCluster()), "db-0"), "w")
 	want := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte("db-0")) + "\a"
 	if len(got) != 1 || got[0] != want || !strings.Contains(m.toast.text, "copied db-0 via OSC 52 (terminal must support it)") {
 		t.Fatalf("copy %q toast %q", got, m.toast.text)
@@ -331,7 +331,7 @@ func TestCopyOSC52(t *testing.T) {
 }
 
 func TestColumnSort(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	names := func(m model) string {
 		var n []string
 		for _, raw := range m.content.Items() {
@@ -384,7 +384,7 @@ func TestColumnSort(t *testing.T) {
 
 func TestFilterTitleAndClear(t *testing.T) {
 	for _, q := range []string{"pods", "deploy", "events"} {
-		m := v4Model(t, v4Cluster())
+		m := actionModel(t, actionCluster())
 		if q != "pods" {
 			m = open(t, m, q)
 		}
@@ -412,7 +412,7 @@ func TestFilterTitleAndClear(t *testing.T) {
 func TestEventsView(t *testing.T) {
 	trueColor(t)
 	for _, q := range []string{"events", "ev"} {
-		m := open(t, v4Model(t, v4Cluster()), q)
+		m := open(t, actionModel(t, actionCluster()), q)
 		if m.stage != "res" || !strings.HasPrefix(m.content.Title, "LAST SEEN") {
 			t.Fatalf("%s: %s %q", q, m.stage, m.content.Title)
 		}
@@ -434,8 +434,8 @@ func TestEventsView(t *testing.T) {
 }
 
 func TestCronJobTrigger(t *testing.T) {
-	f := v4Cluster()
-	m := open(t, v4Model(t, f), "cronjobs")
+	f := actionCluster()
+	m := open(t, actionModel(t, f), "cronjobs")
 	if !strings.Contains(m.content.Title, "SCHEDULE") || !strings.Contains(m.content.Title, "LAST SCHEDULE") {
 		t.Fatalf("cronjob header %q", m.content.Title)
 	}
@@ -459,8 +459,8 @@ func TestCronJobTrigger(t *testing.T) {
 
 func TestJobsDrillToPods(t *testing.T) {
 	trueColor(t)
-	f := v4Cluster()
-	m := open(t, v4Model(t, f), "jobs")
+	f := actionCluster()
+	m := open(t, actionModel(t, f), "jobs")
 	if !strings.Contains(m.content.Title, "COMPLETIONS") || !strings.Contains(m.content.Title, "DURATION") {
 		t.Fatalf("jobs header %q", m.content.Title)
 	}
@@ -482,8 +482,8 @@ func TestJobsDrillToPods(t *testing.T) {
 }
 
 func TestLabelAnnotate(t *testing.T) {
-	f := v4Cluster()
-	m := pressSettle(t, selectRow(t, v4Model(t, f), "db-0"), "L")
+	f := actionCluster()
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "L")
 	if m.dlg == nil || m.dlg.act != "label" {
 		t.Fatal("no label popup")
 	}
@@ -527,7 +527,7 @@ func TestEditCustomResourceArgs(t *testing.T) {
 }
 
 func TestBuiltinAliases(t *testing.T) {
-	m := v4Model(t, v4Cluster())
+	m := actionModel(t, actionCluster())
 	m = open(t, m, "dp")
 	if m.stage != "res" || m.kind != "deployments" {
 		t.Fatalf("dp -> %s %s (%s)", m.stage, m.kind, m.status)
@@ -549,7 +549,7 @@ func TestBuiltinAliases(t *testing.T) {
 
 	cfg := testEnv(t)
 	cfg.Aliases = map[string]string{"dp": "cronjobs"}
-	m2 := newTestModel(t, cfg, v4Cluster())
+	m2 := newTestModel(t, cfg, actionCluster())
 	m2.kubeconfig, m2.context, m2.namespace = "/kc", "kind-dev", "shop"
 	m2 = open(t, m2, "dp")
 	if m2.kind != "cronjobs" {
@@ -574,7 +574,7 @@ func TestInlineShell(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	for _, input := range []string{"bye", "fail"} {
-		h := newEdHarness(t, selectRow(t, v4Model(t, v4Cluster()), "db-0"))
+		h := newEdHarness(t, selectRow(t, actionModel(t, actionCluster()), "db-0"))
 		h.keys("s")
 		if !h.m.ed.live() || h.m.ed.kind != "shell" {
 			t.Fatalf("no inline shell: %s", h.m.status)
