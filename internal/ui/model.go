@@ -76,6 +76,8 @@ type viewState struct {
 	xraySel  string
 
 	listFrom string
+	homeAt   int
+	marks    map[string]bool
 }
 
 type kmark struct {
@@ -203,6 +205,8 @@ type model struct {
 	mlogPaint   map[string]string
 	width       int
 	height      int
+	boxH        int
+	bootProfile string
 	quitting    bool
 	status      string
 	kind        string
@@ -284,6 +288,8 @@ type Options struct {
 	Version string
 
 	Notice string
+
+	Profile string
 }
 
 func New(opts Options) tea.Model { return initialModel(opts) }
@@ -413,35 +419,36 @@ func initialModel(opts Options) model {
 		}
 	}
 	m := model{
-		nav:        nav,
-		content:    content,
-		portInput:  ti,
-		cmd:        cmd,
-		sh:         sh,
-		jq:         jq,
-		stage:      "nav",
-		status:     status,
-		width:      100,
-		height:     28,
-		kubeconfig: kubeconfig,
-		context:    context,
-		namespace:  st.Namespace,
-		kroot:      st.KustomRoot,
-		forwards:   st.Forwards,
-		favs:       st.Favorites,
-		resuming:   resumeAny(cfg, st.Forwards),
-		logID:      newPaneID(),
-		vis:        map[string]*visCache{},
-		mlogStyles: map[color]lipgloss.Style{},
-		mlogPaint:  map[string]string{},
-		cfg:        cfg,
-		cfgNote:    len(warnings) > 0,
-		notice:     opts.Notice,
-		paintBg:    cfg.UI.PaintBackground(pal.Light),
-		themeName:  pal.Name,
-		shFmt:      cfg.OutputIndex(),
-		run:        opts.Runner,
-		k:          k,
+		nav:         nav,
+		content:     content,
+		portInput:   ti,
+		cmd:         cmd,
+		sh:          sh,
+		jq:          jq,
+		stage:       "nav",
+		status:      status,
+		width:       100,
+		height:      28,
+		kubeconfig:  kubeconfig,
+		context:     context,
+		namespace:   st.Namespace,
+		kroot:       st.KustomRoot,
+		forwards:    st.Forwards,
+		favs:        st.Favorites,
+		resuming:    resumeAny(cfg, st.Forwards),
+		logID:       newPaneID(),
+		vis:         map[string]*visCache{},
+		mlogStyles:  map[color]lipgloss.Style{},
+		mlogPaint:   map[string]string{},
+		cfg:         cfg,
+		cfgNote:     len(warnings) > 0,
+		notice:      opts.Notice,
+		bootProfile: opts.Profile,
+		paintBg:     cfg.UI.PaintBackground(pal.Light),
+		themeName:   pal.Name,
+		shFmt:       cfg.OutputIndex(),
+		run:         opts.Runner,
+		k:           k,
 	}
 	m.spin = newSpinner()
 	m.version = opts.Version
@@ -463,6 +470,7 @@ func (m model) Init() tea.Cmd {
 		}))
 	}
 	cmds = append(cmds, m.resumeStern()...)
+	cmds = append(cmds, m.resumeViews()...)
 	return tea.Batch(cmds...)
 }
 

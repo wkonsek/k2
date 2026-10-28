@@ -3,7 +3,9 @@ package ui
 import (
 	"strconv"
 
+	"k2/internal/config"
 	"k2/internal/kube"
+	"k2/internal/kustomize"
 	"k2/internal/layout"
 	"k2/internal/state"
 
@@ -39,30 +41,61 @@ func (m *model) save() {
 	for i, p := range m.panes {
 		index[p.logID] = i
 		stage := p.stage
-
-		// stern keeps the query, not the lines. xray/helm/pulse just come back as home.
+		kind := p.kind
+		target := ""
 		logs, logsTitle := "", ""
 		if stage == "mlogs" && p.vs.ml != nil {
 			logs = logQueryArgs(p.vs.ml.q)
 			logsTitle = p.vs.ml.title
 		}
-		if stage == "describe" {
+		switch stage {
+		case "describe", "yaml", "view":
 			stage = or(p.dback, "res")
-		}
-		if stage == "yaml" {
-			stage = "res"
-		}
-		if logs == "" {
-			switch {
-			case p.vs.vback != "", p.vs.jumpFrom != "", stage == "xray", stage == "helm", stage == "pulse", stage == "mlogs",
-				stage == "helmhist", stage == "hdiff":
+			if stage == "" || stage == "describe" || stage == "yaml" || stage == "view" || stage == "nav" {
+				stage = "res"
+			}
+		case "hdiff":
+			stage = "helm"
+			if p.vs.hist != nil && p.vs.hist.name != "" {
+				stage = "helmhist"
+				target = p.vs.hist.name
+			}
+		case "kout":
+			if m.kroot != "" {
+				stage, target = "kdir", m.kroot
+			} else {
 				stage = "nav"
 			}
+		case "helmhist":
+			if p.vs.hist != nil {
+				target = p.vs.hist.name
+			}
+			if target == "" {
+				stage = "helm"
+			}
+		case "xray":
+			if p.vs.xray != nil {
+				kind = p.vs.xray.kind
+				target = p.vs.xray.name
+			}
+		case "kust":
+			stage = "kdir"
+			target = m.kroot
+		case "kdir":
+			target = m.kroot
+		case "kcmd":
+			if p.logID == m.logID {
+				target = m.sh.Value()
+			}
+		}
+		if stage == "mlogs" && logs == "" {
+			stage = "nav"
 		}
 		st.Panes = append(st.Panes, state.Pane{
-			Stage: stage, Kind: p.kind, LogPod: p.logPod, Pod: p.pod,
+			Stage: stage, Kind: kind, LogPod: p.logPod, Pod: p.pod,
 			Kubeconfig: p.kubeconfig, Context: p.context, Namespace: p.namespace,
 			NsPrev: p.vs.nsPrev, Logs: logs, LogsTitle: logsTitle,
+			HelmAll: p.vs.helmAll, Target: target, PodSel: p.vs.podSel, PodTitle: p.vs.podTitle,
 		})
 	}
 	for _, t := range m.tabs {
@@ -183,6 +216,9 @@ func (m *model) restorePanes(st state.State) {
 	m.focus = m.paneIdx(m.tabs[m.tab].focus)
 	m.restored = true
 	m.restore(m.panes[m.focus])
+	if m.stage == "kcmd" && m.subject != "" {
+		m.sh.SetValue(m.subject)
+	}
 	m.refit()
 }
 
@@ -218,8 +254,8 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 	}
 	switch sp.Stage {
 	case "workpods":
-		header, items, err := getPodItems(m.k, kc, ctx, ns, "", m.tableWidth())
-		if err != nil || len(items) == 0 {
+		header, items, err := getPodItems(m.k, kc, ctx, ns, sp.PodSel, m.tableWidth())
+		if err != nil {
 			fail(err)
 			break
 		}
@@ -228,13 +264,17 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 		alt.content.SetItems(items)
 		alt.kind = "pods"
 		alt.stage = "workpods"
+		alt.vs.podSel, alt.vs.podTitle = sp.PodSel, sp.PodTitle
 		alt.status = "pods"
+		if len(items) == 0 {
+			alt.status = "no pods in " + or(ns, "all namespaces")
+		}
 	case "res":
 		if sp.Kind == "" {
 			break
 		}
 		header, items, err := getResourceItems(m.k, kc, ctx, ns, sp.Kind, m.tableWidth())
-		if err != nil || len(items) == 0 {
+		if err != nil {
 			fail(err)
 			break
 		}
@@ -244,6 +284,9 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 		alt.kind = sp.Kind
 		alt.stage = "res"
 		alt.status = sp.Kind
+		if len(items) == 0 {
+			alt.status = "no " + sp.Kind + " in " + or(ns, "all namespaces")
+		}
 	case "logs":
 		if sp.LogPod == "" {
 			break
@@ -313,6 +356,142 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 		alt.content.Title = "Kubeconfig"
 		alt.content.SetItems(files)
 		alt.stage = "files"
+	case "pulse":
+		if ns == "" {
+			break
+		}
+		alt.stage = "pulse"
+		alt.subject = "pulse " + ns
+		alt.status = "pulse of " + ns
+	case "helm":
+		alt.stage = "helm"
+		alt.vs.helmAll = sp.HelmAll
+		alt.status = "helm"
+	case "helmhist":
+		if sp.Target == "" {
+			alt.stage = "helm"
+			alt.vs.helmAll = sp.HelmAll
+			break
+		}
+		alt.stage = "helmhist"
+		alt.vs.hist = &helmHist{ns: ns, name: sp.Target}
+		alt.status = "history of " + ns + "/" + sp.Target
+	case "xray":
+		kind := sp.Kind
+		if kind == "" {
+			kind = "pods"
+		}
+		alt.kind = kind
+		alt.stage = "xray"
+		alt.vs.xray = &xrayView{kind: kind, name: sp.Target}
+		alt.status = "xray " + kind
+		if sp.Target != "" {
+			alt.status += "/" + sp.Target
+		}
+	case "kdir":
+		dir := sp.Target
+		if dir == "" {
+			dir = m.kroot
+		}
+		if dir == "" {
+			break
+		}
+		entries, err := kustomize.List(dir)
+		if err != nil {
+			fail(err)
+			break
+		}
+		items := make([]list.Item, 0, len(entries))
+		for _, e := range entries {
+			desc := e.Kind
+			switch e.Kind {
+			case "parent":
+				desc = ""
+			case "file":
+				desc = "kust-file"
+			case "other":
+				desc = "plain-file"
+			}
+			items = append(items, item{title: e.Name, id: e.Path, desc: desc})
+		}
+		alt.stage = "kdir"
+		alt.content.Title = config.HomePath(dir)
+		alt.content.SetShowTitle(true)
+		alt.content.SetItems(items)
+		alt.status = "kustomize"
+	case "kcmd":
+		alt.stage = "kcmd"
+		alt.subject = sp.Target
+		alt.status = "kubectl"
 	}
 	return alt.snap()
+}
+
+func (m *model) resumeViews() []tea.Cmd {
+	if m.rowBusy == nil {
+		m.rowBusy = map[string]bool{}
+	}
+	var cmds []tea.Cmd
+	start := func(id, stage, kind, target, kc, ctx, ns string, helmAll bool) {
+		if kc == "" || ctx == "" {
+			return
+		}
+		switch stage {
+		case "pulse":
+			if ns == "" || m.rowBusy["pu"+id] {
+				return
+			}
+			m.rowBusy["pu"+id] = true
+			cmds = append(cmds, pulseCmd(m.k, id, 0, true, kc, ctx, ns))
+		case "helm":
+			if m.rowBusy[id] {
+				return
+			}
+			m.rowBusy[id] = true
+			hns := ns
+			if helmAll {
+				hns = ""
+			}
+			cmds = append(cmds, helmCmd(m.k, id, 0, true, helmAll, kc, ctx, hns))
+		case "helmhist":
+			if target == "" || m.rowBusy[id] {
+				return
+			}
+			m.rowBusy[id] = true
+			name, pane := target, id
+			cmds = append(cmds, func() tea.Msg {
+				secrets, err := m.k.ObjectsWhere(kc, ctx, "secrets", ns, "owner=helm,name="+name)
+				msg := helmHistMsg{pane: pane, ns: ns, name: name, err: err}
+				if err == nil {
+					msg.revs = kube.HelmHistory(secrets, ns, name)
+				}
+				return msg
+			})
+		case "xray":
+			if m.rowBusy[id] {
+				return
+			}
+			m.rowBusy[id] = true
+			cmds = append(cmds, xrayCmd(m.k, id, 0, true, kc, ctx, ns, kind, target))
+		}
+	}
+	start(m.logID, m.stage, m.kind, xrayOrHist(m.vs), m.kubeconfig, m.context, m.namespace, m.vs.helmAll)
+	for i := range m.panes {
+		if i == m.focus {
+			continue
+		}
+		p := m.panes[i]
+		start(p.logID, p.stage, p.kind, xrayOrHist(p.vs), p.kubeconfig, p.context, p.namespace, p.vs.helmAll)
+	}
+	return cmds
+}
+
+func xrayOrHist(vs viewState) string {
+	if vs.xray != nil {
+		return vs.xray.name
+	}
+	if vs.hist != nil {
+		return vs.hist.name
+	}
+	return ""
 }

@@ -251,7 +251,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, m.relayout()
+		cmd := m.relayout()
+		if m.bootProfile != "" {
+			name := m.bootProfile
+			m.bootProfile = ""
+			next, pcmd := m.loadProfile(name)
+			return next, tea.Batch(cmd, pcmd)
+		}
+		return m, cmd
 
 	case tea.KeyMsg:
 		km := m.cfg.Keys
@@ -310,6 +317,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case km.LastError.Has(key) && !m.cmdOn:
 			return m.openLastErr()
+		case km.Profile.Has(key) && !m.cmdOn && m.dlg == nil:
+			return m.askSaveProfile()
 		case km.Fullscreen.Has(key):
 			if !m.cmdOn {
 				m.zoom = !m.zoom
@@ -429,11 +438,21 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toggleLogMark()
 			return m, nil
 		case km.ScrollDown.Has(key):
+			if m.stage == "nav" && !filtering {
+				m.vs.homeAt++
+				return m, nil
+			}
 			if m.viewing() && !filtering {
 				m.scroll(1)
 				return m, nil
 			}
 		case km.ScrollUp.Has(key):
+			if m.stage == "nav" && !filtering {
+				if m.vs.homeAt > 0 {
+					m.vs.homeAt--
+				}
+				return m, nil
+			}
 			if m.viewing() && !filtering {
 				m.scroll(-1)
 				return m, nil
@@ -481,27 +500,30 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.askStopAll()
 			}
 			if km.Diff.Has(key) && (m.stage == "kust" || m.stage == "kdir") && !filtering {
-				if _, ok := m.selectedKust(); !ok && m.content.SelectedItem() != nil {
+				target, _, ok := m.selectedTarget()
+				if !ok && m.content.SelectedItem() != nil {
 					return m.notKust()
 				}
-				if _, ok := m.selectedKust(); ok {
-					dir, _ := m.selectedKust()
+				if ok {
 					if m.kubeconfig == "" || m.context == "" {
 						m.status = "select kubeconfig and context first"
 						return m, nil
 					}
 					m.rememberK()
-					m.kfile = dir
+					m.kfile = target
 					m.subject = "diff"
 					m.kback = m.stage
 					m.logText = ""
 					m.logStick = false
 					m.logAt = 0
 					m.stage = "kout"
-					m.status = "diff " + config.HomePath(dir)
-					return m, tea.Batch(m.startLoad("diffing", false), m.kustomizeCmd("diff", dir))
+					m.status = "diff " + config.HomePath(target)
+					return m, tea.Batch(m.startLoad("diffing", false), m.kustomizeCmd("diff", target))
 				}
 			}
+		case km.Mark.Has(key) && !filtering && (m.stage == "workpods" || m.stage == "res"):
+			m.toggleMark()
+			return m, nil
 		case km.Back.Has(key):
 			if m.cancelLoad() {
 				return m, nil

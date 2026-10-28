@@ -149,6 +149,14 @@ func (m *model) argCandidates(val string) argCompletion {
 			names = append(names, favName(e.fav))
 		}
 		return argCompletion{base: word + " ", toks: ranked(names, strings.TrimSpace(rest), nil), ok: true}
+	case "profile":
+		names := m.profileNames()
+		if cur == 0 || (cur == 1 && strings.EqualFold(args[0], "save")) {
+			if len(names) == 0 {
+				return argCompletion{base: base, note: "no profiles yet", ok: true}
+			}
+			return argCompletion{base: base, toks: ranked(names, tok, nil), ok: true}
+		}
 	}
 	return argCompletion{}
 }

@@ -90,13 +90,14 @@ pane with these keys or `:` commands.
 |---|---|---|
 | `C` | `keys.kubeconfig` | pick a kubeconfig (`:kubeconfig`, `:kube`, `:kc`, `:c`) |
 | `c` | `keys.context` | pick a context (`:context`, `:ctx`, `:x`) |
-| `n` | `keys.namespace` | pick a namespace / OpenShift project (`:namespace`, `:ns`, `:project`, `:projects`, `:proj`, `:o`). From a pod or resource list, k2 returns to that list afterwards (back does too); from home it returns home |
+| `n` | `keys.namespace` | pick a namespace / OpenShift project (`:namespace`, `:ns`, `:project`, `:projects`, `:proj`, `:o`). From a pod list, resource list, pulse, helm or stern, k2 returns to that view afterwards (back does too); from home it returns home |
 | `K` | `keys.kustomize` | kustomize browser (`:kustomize`, `:kust`, `:kustomization`, `:k`) |
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
 | `f` | `keys.forwards` | running port-forwards (`:forwards`, `:pf`, `:fwd`, `:fwds`, `:f`) |
 | `b` | `keys.favorites` | favorites picker: pinned context + namespace (+ view) (`:fav`, `:favorites`); every screen, not in text inputs |
 | `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
 | `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
+| `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace) |
@@ -118,7 +119,7 @@ catalogsources, `:rt` routes, `:proj` projects.
 
 | Key | Config | What it does |
 |---|---|---|
-| `j`, `down` | `keys.scroll_down` | next row (also next port suggestion in the popup) |
+| `space` (` `) | `keys.mark` | select or unselect the row. `ctrl+d` deletes every selected row, `M` tails exactly those pods. With nothing selected, both keys keep their old behaviour |
 | `k`, `up` | `keys.scroll_up` | previous row |
 | `pgdown`, `}` | `keys.page_down` | page down |
 | `pgup`, `{` | `keys.page_up` | page up |
@@ -315,9 +316,9 @@ the bottom unless `ui.copy_mode_hint: false`.
 |---|---|---|
 | `s` | `keys.scan` | scan the tree for kustomizations |
 | `p` | `keys.kustomize_path` | type a directory to jump to (`tab` completes) |
-| `a` | `keys.apply` | kubectl apply -k (popup: path, context, object count) |
-| `D` | `keys.diff` | kubectl diff -k |
-| `d` | `keys.kustomize_delete` | kubectl delete -k (red popup: path, context, object count) |
+| `a` | `keys.apply` | kubectl apply -k on a kustomization, kubectl apply -f on a plain YAML file (popup: path, context, object count) |
+| `D` | `keys.diff` | kubectl diff -k, or kubectl diff -f on a plain YAML file |
+| `d` | `keys.kustomize_delete` | kubectl delete -k, or kubectl delete -f on a plain YAML file (red popup: path, context, object count) |
 | `e` | `keys.edit` | open the file / kustomization in vim |
 
 ## Forwards list (`f`)

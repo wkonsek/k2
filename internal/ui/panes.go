@@ -176,7 +176,7 @@ func (m model) layout() (sideW, mainW, panelH int) {
 	return
 }
 
-func (m model) snapBody(s paneSnap, innerW int) string {
+func (m model) snapBody(s paneSnap, innerW, innerH int) string {
 	alt := m
 	alt.content = s.content
 	alt.portInput = s.portInput
@@ -194,6 +194,7 @@ func (m model) snapBody(s paneSnap, innerW int) string {
 	alt.load, alt.ran = s.load, s.ran
 	alt.vs = s.vs
 	alt.logID = s.logID
+	alt.boxH = innerH
 	return alt.rightBody(innerW)
 }
 

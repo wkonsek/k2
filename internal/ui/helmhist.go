@@ -63,7 +63,12 @@ func (m model) helmHistory(r kube.HelmRelease) (tea.Model, tea.Cmd) {
 func (m *model) applyHelmHist(msg helmHistMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.withPane(msg.pane, func() {
-		if m.load.token != msg.token || m.stage != m.load.from {
+		delete(m.rowBusy, msg.pane)
+		if msg.token == 0 {
+			if m.stage != "helmhist" || m.vs.hist == nil || m.vs.hist.name != msg.name {
+				return
+			}
+		} else if m.load.token != msg.token || m.stage != m.load.from {
 			return
 		}
 		m.load = load{}

@@ -464,7 +464,7 @@ func (m model) statusBody(innerW int) string {
 	hint := func(key, cmd, what string) string {
 		return keyStyle.Render(fmt.Sprintf("%-3s", key)) + " " + dimStyle.Render(fmt.Sprintf("%-12s %s", ":"+cmd, what))
 	}
-	lines = append(lines, "",
+	hints := []string{
 		hint(k.Select.Label(), "pods", "list pods"),
 		hint(k.Kubeconfig.Short(), "kubeconfig", "pick a kubeconfig file"),
 		hint(k.Context.Short(), "context", "pick a context"),
@@ -478,17 +478,95 @@ func (m model) statusBody(innerW int) string {
 		hint("", "helm", "helm releases"),
 		hint("", "xray deploy", "owner trees (tab completes kinds and names)"),
 		hint("", "logs <sel>", "logs of many pods"),
-	)
+	}
+	room := 0
+	if m.boxH > len(lines)+1 {
+		room = m.boxH - len(lines) - 1
+	}
+	if room > 0 && len(hints) > room {
+		hints = flowDown(hints, innerW, room)
+	}
+	lines = append(lines, "")
+	lines = append(lines, hints...)
+	lines = pageLines(lines, m.vs.homeAt, m.boxH)
 	for i := range lines {
 		lines[i] = clipLine(lines[i], innerW)
 	}
 	return strings.Join(lines, "\n")
 }
 
+func flowDown(hints []string, width, rows int) []string {
+	if rows < 1 || len(hints) == 0 || width < 16 {
+		return hints
+	}
+	maxW := 1
+	for _, h := range hints {
+		if w := ansi.StringWidth(h); w > maxW {
+			maxW = w
+		}
+	}
+	gutter := 2
+	cols := 1
+	if maxW+gutter > 0 {
+		cols = width / (maxW + gutter)
+	}
+	if cols < 2 && width >= 56 {
+		cols = width / 28
+		if cols < 2 {
+			cols = 2
+		}
+		maxW = width/cols - gutter
+		if maxW < 16 {
+			return hints
+		}
+	}
+	if cols < 2 {
+		return hints
+	}
+	need := (len(hints) + rows - 1) / rows
+	if need < cols {
+		cols = need
+	}
+	height := (len(hints) + cols - 1) / cols
+	out := make([]string, height)
+	step := maxW + gutter
+	for i, h := range hints {
+		col := i / height
+		row := i % height
+		cell := clipLine(h, maxW)
+		if col > 0 {
+			out[row] = padTo(out[row], col*step)
+		}
+		out[row] += cell
+	}
+	return out
+}
+
+func padTo(s string, n int) string {
+	w := ansi.StringWidth(s)
+	if w >= n {
+		return s
+	}
+	return s + strings.Repeat(" ", n-w)
+}
+
+func pageLines(lines []string, at, height int) []string {
+	if height <= 0 || len(lines) <= height {
+		return lines
+	}
+	if at < 0 {
+		at = 0
+	}
+	if at > len(lines)-height {
+		at = len(lines) - height
+	}
+	return lines[at:]
+}
+
 func (m model) rightBody(innerW int) string {
 	switch m.stage {
 	case "workpods", "res", "xray", "helm", "helmhist":
-		m.content.SetDelegate(rowDelegate{width: innerW})
+		m.content.SetDelegate(rowDelegate{width: innerW, marks: m.vs.marks})
 		reflowList(&m.content, innerW)
 		head := dimStyle.Bold(true).Render(clipLine(tableHeader(m.content, m.vs), innerW))
 		if len(m.content.Items()) == 0 && !m.load.active() {
@@ -588,8 +666,9 @@ func (m model) paneBlock(i, width, h int) string {
 	case ed != nil:
 		body = ed.body(i == m.focus && !m.pfOn && m.dlg == nil, bodyW, h-2, m.cfg.Keys.Back.Label())
 	case i != m.focus && i < len(m.panes):
-		body = m.snapBody(m.panes[i], bodyW)
+		body = m.snapBody(m.panes[i], bodyW, h-2)
 	default:
+		m.boxH = h - 2
 		body = m.rightBody(bodyW)
 	}
 	if m.cmdOn && i == m.focus && h > 4 {

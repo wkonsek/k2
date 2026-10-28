@@ -131,6 +131,8 @@ type Keys struct {
 	Favorites     Binding
 	Theme         Binding
 	Login         Binding
+	Mark          Binding
+	Profile       Binding
 	XrayToggle    Binding
 	Search        Binding
 	HelmMark      Binding
@@ -185,6 +187,8 @@ func DefaultKeys() Keys {
 
 		Xray: Binding{"X"}, MultiLogs: Binding{"M"}, Favorites: Binding{"b"}, Theme: Binding{"ctrl+t"},
 		Login:      Binding{"ctrl+l"},
+		Mark:       Binding{" "},
+		Profile:    Binding{"ctrl+p"},
 		XrayToggle: Binding{" "}, Yaml: Binding{"y"},
 		HelmMark: Binding{" "}, HelmDiff: Binding{"D"}, Search: Binding{"/"},
 		XrayExpand: Binding{"+"}, XrayCollapse: Binding{"-"}, XrayFilter: Binding{"/"},
@@ -293,6 +297,8 @@ var keyFields = []keyField{
 	{"favorites", func(k *Keys) *Binding { return &k.Favorites }},
 	{"theme", func(k *Keys) *Binding { return &k.Theme }},
 	{"login", func(k *Keys) *Binding { return &k.Login }},
+	{"mark", func(k *Keys) *Binding { return &k.Mark }},
+	{"profile", func(k *Keys) *Binding { return &k.Profile }},
 	{"xray_toggle", func(k *Keys) *Binding { return &k.XrayToggle }},
 	{"search", func(k *Keys) *Binding { return &k.Search }},
 	{"helm_mark", func(k *Keys) *Binding { return &k.HelmMark }},
@@ -370,7 +376,7 @@ var OldPaneKeys = map[string]Binding{
 var globalKeys = map[string]bool{
 	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
 	"pane_left": true, "pane_right": true, "pane_up": true, "pane_down": true, "prev_pane": true, "next_pane": true, "last_pane": true,
-	"zoom": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true,
+	"zoom": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true, "profile": true,
 	"tab_1": true, "tab_2": true, "tab_3": true, "tab_4": true, "tab_5": true, "tab_6": true, "tab_7": true, "tab_8": true, "tab_9": true,
 }
 
@@ -383,7 +389,7 @@ var screenKeys = func() map[string][]string {
 	return map[string][]string{
 		"tables": with("describe", "port_forward", "delete", "edit", "decode",
 			"shell", "scale", "set_image", "restart", "trigger", "label", "annotate", "copy_name", "copy_ref",
-			"sort_next", "sort_prev", "sort_reverse", "approve", "xray", "multi_logs", "all_namespaces"),
+			"sort_next", "sort_prev", "sort_reverse", "approve", "xray", "multi_logs", "all_namespaces", "mark"),
 
 		"xray": with("describe", "yaml", "xray_toggle", "xray_expand_all", "xray_collapse_all", "xray_filter", "multi_logs", "copy_name", "copy_ref", "all_namespaces"),
 

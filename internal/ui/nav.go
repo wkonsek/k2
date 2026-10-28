@@ -55,12 +55,7 @@ func (m model) activateNav() (tea.Model, tea.Cmd) {
 		return m, m.content.SetItems(items)
 
 	case "proj":
-
-		if m.stage == "workpods" || (m.stage == "res" && m.kind != "") {
-			m.vs.listFrom = m.stage
-		} else if m.stage != "projects" {
-			m.vs.listFrom = ""
-		}
+		m.noteNS()
 		return m.openList("projects", "namespaces")
 
 	case "pods":
@@ -129,27 +124,8 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		}
 		m.context = ctx
 		m.namespace = ns
-		from := m.vs.listFrom
-		m.vs.listFrom = ""
 		m.save()
-		if from == "workpods" || (from == "res" && m.kind != "") {
-			kind := m.kind
-			if from == "workpods" {
-				kind = "pods"
-			}
-			if ns == "" {
-				m.status = "all namespaces"
-			} else {
-				m.status = ns
-			}
-			return m.openList(from, kind)
-		}
-		m.stage = "nav"
-		if ns == "" {
-			m.status = "all namespaces"
-		} else {
-			m.status = ns
-		}
+		return m.resumeNS()
 	case "workpods":
 
 		ns, name := kube.SplitRef(it.id, m.namespace)
@@ -313,21 +289,72 @@ func (m *model) back() tea.Cmd {
 	return nil
 }
 
-func (m *model) reopenList() (tea.Cmd, bool) {
-	stage := m.vs.listFrom
-	kind := m.kind
-	switch stage {
-	case "workpods":
-		kind = "pods"
-	case "res":
-		if kind == "" {
-			return nil, false
-		}
+func (m *model) noteNS() {
+	switch m.stage {
+	case "projects", "contexts", "files":
+		return
+	case "nav":
+		m.vs.listFrom = ""
 	default:
+		m.vs.listFrom = m.stage
+	}
+}
+
+func (m model) resumeNS() (tea.Model, tea.Cmd) {
+	from := m.vs.listFrom
+	m.vs.listFrom = ""
+	m.status = m.namespace
+	if m.status == "" {
+		m.status = "all namespaces"
+	}
+	switch from {
+	case "", "nav":
+		m.stage = "nav"
+		return m, nil
+	case "workpods", "logs":
+		return m.openList("workpods", "pods")
+	case "res", "yaml", "describe", "view":
+		if m.kind == "" {
+			m.stage = "nav"
+			return m, nil
+		}
+		return m.openList("res", m.kind)
+	case "pulse":
+		if m.namespace == "" {
+			m.stage = "nav"
+			m.status = "pulse needs a namespace"
+			return m, m.notify(toneWarn, m.status)
+		}
+		return m.openPulse()
+	case "helm", "helmhist", "hdiff":
+		return m.openHelm()
+	case "mlogs":
+		if m.vs.ml != nil {
+			return m.openMultiLogs(m.vs.ml.q, m.vs.ml.title, m.vs.ml.from)
+		}
+		m.stage = "nav"
+		return m, nil
+	case "fwds":
+		return m, m.showForwards()
+	case "kdir", "kust":
+		return m, m.showKDir(m.kroot)
+	case "kcmd":
+		m.stage = "kcmd"
+		return m, nil
+	case "xray":
+		m.stage = "xray"
+		return m, nil
+	default:
+		m.stage = from
+		return m, nil
+	}
+}
+
+func (m *model) reopenList() (tea.Cmd, bool) {
+	if m.vs.listFrom == "" {
 		return nil, false
 	}
-	m.vs.listFrom = ""
-	next, cmd := m.openList(stage, kind)
+	next, cmd := m.resumeNS()
 	*m = next.(model)
 	return cmd, true
 }

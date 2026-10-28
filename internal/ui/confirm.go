@@ -56,6 +56,9 @@ func (m model) askDelete() (tea.Model, tea.Cmd) {
 	if m.stage == "fwds" {
 		return m.askStopForward()
 	}
+	if refs := m.markedRefs(); len(refs) > 0 {
+		return m.askDeleteRefs(refs)
+	}
 	kind, ns, name, ok := m.selectedRef()
 	if !ok {
 		return m, nil
@@ -151,7 +154,7 @@ func (m *model) askKust(verb string) (tea.Model, tea.Cmd) {
 		return *m, nil
 	}
 	target, file, ok := m.selectedTarget()
-	if !ok || (file && verb != "apply") {
+	if !ok {
 		return m.notKust()
 	}
 	if m.kubeconfig == "" || m.context == "" {
@@ -171,6 +174,9 @@ func (m *model) askKust(verb string) (tea.Model, tea.Cmd) {
 	}
 	if verb == "delete" {
 		title = "✗ kustomize delete"
+		if file {
+			title = "✗ kubectl delete"
+		}
 	}
 	next := m.ask(askSpec{
 		title:    title,

@@ -51,10 +51,13 @@ func (m model) updateCmd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
-
+	raw = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), ":"))
 	m.vs.jumpFrom, m.vs.jumpSel, m.vs.vback = "", "", ""
 
-	if next, cmd, ok := m.runV07Command(strings.TrimSpace(raw)); ok {
+	if next, cmd, ok := m.profileCommand(raw); ok {
+		return next, cmd
+	}
+	if next, cmd, ok := m.runV07Command(raw); ok {
 		return next, cmd
 	}
 	q := strings.ToLower(strings.TrimSpace(raw))
@@ -235,7 +238,7 @@ func cycleHint(cands []string, at int) string {
 
 func (m model) cmdCandidates(tok string) []string {
 	base := []string{"kubeconfig", "context", "namespace", "pods", "forward", "forwards", "kustomize", "kubectl",
-		"xray", "logs", "helm", "pulse", "fav", "theme", "login"}
+		"xray", "logs", "helm", "pulse", "fav", "theme", "login", "profile"}
 	seen := map[string]bool{}
 	var out []string
 	add := func(s string) {

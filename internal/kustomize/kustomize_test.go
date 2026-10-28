@@ -114,6 +114,18 @@ func TestRun(t *testing.T) {
 	if got := f.Calls()[len(f.Calls())-1].Line(); got != "kubectl apply -f "+file+" --kubeconfig /kc --context ctx" {
 		t.Fatal(got)
 	}
+	if _, code := Run(f, "delete", file, "/kc", "ctx"); code != 0 {
+		t.Fatal(code)
+	}
+	if got := f.Calls()[len(f.Calls())-1].Line(); got != "kubectl delete -f "+file+" --kubeconfig /kc --context ctx" {
+		t.Fatal(got)
+	}
+	if _, code := Run(f, "diff", file, "/kc", "ctx"); code != 1 {
+		t.Fatal(code)
+	}
+	if got := f.Calls()[len(f.Calls())-1].Line(); got != "kubectl diff -f "+file+" --kubeconfig /kc --context ctx" {
+		t.Fatal(got)
+	}
 	if _, code := Run(f, "diff", "/k/app", "/kc", "ctx"); code != 1 {
 		t.Fatal(code)
 	}

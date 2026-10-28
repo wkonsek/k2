@@ -16,6 +16,7 @@ import (
 )
 
 var version = "dev"
+
 const release = "v0.0.0"
 
 func versionString() string {
@@ -69,7 +70,12 @@ func run(stdout, stderr *os.File) int {
 	}
 
 	notice, warn := firstStart()
-	uiOpts := ui.Options{Runner: runner, Version: versionString(), Notice: notice}
+	profile, perr := profileArg(os.Args[1:])
+	if perr != nil {
+		fmt.Fprintln(stderr, perr.Error())
+		return 1
+	}
+	uiOpts := ui.Options{Runner: runner, Version: versionString(), Notice: notice, Profile: profile}
 	if warn != "" {
 		uiOpts.Warnings = []string{warn}
 	}

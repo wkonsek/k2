@@ -11,6 +11,7 @@ import (
 	"k2/internal/forward"
 	"k2/internal/kube"
 	"k2/internal/layout"
+	"k2/internal/shell"
 	"k2/internal/state"
 )
 
@@ -132,5 +133,87 @@ func TestSternSurvivesRestart(t *testing.T) {
 	again = newTestModel(t, cfg, nil)
 	if again.stage != "mlogs" || again.vs.ml == nil || again.vs.ml.q.Regex == nil || again.vs.ml.q.Regex.String() != `^kafka-[0-9]+$` || !again.vs.ml.q.All {
 		t.Fatalf("regex %+v", again.vs.ml)
+	}
+}
+
+func TestPaneViewSurvivesRestart(t *testing.T) {
+	cfg := testEnv(t)
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(r.Args, " ")
+		switch {
+		case strings.Contains(line, "get pods"):
+			return shell.OK(podsJSON)
+		case strings.Contains(line, "get secrets"):
+			return shell.OK(`{"items":[]}`)
+		default:
+			return shell.OK(`{"items":[]}`)
+		}
+	}}
+	open := func(stage, kind string) model {
+		m := newTestModel(t, cfg, f)
+		m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+		m.stage, m.kind = stage, kind
+		return m
+	}
+
+	m := open("pulse", "")
+	m.save()
+	again := newTestModel(t, cfg, f)
+	if again.stage != "pulse" || again.namespace != "shop" {
+		t.Fatalf("pulse %s ns %s", again.stage, again.namespace)
+	}
+	if len(again.resumeViews()) != 1 || !again.rowBusy["pu"+again.logID] {
+		t.Fatal("pulse was not reloaded")
+	}
+
+	m = open("helm", "")
+	m.vs.helmAll = true
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "helm" || !again.vs.helmAll {
+		t.Fatalf("helm %s all %v", again.stage, again.vs.helmAll)
+	}
+
+	m = open("xray", "")
+	m.vs.xray = &xrayView{kind: "deploy", name: "web"}
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "xray" || again.vs.xray == nil || again.vs.xray.kind != "deploy" || again.vs.xray.name != "web" {
+		t.Fatalf("xray %+v stage %s", again.vs.xray, again.stage)
+	}
+
+	m = open("res", "secrets")
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "res" || again.kind != "secrets" {
+		t.Fatalf("secrets %s %s %s", again.stage, again.kind, again.status)
+	}
+
+	m = open("yaml", "secrets")
+	m.dback, m.vs.vback = "res", "res"
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "res" || again.kind != "secrets" {
+		t.Fatalf("yaml returns to its list: %s %s", again.stage, again.kind)
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.yaml"), []byte("kind: ConfigMap\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m = open("kdir", "")
+	m.kroot = dir
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "kdir" || again.kroot != dir {
+		t.Fatalf("kustomize %s root %s", again.stage, again.kroot)
+	}
+
+	m = open("kcmd", "")
+	m.sh.SetValue("get pods -n shop")
+	m.save()
+	again = newTestModel(t, cfg, f)
+	if again.stage != "kcmd" || again.sh.Value() != "get pods -n shop" {
+		t.Fatalf("kubectl %s %q", again.stage, again.sh.Value())
 	}
 }

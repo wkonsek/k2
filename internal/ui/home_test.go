@@ -113,6 +113,50 @@ func TestNamespacePickerReturnsToTheList(t *testing.T) {
 	if m.stage != "res" || m.kind != "deployments" || m.namespace != "shop" {
 		t.Fatalf("back to deployments: stage %q kind %q ns %q", m.stage, m.kind, m.namespace)
 	}
+
+	m = pressSettle(t, m, ":", "p", "u", "l", "s", "e", "enter")
+	if m.stage != "pulse" {
+		t.Fatalf("pulse %q", m.stage)
+	}
+	m = pressSettle(t, m, "n", "down", "enter")
+	if m.stage != "pulse" || m.namespace != "shop" {
+		t.Fatalf("back to pulse: stage %q ns %q", m.stage, m.namespace)
+	}
+}
+
+func TestEmptyNamespaceStaysOnTheList(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(r.Args, " ")
+		switch {
+		case strings.Contains(line, "get projects"), strings.Contains(line, "get ns"):
+			return shell.OK("shop\nempty\n")
+		case strings.Contains(line, "get pods") && strings.Contains(line, "-n empty"):
+			return shell.OK(`{"items":[]}`)
+		case strings.Contains(line, "get pods"):
+			return shell.OK(podsJSON)
+		default:
+			return shell.OK("")
+		}
+	}}
+	m := newTestModel(t, testEnv(t), f)
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	next, cmd := m.openPods()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "n", "down", "down", "enter")
+	if m.stage != "workpods" || m.namespace != "empty" || m.kind != "pods" {
+		t.Fatalf("empty ns: stage %q ns %q kind %q status %q", m.stage, m.namespace, m.kind, m.status)
+	}
+	if !strings.Contains(m.status, "no pods in empty") {
+		t.Fatalf("status %q", m.status)
+	}
+	m = pressSettle(t, m, "n")
+	if m.stage != "projects" || m.vs.listFrom != "workpods" {
+		t.Fatalf("second picker: stage %q from %q", m.stage, m.vs.listFrom)
+	}
+	m = pressSettle(t, m, "down", "enter")
+	if m.stage != "workpods" || m.namespace != "shop" {
+		t.Fatalf("back from empty: stage %q ns %q", m.stage, m.namespace)
+	}
 }
 
 func TestOpenShiftContextSetsNamespace(t *testing.T) {

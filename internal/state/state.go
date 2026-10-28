@@ -60,6 +60,13 @@ type Pane struct {
 	Namespace  string `json:"namespace"`
 
 	NsPrev string `json:"nsPrev,omitempty"`
+
+	// Where the pane was, beyond the stage name: xray object, helm release,
+	// kustomize root, kubectl line, or the pods of one workload.
+	HelmAll  bool   `json:"helmAll,omitempty"`
+	Target   string `json:"target,omitempty"`
+	PodSel   string `json:"podSel,omitempty"`
+	PodTitle string `json:"podTitle,omitempty"`
 }
 
 func Path(dir string) string { return filepath.Join(dir, FileName) }

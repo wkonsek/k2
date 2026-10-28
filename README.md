@@ -79,7 +79,7 @@ dead forward stays dead across restarts.
 
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
 green dot and diffs, applies or deletes them. A plain YAML file has no dot;
-`a` applies it with `kubectl apply -f`. Apply and delete show a
+`a` applies it, `D` diffs it and `d` deletes it, all with `kubectl -f`. Apply and delete show a
 progress bar over the objects the kustomization renders to, every output
 line gets an icon and a color (`+` created, `~` configured, `−` deleted,
 `✗` error), and a bordered summary closes the run. Diffs get one bold header
@@ -213,6 +213,8 @@ Then:
 | `0` | all namespaces and back |
 | `q` / `esc` | back |
 | `Q` | quit; your shell switches to the focused pane's cluster |
+| `space` | select rows; `ctrl+d` deletes them, `M` tails those pods |
+| `ctrl+p` | save this layout as a profile (`:profile save dev`, `k2 --profile dev`) |
 
 Every key is listed in the **[keyboard cheatsheet](CHEATSHEET.md)**.
 
@@ -336,11 +338,11 @@ every `ui.refresh_every` seconds.
 
 **Kustomize (`K`).** Every file and directory is listed (only `.git`,
 `node_modules` and `vendor` are skipped); a green dot marks kustomizations.
-A plain YAML file has no dot and `a` applies it with `-f`. Other files are
+A plain YAML file has no dot; `a`, `D` and `d` use `kubectl -f`. Other files are
 dimmed. `s` scans for kustomizations, `p` jumps to a
 typed path with shell-like `tab` completion, `e` / `enter` opens a file in
-vim. `a` apply, `D` diff, `d` delete act on green-dot rows; `a` also applies
-a plain YAML file. Apply and
+vim. `a` apply, `D` diff, `d` delete act on a green-dot row or a plain YAML
+file. Apply and
 delete ask first, naming the path, context and object count. After a
 delete k2 shows `waiting for N to terminate…`. The summary ends with
 `── exit N · done|failed|differences ──`, and the cursor stays on the same

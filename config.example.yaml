@@ -79,6 +79,8 @@
 #   favorites: b
 #   theme: ctrl+t             # popup of themes for this context; saved to ui.context_themes
 #   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login)
+#   mark: space               # select rows in a list; delete and M use the selection
+#   profile: ctrl+p           # save the open panes as a profile (:profile save name)
 #   port_forward: ctrl+f
 #   describe: d
 #   edit: e
@@ -182,3 +184,21 @@
 #   complete: tab
 #   yes: [y, Y]
 #   no: [n, N, esc, q]
+# profiles are files in ~/.k2/profiles/<name>.yaml, not entries in this config.
+# ctrl+p or :profile save name writes the open panes and the split tree.
+# tab after :profile cycles the names in that directory.
+# layout.split right puts children left to right, down puts them top to bottom.
+# layout pane: N is panes[N].
+# example of a wide top pane, then a bottom row whose right side is stacked:
+#   layout:
+#     split: down
+#     children:
+#       - pane: 0
+#       - split: right
+#         children:
+#           - pane: 1
+#           - split: down
+#             children:
+#               - pane: 2
+#               - pane: 3
+

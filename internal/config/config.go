@@ -266,6 +266,8 @@ func Parse(data []byte) (Config, []string) {
 			p.uiSection(val, &cfg.UI, &cfg.ContextThemes)
 		case "keys":
 			p.keys(val, &cfg.Keys)
+		case "profiles":
+			p.warn("profiles: files in the profiles directory, not in the config (ignored)")
 		default:
 			p.warn("unknown setting %q (ignored)", key)
 		}

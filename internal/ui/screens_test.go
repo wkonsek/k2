@@ -648,12 +648,12 @@ func TestPulseUsageColors(t *testing.T) {
 	}
 }
 
-func TestExtraScreensSaveAsHome(t *testing.T) {
+func TestExtraScreensSurviveSave(t *testing.T) {
 	f := v7Cluster(t)
 	m := open(t, v7Model(t, f), "helm")
 	m.save()
 	st := state.Load(m.cfg.StateDir)
-	if len(st.Panes) == 0 || st.Panes[0].Stage != "nav" {
+	if len(st.Panes) == 0 || st.Panes[0].Stage != "helm" || st.Panes[0].Namespace != "shop" {
 		t.Fatalf("saved %+v", st.Panes)
 	}
 }

@@ -164,6 +164,10 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		return m.applyThemePick(d.picked())
 	case "login":
 		return m.submitLogin()
+	case "profile":
+		name := strings.TrimSpace(d.input.Value())
+		m.dlg = nil
+		return m.saveProfile(name)
 	case "shell":
 		m.dlg = nil
 		return m.openShell(d.ns, d.name, d.picked())

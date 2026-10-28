@@ -95,15 +95,17 @@ func TestKustomizeActionsNeedKustomization(t *testing.T) {
 			}
 		}
 	}
-	for _, k := range []string{"D", "d"} {
-		m := browseModel(t, root)
-		selectTitle(t, &m, "deploy.yaml")
-		m = press(t, m, k)
-		if m.asking() != "" || m.toast.text != "not a kustomization" {
-			t.Fatalf("%s on deploy.yaml: confirm %q toast %q", k, m.asking(), m.toast.text)
-		}
-	}
 	m := browseModel(t, root)
+	selectTitle(t, &m, "deploy.yaml")
+	if got := press(t, m, "D"); got.stage != "kout" || got.subject != "diff" {
+		t.Fatalf("D on deploy.yaml: stage %q subject %q toast %q", got.stage, got.subject, got.toast.text)
+	}
+	m = browseModel(t, root)
+	selectTitle(t, &m, "deploy.yaml")
+	if got := press(t, m, "d"); got.asking() != "✗ kubectl delete" {
+		t.Fatalf("d on deploy.yaml: confirm %q toast %q", got.asking(), got.toast.text)
+	}
+	m = browseModel(t, root)
 	selectTitle(t, &m, "deploy.yaml")
 	if got := press(t, m, "a"); got.asking() != "⇪ kubectl apply" {
 		t.Fatalf("a on deploy.yaml: confirm %q", got.asking())

@@ -496,6 +496,16 @@ func (m model) submitLogFilter() (tea.Model, tea.Cmd) {
 }
 
 func (m model) multiLogsSelected() (tea.Model, tea.Cmd) {
+	if m.stage == "workpods" {
+		if names := m.markedNames(); len(names) > 0 {
+			q := kube.LogQuery{All: m.cfg.Logs.MultiAllContainers, Regex: podsRegex(names)}
+			title := names[0]
+			if len(names) > 1 {
+				title = fmt.Sprintf("%d pods", len(names))
+			}
+			return m.openMultiLogs(q, title, m.stage)
+		}
+	}
 	kind, ns, name, ok := m.selectedRef()
 	if !ok {
 		return m, nil

@@ -212,19 +212,21 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 
 			m.status += " — press " + m.cfg.Keys.AllNamespaces.Label() + " for all namespaces"
 		}
-		if msg.toggled && msg.stage == m.stage && msg.kind == m.kind {
-
-			m.content.ResetFilter()
-			m.content.SetItems(nil)
-			m.vs.pick = ""
-		}
+		m.content.ResetFilter()
+		m.content.SetShowTitle(false)
+		m.content.Title = msg.header
+		m.content.SetItems(nil)
+		m.vs.pick = ""
+		m.vs.marks = nil
+		m.kind = msg.kind
+		m.stage = msg.stage
 		return m.notify(toneWarn, m.status)
 	}
 	m.content.ResetFilter()
 	m.content.SetShowTitle(false)
 	if msg.kind != m.kind || msg.stage != m.stage {
-
 		m.vs.sortCol, m.vs.sortDesc = "", false
+		m.vs.marks = nil
 		m.content.SetItems(nil)
 	}
 	m.content.Select(0)
@@ -288,7 +290,8 @@ func (m *model) applyEditDone(msg editDoneMsg) {
 		return
 	}
 	if len(items) == 0 {
-		m.stage = "nav"
+		m.content.Title = header
+		m.content.SetItems(nil)
 		m.status = "none in " + label
 		return
 	}

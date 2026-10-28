@@ -522,7 +522,10 @@ func (d dirDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	fmt.Fprint(w, itemStyle.Render("  "+name))
 }
 
-type rowDelegate struct{ width int }
+type rowDelegate struct {
+	width int
+	marks map[string]bool
+}
 
 func (d rowDelegate) Height() int { return 1 }
 
@@ -535,16 +538,31 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	if !ok {
 		return
 	}
+	mark := ""
+	if len(d.marks) > 0 {
+		mark = "  "
+		if d.marks[it.id] {
+			mark = "● "
+		}
+	}
 	if index == m.Index() {
 		text := ansi.Strip(it.plain)
 		if text == "" {
 			text = ansi.Strip(it.title)
 		}
-		text = fitCell(text, d.width)
+		text = fitCell(mark+text, d.width)
 		fmt.Fprint(w, selectedItemStyle.Render(text))
 		return
 	}
-	fmt.Fprint(w, clipLine(it.title, d.width))
+	if mark == "" {
+		fmt.Fprint(w, clipLine(it.title, d.width))
+		return
+	}
+	dot := dimStyle.Render(mark)
+	if d.marks[it.id] {
+		dot = okStyle.Render("● ")
+	}
+	fmt.Fprint(w, clipLine(dot+it.title, d.width))
 }
 
 func getResourceItems(k kube.Client, kubeconfig, context, namespace, kind string, width int) (string, []list.Item, error) {
