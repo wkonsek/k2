@@ -217,9 +217,15 @@ func TestKubectlShape(t *testing.T) {
 func TestKubectlDiffOutput(t *testing.T) {
 	m := kustModel(t, nil, "kubectl")
 	m.showOutput(kOutMsg{text: kustDiff, code: 1, line: "diff -f web.yaml"})
-	if !strings.Contains(m.logText, kustomize.DiffHeaderPrefix+"Deployment shop/web") || !strings.HasSuffix(m.logText, "── exit 1 · differences ──") || m.ran.mode != "diff" {
+	if !strings.Contains(m.logText, kustomize.DiffHeaderPrefix+"Deployment shop/web") || !strings.HasSuffix(m.logText, "── exit 1 · differences ──") || m.ran.mode != "diff" || m.ran.outcome != "differences" {
 		t.Fatalf("kubectl diff:\n%s", m.logText)
 	}
+	m.subject = "diff"
+	m.showOutput(kOutMsg{text: "domain: example\n-   prefix: legacy\n\n  [25 lines unchanged)]\n", target: "helm-gateway-app.yml", ctx: "prod"})
+	if m.ran.outcome != "differences" || strings.Contains(m.logText, "no differences") || !strings.Contains(m.logText, "differences found") || !strings.HasSuffix(m.logText, "── exit 0 · differences ──") {
+		t.Fatalf("dyff exit 0: outcome %q\n%s", m.ran.outcome, m.logText)
+	}
+	m.subject = "kubectl"
 	m.showOutput(kOutMsg{text: "a: 1\n- b", line: "get cm x -o yaml"})
 	if m.ran.mode != "yaml" {
 		t.Fatalf("mode %q", m.ran.mode)

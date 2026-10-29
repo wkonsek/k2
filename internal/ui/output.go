@@ -37,6 +37,9 @@ func (m *model) showOutput(msg kOutMsg) tea.Cmd {
 	m.load = load{}
 	verb := m.subject
 	outcome := kustomize.Outcome(verb, msg.code)
+	if verb == "diff" {
+		outcome = kustomize.DiffOutcome(msg.text, msg.code)
+	}
 	mode := "plain"
 	switch verb {
 	case "apply", "delete", "diff":
@@ -53,7 +56,7 @@ func (m *model) showOutput(msg kOutMsg) tea.Cmd {
 		case kverb == "diff":
 			text = kustomize.CollapseDiff(text)
 			fverb = "diff"
-			outcome = kustomize.Outcome(fverb, msg.code)
+			outcome = kustomize.DiffOutcome(msg.text, msg.code)
 			mode = "diff"
 		case format == "yaml":
 			mode = "yaml"
@@ -75,11 +78,19 @@ func (m *model) runToast(verb string, msg kOutMsg) tea.Cmd {
 	switch {
 	case verb != "apply" && verb != "delete" && verb != "diff":
 		return nil
-	case verb == "diff" && msg.code == 0:
-		return m.notify(toneOK, "no differences")
-	case verb == "diff" && msg.code == 1:
-		n := len(kustomize.DiffHeaders(kustomize.CollapseDiff(msg.text)))
-		return m.notify(toneWarn, plural(n, "resource differs", "resources differ"))
+	case verb == "diff":
+		switch kustomize.DiffOutcome(msg.text, msg.code) {
+		case "done":
+			return m.notify(toneOK, "no differences")
+		case "failed":
+			return m.notify(toneErr, fmt.Sprintf("diff failed · exit %d", msg.code))
+		default:
+			n := len(kustomize.DiffHeaders(kustomize.CollapseDiff(msg.text)))
+			if n == 0 {
+				return m.notify(toneWarn, "differences found")
+			}
+			return m.notify(toneWarn, plural(n, "resource differs", "resources differ"))
+		}
 	case msg.code != 0:
 		return m.notify(toneErr, fmt.Sprintf("%s failed · exit %d", verb, msg.code))
 	}

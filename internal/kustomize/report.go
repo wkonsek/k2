@@ -151,10 +151,14 @@ func (r Report) String() string {
 	text := strings.TrimRight(r.Text, "\n")
 	var lines []string
 	head := ""
-	failed := Outcome(r.Verb, r.Code) == "failed"
-	c := Count(text)
+	outcome := Outcome(r.Verb, r.Code)
 	if r.Verb == "diff" {
 		text = CollapseDiff(text)
+		outcome = DiffOutcome(text, r.Code)
+	}
+	failed := outcome == "failed"
+	c := Count(text)
+	if r.Verb == "diff" {
 		n := len(DiffHeaders(text))
 		switch {
 		case failed:
@@ -167,7 +171,7 @@ func (r Report) String() string {
 			lines = append(lines, "1 resource differs")
 		case n > 1:
 			lines = append(lines, fmt.Sprintf("%d resources differ", n))
-		case r.Code == 1:
+		case outcome == "differences":
 			lines = append(lines, "differences found")
 		default:
 			lines = append(lines, "no differences")
@@ -207,7 +211,7 @@ func (r Report) String() string {
 	if text != "no differences" {
 		head = text + "\n\n"
 	}
-	return head + Box(title, lines) + fmt.Sprintf("\n\n── exit %d · %s ──", r.Code, Outcome(r.Verb, r.Code))
+	return head + Box(title, lines) + fmt.Sprintf("\n\n── exit %d · %s ──", r.Code, outcome)
 }
 
 func failLine(verb string, errs int) string {
@@ -347,4 +351,31 @@ func ResourceName(file string) string {
 		return kind + " " + ref + "  (" + api + ")"
 	}
 	return file
+}
+
+var csi = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+
+var dyffChange = regexp.MustCompile(`(?m)(?:\[\d+ lines? unchanged\)?\]|[±⇆]|^\s*[+\-±⇆] (?:value change|content change|whitespace only change|certificate change|order changed|.+ (?:added|removed):))`)
+
+// DiffOutcome reads the diff body as well as the exit code. kubectl diff
+// exits 1 when the built-in diff finds changes, but an external tool such as
+// dyff exits 0 unless it was given --set-exit-code, even when it printed a
+// real change.
+func DiffOutcome(text string, code int) string {
+	switch {
+	case code > 1:
+		return "failed"
+	case code == 1 || looksLikeDiff(text):
+		return "differences"
+	default:
+		return "done"
+	}
+}
+
+func looksLikeDiff(text string) bool {
+	plain := strings.TrimSpace(csi.ReplaceAllString(text, ""))
+	if plain == "" || plain == "no differences" {
+		return false
+	}
+	return dyffChange.MatchString(plain)
 }

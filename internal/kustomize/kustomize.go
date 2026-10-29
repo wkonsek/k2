@@ -184,7 +184,11 @@ func Outcome(verb string, code int) string {
 
 func Finish(text string, code int, verb string) string {
 	text = strings.TrimRight(text, "\n")
-	return text + Summary(text) + fmt.Sprintf("\n\n── exit %d · %s ──", code, Outcome(verb, code))
+	outcome := Outcome(verb, code)
+	if verb == "diff" {
+		outcome = DiffOutcome(text, code)
+	}
+	return text + Summary(text) + fmt.Sprintf("\n\n── exit %d · %s ──", code, outcome)
 }
 
 func Summary(text string) string {

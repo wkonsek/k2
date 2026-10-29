@@ -166,6 +166,11 @@ func TestDiffReport(t *testing.T) {
 	if !strings.HasPrefix(none, "╭─ diff") || !strings.Contains(none, "no differences · 1.0s") {
 		t.Fatalf("no-diff report:\n%s", none)
 	}
+	dyff := "\x1b[33m± value change in multiline text (0 inserts, 2 deletions)\x1b[0m\n  domain: example\n\x1b[31m-   prefix: legacy\x1b[0m\n\n  [25 lines unchanged)]\n"
+	colored := Report{Verb: "diff", Target: "helm-gateway-app.yml", Text: dyff, Code: 0, Took: 2500 * time.Millisecond}.String()
+	if strings.Contains(colored, "no differences") || !strings.Contains(colored, "differences found · 2.5s") || !strings.HasSuffix(colored, "── exit 0 · differences ──") {
+		t.Fatalf("dyff exit 0 still looked empty:\n%s", colored)
+	}
 }
 
 func TestSettles(t *testing.T) {
