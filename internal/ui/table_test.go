@@ -112,6 +112,12 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	if it := lst.Items()[0].(item); !strings.Contains(it.plain, "cert-manager-58b7ddd96b-6klxw  1/1") {
 		t.Fatalf("not restored: %q", it.plain)
 	}
+
+	lst.SetFilterText("58b7ddd96b")
+	reflowList(&lst, 100)
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+		t.Fatalf("filter lost on reflow: %d rows", len(v))
+	}
 }
 
 func sum(xs []int) int {

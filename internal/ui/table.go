@@ -174,7 +174,9 @@ func reflowList(lst *list.Model, width int) {
 		return
 	}
 	idx := lst.Index()
-	lst.SetItems(next)
+	if cmd := lst.SetItems(next); cmd != nil {
+		*lst, _ = lst.Update(cmd())
+	}
 	lst.Select(idx)
 	if len(heads) > 0 && len(widths) == len(heads) {
 		lst.Title = headerLine(heads, widths)
