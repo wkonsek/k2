@@ -97,9 +97,9 @@ func (m model) infoBlock(inner int) string {
 		b.WriteString(clipLine(dimStyle.Render(padRight(label, infoPad))+val, inner) + "\n")
 	}
 	row("k2", itemStyle.Render(or(m.version, "dev")))
-	row("kubectl", value(ci.v.Client))
+	row("kubectl", value(fitVersion(ci.v.Client, inner-infoPad)))
 	if m.context != "" {
-		row("k8s server", value(ci.v.Server))
+		row("k8s server", value(fitVersion(ci.v.Server, inner-infoPad)))
 		if ci.v.OpenShift != "" {
 			row("ocp", itemStyle.Render(ci.v.OpenShift))
 		}
@@ -107,6 +107,16 @@ func (m model) infoBlock(inner int) string {
 	b.WriteString(tok)
 	b.WriteString("\n")
 	return b.String()
+}
+
+func fitVersion(s string, room int) string {
+	if len(s) <= room {
+		return s
+	}
+	if i := strings.IndexAny(s, "-+"); i > 0 {
+		return s[:i]
+	}
+	return s
 }
 
 func padRight(s string, n int) string {
