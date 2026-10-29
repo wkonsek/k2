@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-canary-flags
+data:
+  CANARY_WEIGHT: "10"
+  FEATURE_NEW_CHECKOUT: "true"

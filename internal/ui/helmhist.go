@@ -84,6 +84,9 @@ func (m *model) applyHelmHist(msg helmHistMsg) tea.Cmd {
 		m.vs.hist = &helmHist{ns: msg.ns, name: msg.name, revs: msg.revs, mark: mark}
 		m.content.ResetFilter()
 		m.content.SetItems(nil)
+		if msg.token != 0 {
+			m.content.Select(0)
+		}
 		m.stage = "helmhist"
 		m.showHist("")
 		m.status = m.histHint()
@@ -136,7 +139,7 @@ func helmUpdated(r kube.HelmRelease) string {
 	if r.Updated.IsZero() {
 		return "-"
 	}
-	return r.Updated.Local().Format("2006-01-02 15:04:05")
+	return r.Updated.Local().Format("2006-01-02 15:04")
 }
 
 func (m model) selectedRev() (kube.HelmRelease, bool) {

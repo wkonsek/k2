@@ -94,7 +94,7 @@ pane with these keys or `:` commands.
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
 | `f` | `keys.forwards` | running port-forwards (`:forwards`, `:pf`, `:fwd`, `:fwds`, `:f`) |
 | `b` | `keys.favorites` | favorites picker: pinned context + namespace (+ view) (`:fav`, `:favorites`); every screen, not in text inputs |
-| `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`); the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
+| `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`), previewed as you move, `esc` restores; the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
 | `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
 | `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
 | — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |

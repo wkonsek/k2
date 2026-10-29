@@ -196,18 +196,27 @@ func (m model) kustomizeCmd(verb, dir string) tea.Cmd {
 				total, _ = kustomize.Build(r, dir)
 			}
 			ch <- progressMsg{id: pane, token: token, total: total, ch: ch}
-			done, deleted := 0, 0
+			done, deleted, waiting := 0, 0, false
 			text, code := kustomize.RunStream(r, verb, dir, kc, ctx, func(line string) {
+				if strings.TrimSpace(line) == "" {
+					return
+				}
 				if !kustomize.Settles(line) {
+					msg := progressMsg{id: pane, token: token, line: line, done: done, total: total, ch: ch}
+					if waiting {
+						msg.done, msg.total = 0, 0
+					}
+					ch <- msg
 					return
 				}
 				done++
 				if kustomize.Classify(line) == kustomize.Deleted {
 					deleted++
 				}
-				ch <- progressMsg{id: pane, token: token, done: done, total: total, ch: ch}
+				ch <- progressMsg{id: pane, token: token, line: line, done: done, total: total, ch: ch}
 
 				if verb == "delete" && total > 0 && done == total && deleted > 0 {
+					waiting = true
 					ch <- progressMsg{id: pane, token: token, what: fmt.Sprintf("waiting for %d to terminate", deleted), ch: ch}
 				}
 			})

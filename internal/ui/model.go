@@ -178,6 +178,7 @@ type progressMsg struct {
 	token       int
 	done, total int
 	what        string
+	line        string
 	ch          <-chan tea.Msg
 }
 

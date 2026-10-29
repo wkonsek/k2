@@ -128,9 +128,11 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case len(d.options) > 0 && (km.ScrollDown.Has(key) || km.Complete.Has(key)):
 		d.idx = (d.idx + 1) % len(d.options)
+		m.previewTheme()
 		return m, nil
 	case len(d.options) > 0 && (km.ScrollUp.Has(key) || key == "shift+tab"):
 		d.idx = (d.idx - 1 + len(d.options)) % len(d.options)
+		m.previewTheme()
 		return m, nil
 	}
 	if !d.hasIn {
@@ -356,7 +358,9 @@ func (m model) dialogBox(width int) string {
 	}
 	if d.hasIn {
 		if d.hint != "" {
-			lines = append(lines, dimStyle.Render(d.hint))
+			for _, l := range strings.Split(ansi.Wordwrap(d.hint, inner, ""), "\n") {
+				lines = append(lines, dimStyle.Render(l))
+			}
 		}
 		lines = append(lines, d.input.View())
 		lines = append(lines, d.candLines()...)

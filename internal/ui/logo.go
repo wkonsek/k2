@@ -43,7 +43,7 @@ func logoTitle(color string) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(th.OK).Bold(true)
 }
 
-var wordmark = []string{"█ ▄ ▀▀▄", "█▀▄ ▄▄▀"}
+var wordmark = []string{"█ ▄ ▀█", "█▀▄ █▄"}
 
 func brandRows(cfg config.UI, inner int, big bool) []string {
 	style := logoTitle(cfg.LogoTitleColor)

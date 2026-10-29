@@ -1,0 +1,16 @@
+# ~/.k2/config.yaml of the demo home (docs/demo/env.sh copies it there).
+# A normal k2 config: nothing in it is demo-only.
+theme: tokyo-night
+prod: [prod-eu-1]                 # red border, ☠ and red confirmations
+ui:
+  active_border: thick
+  dim_inactive: true
+  context_themes:                 # the whole UI re-colors per context
+    - {context: staging-eu-1, theme: catppuccin}
+    - {context: prod-eu-1, theme: gruvbox}
+  toast_seconds: 4
+portforward:
+  auto_restart: true              # dead forwards come back on their own
+  health_every: 2
+logs:
+  multi_every: 1

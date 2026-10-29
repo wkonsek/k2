@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: shop
+resources:
+  - ../../base
+images:
+  - name: nginx
+    newTag: 1.27-alpine
+replicas:
+  - name: web
+    count: 4

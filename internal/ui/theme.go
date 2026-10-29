@@ -36,6 +36,12 @@ func (m model) openTheme() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *model) previewTheme() {
+	if m.dlg != nil && m.dlg.act == "theme" {
+		m.retheme(m.cfg.PaletteNamed(m.dlg.picked()))
+	}
+}
+
 func (m model) applyThemePick(name string) (tea.Model, tea.Cmd) {
 	m.dlg = nil
 	name = strings.TrimSpace(name)

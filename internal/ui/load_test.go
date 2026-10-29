@@ -48,10 +48,10 @@ func TestElapsed(t *testing.T) {
 }
 
 func TestProgressBar(t *testing.T) {
-	if got := ansi.Strip(progressBar(3, 8, 16)); got != "━━━━━━──────────" {
+	if got := ansi.Strip(progressBar(3, 8, 16)); got != "██████░░░░░░░░░░" {
 		t.Fatalf("bar %q", got)
 	}
-	if got := ansi.Strip(progressBar(9, 8, 4)); got != "━━━━" {
+	if got := ansi.Strip(progressBar(9, 8, 4)); got != "████" {
 		t.Fatalf("overfull bar %q", got)
 	}
 	if progressBar(1, 0, 10) != "" {

@@ -27,9 +27,7 @@ resource the cluster serves: built-in kinds, CRDs, OLM objects and OpenShift
 Routes and Projects. When you quit, your shell lands on the cluster and
 namespace of the focused pane.
 
-![k2](./docs/demo/k2.png)
-
-<!-- GIF: docs/demo/hero.gif -->
+![k2 with two panes](docs/demo/hero.gif)
 
 ## Contents
 
@@ -56,14 +54,14 @@ last Kustomize directory come back as you left them. Port-forwards are
 detached `kubectl` processes that keep running after k2 exits; on the next
 start k2 picks up the ones still alive and restarts the ones that died.
 
-<!-- GIF: docs/demo/persistence.gif -->
+![port-forwards and the session survive a restart](docs/demo/persistence.gif)
 
 **Splits, tabs and vim in a pane.** `ctrl+a %` splits right, `ctrl+a "`
 splits down, `ctrl+a c` opens a tab, `ctrl+a z` zooms: the keys mean what
 they mean in tmux. `e` (`kubectl edit`), `v` (any text) and `s` (a shell in
 the pod) open inside the pane, and every pane can run its own editor.
 
-<!-- GIF: docs/demo/splits.gif -->
+![splits, tabs, zoom and vim in a pane](docs/demo/splits.gif)
 
 **Self-healing port-forwards.** `ctrl+f` on a pod, service, deployment or
 statefulset suggests ports from the spec. k2 does not trust a running
@@ -75,17 +73,17 @@ marked dead with the reason. `r` restarts it through its owner
 k2 starts. Without that setting, and without `a` on the forward itself, a
 dead forward stays dead across restarts.
 
-<!-- GIF: docs/demo/port-forward.gif -->
+![a dead port-forward restarted through its deployment](docs/demo/port-forward.gif)
 
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
 green square and diffs, applies or deletes them. A plain YAML file has no square;
 `a` applies it, `D` diffs it and `d` deletes it, all with `kubectl -f`. Apply and delete show a
-progress bar over the objects the kustomization renders to, every output
-line gets an icon and a color (`+` created, `~` configured, `−` deleted,
-`✗` error), and a bordered summary closes the run. Diffs get one bold header
+progress bar over the objects the kustomization renders to, and every
+output line shows up as kubectl prints it, with an icon and a color (`+` created, `~` configured, `−` deleted,
+`✗` error); a bordered summary closes the run. Diffs get one bold header
 per resource.
 
-<!-- GIF: docs/demo/kustomize.gif -->
+![Kustomize diff, apply and delete with live output](docs/demo/kustomize.gif)
 
 **Owner tree (`:xray`).** `X` on a row or `:xray deploy web` shows a
 workload with everything it owns: Deployment → ReplicaSets → Pods →
@@ -94,7 +92,7 @@ maps, secrets and PVCs it uses, with status colors, READY and RESTARTS.
 Namespace-wide trees start folded with a one-line summary per root, and
 roots in trouble start open.
 
-<!-- GIF: docs/demo/xray.gif -->
+![the xray owner tree](docs/demo/xray.gif)
 
 **Multi-pod logs.** `M` on a workload, service or pod follows the logs of
 all its pods at once, stern-style, each line prefixed with a colored
@@ -102,7 +100,7 @@ all its pods at once, stern-style, each line prefixed with a colored
 or a pod-name pattern (not `kind name`); new pods are picked up as they
 appear. `m` draws a rule after the current line so the tail stays separated.
 
-<!-- GIF: docs/demo/multi-logs.gif -->
+![logs of all pods of a deployment](docs/demo/multi-logs.gif)
 
 **Helm releases without the helm CLI.** `:helm` lists releases and shows
 values, computed values, manifest, notes and a revision history, all
@@ -110,7 +108,7 @@ decoded by k2 from Helm's release secrets. Mark two revisions and diff them
 per resource; roll back to any revision (this one step uses the helm CLI,
 when installed).
 
-<!-- GIF: docs/demo/helm.gif -->
+![Helm history, diff and rollback](docs/demo/helm.gif)
 
 **Safe on production.** List your production contexts under `prod:` and
 their panes get a red border and ☠; every destructive action asks in a red
@@ -118,13 +116,13 @@ popup that names the target and context, and `enter` never confirms: only
 `y` does. Separately, `ui.context_themes` gives a context its own theme, and
 the whole UI re-colors live as you move between panes.
 
-<!-- GIF: docs/demo/prod-safety.gif -->
+![context themes and the production confirmation](docs/demo/prod-safety.gif)
 
 **Token lifetime at a glance.** For OpenShift `oc login` tokens and JWTs the
 sidebar shows how long the focused context's token is still valid, as a bar
 that shrinks live and turns yellow and red before it expires.
 
-<!-- GIF: docs/demo/token-bar.gif -->
+![the token lifetime bar running out](docs/demo/token-bar.gif)
 
 **And the small things.** `:pulse` shows a namespace's health on one screen.
 `b` pins favorite context + namespace (+ view) targets and jumps back with
@@ -132,7 +130,7 @@ that shrinks live and turns yellow and red before it expires.
 and MEM bars against limits. `i` sets images, `S` scales, `r` restarts a
 rollout, and OLM Subscriptions, CSVs and InstallPlans get their own views.
 
-<!-- GIF: docs/demo/pulse-favorites.gif -->
+![pulse, favorites, all namespaces and set image](docs/demo/pulse-favorites.gif)
 
 ## Install
 
@@ -485,7 +483,8 @@ ui:
 ```
 
 The theme follows the focused pane and switches without a restart. `ctrl+t`
-(`keys.theme`, also `:theme`) opens the list of themes and writes the choice
+(`keys.theme`, also `:theme`) opens the list of themes, previews each one
+as you move, and writes the choice
 into `ui.context_themes` for the focused pane's context, so it sticks. A
 specific context is placed ahead of globs. `ctrl+shift+t` is not the
 binding: terminals use it for a new tab, and k2 does not see
@@ -522,6 +521,8 @@ with a warning.
 | `zenburn` | low-contrast cream on gray | dark |
 | `catppuccin-latte` | mauve on warm paper | light |
 | `custom` | your own `colors:` block | either |
+
+![every theme in the theme popup](docs/demo/themes.gif)
 
 ```yaml
 # ~/.k2/config.yaml (restart k2 to apply; ui.context_themes switch live)
@@ -608,6 +609,7 @@ make build       bin/k2
 make install     $(go env GOPATH)/bin/k2
 make test        no cluster needed
 make rpm / deb   packages in dist/
+make demo        the README GIFs (needs vhs)
 ```
 
 ```
@@ -622,6 +624,8 @@ internal/kube/      kubectl-backed cluster access
 internal/forward/   detached kubectl port-forward processes
 internal/kustomize/ kustomize directory browsing and apply/diff/delete
 internal/shell/     the command runner (real and fake, for tests)
+docs/demo/          the GIF tapes and their setup
+tools/demo/fakekube the fake kubectl and helm the GIFs are recorded against
 packaging/          rpm spec and deb control
 ```
 

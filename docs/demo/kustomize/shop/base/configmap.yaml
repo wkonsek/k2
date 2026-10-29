@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  FEATURE_NEW_CHECKOUT: "true"
+  nginx.conf: |
+    server {
+      listen 8080;
+      gzip on;
+      location / { root /usr/share/nginx/html; }
+      location /api/ { proxy_pass http://cart:8080/; }
+    }

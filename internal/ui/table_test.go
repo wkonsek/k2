@@ -92,7 +92,13 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	}
 
 	_, _, _, tiny, _, _, _ := renderTable(headers, rows, 3, 40)
-	if s := sum(tiny) + 14; s > 40 || tiny[7] < 3 || tiny[1] < 4 {
+	shown := 0
+	for _, w := range tiny {
+		if w > 0 {
+			shown++
+		}
+	}
+	if s := sum(tiny) + 2*(shown-1); s > 40 || tiny[7] < 3 || tiny[1] < 4 || tiny[5] != 0 || tiny[6] != 0 {
 		t.Fatalf("tiny widths %v (%d)", tiny, s)
 	}
 
@@ -105,6 +111,17 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	reflowList(&lst, 220)
 	if it := lst.Items()[0].(item); !strings.Contains(it.plain, "cert-manager-58b7ddd96b-6klxw  1/1") {
 		t.Fatalf("not restored: %q", it.plain)
+	}
+
+	lst.SetFilterText("58b7ddd96b")
+	reflowList(&lst, 100)
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+		t.Fatalf("filter lost on reflow: %d rows", len(v))
+	}
+
+	setRows(&lst, "", items, viewState{}, "")
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+		t.Fatalf("filter lost on refresh: %d rows", len(v))
 	}
 }
 

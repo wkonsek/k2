@@ -32,7 +32,6 @@ func knownTheme(name string) bool {
 	return ok
 }
 
-
 func UpsertContextTheme(in []ContextTheme, context, kubeconfig, themeName string) ([]ContextTheme, error) {
 	context = strings.TrimSpace(context)
 	kubeconfig = strings.TrimSpace(kubeconfig)

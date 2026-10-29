@@ -215,7 +215,7 @@ func TestPodMetricsNarrowAndOff(t *testing.T) {
 	for _, w := range []int{40, 60, 120, 200} {
 		reflowList(&m.content, w)
 		_, it := cellOf(t, m, "web-1", "CPU")
-		narrow := w < 70
+		narrow := w < 50
 		if hidden := it.widths[4] == 0 && it.widths[5] == 0; hidden != narrow {
 			t.Fatalf("width %d: widths %v", w, it.widths)
 		}

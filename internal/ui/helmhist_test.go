@@ -85,6 +85,9 @@ func TestHelmHistoryRollbackToRevision(t *testing.T) {
 	if got := strings.Join(rowIDs(m), " "); got != "rev/3 rev/2 rev/1" {
 		t.Fatalf("rows %s", got)
 	}
+	if it, _ := m.selectedItem(); it.id != "rev/3" {
+		t.Fatalf("cursor on %s, want the newest revision", it.id)
+	}
 	rows := rowsText(m)
 	for _, want := range []string{"●", "REVISION", "deployed", "nginx-1.3.0", "1.23", "change 1"} {
 		if !strings.Contains(rows+ansi.Strip(m.View()), want) {

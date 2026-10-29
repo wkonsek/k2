@@ -6,12 +6,12 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 RPM     := dist/k2-$(PKGVER)-1.x86_64.rpm
 DEB     := dist/k2_$(PKGVER)_amd64.deb
 
-.PHONY: help build build-linux install test test-race vet fmt rpm deb dist clean
+.PHONY: help build build-linux install test test-race vet fmt rpm deb dist clean demo
 
 help:
 	@echo "k2 $(VERSION)"
 	@echo "  build  install  test  test-race  vet  fmt"
-	@echo "  rpm    deb      dist  clean"
+	@echo "  rpm    deb      dist  clean  demo"
 
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/k2 ./cmd/k2
@@ -62,6 +62,10 @@ deb: build-linux
 	@echo "built $(DEB)"
 
 dist: rpm deb
+
+demo:
+	@command -v vhs >/dev/null || { echo "need vhs (https://github.com/charmbracelet/vhs)"; exit 1; }
+	docs/demo/record.sh
 
 clean:
 	rm -rf bin dist
