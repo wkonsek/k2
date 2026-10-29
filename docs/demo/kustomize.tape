@@ -9,42 +9,39 @@ Enter
 Sleep 1s
 Show
 
-Sleep 400ms
 Type "k2"
 Sleep 300ms
 Enter
-Sleep 2s
+Sleep 1.5s
 
 Type "K"
-Sleep 1.5s
+Sleep 1s
 Type "p"
-Sleep 800ms
+Sleep 600ms
 Type "shop/ov"
 Sleep 400ms
 Tab
-Sleep 900ms
+Sleep 600ms
 Enter
-Sleep 1.5s
+Sleep 1s
 Type "jj"
-Sleep 700ms
+Sleep 500ms
 
 Type "D"
-Sleep 2s
+Sleep 1.8s
 Type "g"
-Sleep 1.5s
-Type "jjjjjj"
-Sleep 1.5s
+Sleep 1.2s
 Type "q"
-Sleep 700ms
+Sleep 500ms
 
 Type "a"
-Sleep 2.2s
+Sleep 1.2s
 Type "y"
-Sleep 5s
+Sleep 4s
 Type "q"
-Sleep 900ms
+Sleep 600ms
 
 Type "d"
-Sleep 2s
+Sleep 1s
 Type "y"
-Sleep 9s
+Sleep 7s
