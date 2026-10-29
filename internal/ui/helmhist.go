@@ -136,7 +136,7 @@ func helmUpdated(r kube.HelmRelease) string {
 	if r.Updated.IsZero() {
 		return "-"
 	}
-	return r.Updated.Local().Format("2006-01-02 15:04:05")
+	return r.Updated.Local().Format("2006-01-02 15:04")
 }
 
 func (m model) selectedRev() (kube.HelmRelease, bool) {
