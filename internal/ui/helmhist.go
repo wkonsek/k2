@@ -84,6 +84,9 @@ func (m *model) applyHelmHist(msg helmHistMsg) tea.Cmd {
 		m.vs.hist = &helmHist{ns: msg.ns, name: msg.name, revs: msg.revs, mark: mark}
 		m.content.ResetFilter()
 		m.content.SetItems(nil)
+		if msg.token != 0 {
+			m.content.Select(0)
+		}
 		m.stage = "helmhist"
 		m.showHist("")
 		m.status = m.histHint()
