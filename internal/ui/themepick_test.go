@@ -61,6 +61,19 @@ func TestThemePopupSavesContext(t *testing.T) {
 	}
 }
 
+func TestThemePopupPreviews(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m = pressSettle(t, m, "ctrl+t", "down")
+	if m.themeName != "dracula" || th.Name != "dracula" {
+		t.Fatalf("no preview: %s %s", m.themeName, th.Name)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.dlg != nil || m.themeName != "nord" || th.Name != "nord" || len(m.cfg.ContextThemes) != 0 {
+		t.Fatalf("not restored: %s %s %+v", m.themeName, th.Name, m.cfg.ContextThemes)
+	}
+}
+
 func TestThemeCommand(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
 	m.context = "kind-dev"

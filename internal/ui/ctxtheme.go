@@ -7,6 +7,9 @@ import (
 )
 
 func (m *model) syncTheme() {
+	if m.dlg != nil && m.dlg.act == "theme" {
+		return
+	}
 	name := m.cfg.ThemeFor(m.kubeconfig, m.context)
 	if name == m.themeName {
 		return

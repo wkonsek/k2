@@ -485,7 +485,8 @@ ui:
 ```
 
 The theme follows the focused pane and switches without a restart. `ctrl+t`
-(`keys.theme`, also `:theme`) opens the list of themes and writes the choice
+(`keys.theme`, also `:theme`) opens the list of themes, previews each one
+as you move, and writes the choice
 into `ui.context_themes` for the focused pane's context, so it sticks. A
 specific context is placed ahead of globs. `ctrl+shift+t` is not the
 binding: terminals use it for a new tab, and k2 does not see
