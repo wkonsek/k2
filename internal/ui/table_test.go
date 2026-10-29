@@ -92,7 +92,13 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	}
 
 	_, _, _, tiny, _, _, _ := renderTable(headers, rows, 3, 40)
-	if s := sum(tiny) + 14; s > 40 || tiny[7] < 3 || tiny[1] < 4 {
+	shown := 0
+	for _, w := range tiny {
+		if w > 0 {
+			shown++
+		}
+	}
+	if s := sum(tiny) + 2*(shown-1); s > 40 || tiny[7] < 3 || tiny[1] < 4 || tiny[5] != 0 || tiny[6] != 0 {
 		t.Fatalf("tiny widths %v (%d)", tiny, s)
 	}
 

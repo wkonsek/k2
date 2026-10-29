@@ -313,29 +313,74 @@ func headerLine(heads []string, widths []int) string {
 
 func isMetricHead(h string) bool { return h == "CPU" || h == "MEM" }
 
+var spareHeads = []string{"NOMINATED NODE", "READINESS GATES", "IP", "NODE"}
+
 func fitWidths(natural []int, heads []string, flex, protect, width int) []int {
-	var keep []int
-	dropped := false
+	hidden := map[int]bool{}
+	w := fitShown(natural, heads, flex, protect, width, hidden)
+	for _, h := range spareHeads {
+		if !crowded(w, natural, heads, flex, hidden) {
+			break
+		}
+		i := indexOf(heads, h)
+		if i < 0 || i == flex || i == protect || i >= len(natural) {
+			continue
+		}
+		hidden[i] = true
+		w = fitShown(natural, heads, flex, protect, width, hidden)
+	}
+	return w
+}
+
+func crowded(w, natural []int, heads []string, flex int, hidden map[int]bool) bool {
+	if flex >= 0 && flex < len(w) && w[flex] < min(natural[flex], 16) {
+		return true
+	}
+	for i, h := range heads {
+		if i < len(w) && isMetricHead(h) && !hidden[i] && w[i] == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(heads []string, h string) int {
+	for i, x := range heads {
+		if x == h {
+			return i
+		}
+	}
+	return -1
+}
+
+func fitShown(natural []int, heads []string, flex, protect, width int, hidden map[int]bool) []int {
+	var keep, shown []int
+	metrics := false
 	for i := range natural {
+		if hidden[i] {
+			continue
+		}
+		shown = append(shown, i)
 		if i < len(heads) && isMetricHead(heads[i]) {
-			dropped = true
+			metrics = true
 			continue
 		}
 		keep = append(keep, i)
 	}
-	if !dropped {
-		return balanceWidths(natural, heads, flex, protect, width)
+	if !metrics {
+		return fitSubset(natural, heads, flex, protect, width, keep)
 	}
 
 	fits := func(nat []int) bool {
 		need := 0
-		for i, w := range nat {
+		for _, i := range shown {
+			w := nat[i]
 			if i == flex {
 				w = min(w, 24)
 			}
 			need += w
 		}
-		return need+(len(nat)-1)*2 <= width
+		return need+(len(shown)-1)*2 <= width
 	}
 	for _, cap := range []int{0, meterMediumMax, meterValueMax} {
 		nat := natural
@@ -348,10 +393,16 @@ func fitWidths(natural []int, heads []string, flex, protect, width int) []int {
 			}
 		}
 		if fits(nat) {
-			return balanceWidths(nat, heads, flex, protect, width)
+			return fitSubset(nat, heads, flex, protect, width, shown)
 		}
 	}
+	return fitSubset(natural, heads, flex, protect, width, keep)
+}
 
+func fitSubset(natural []int, heads []string, flex, protect, width int, keep []int) []int {
+	if len(keep) == len(natural) {
+		return balanceWidths(natural, heads, flex, protect, width)
+	}
 	sub := make([]int, len(keep))
 	subHeads := make([]string, len(keep))
 	subFlex, subProtect := -1, -1
