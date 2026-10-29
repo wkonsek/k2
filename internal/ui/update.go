@@ -181,8 +181,13 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case progressMsg:
 		m.withPane(msg.id, func() {
+			if m.load.token != msg.token {
+				return
+			}
+			if msg.line != "" {
+				m.load.lines = append(m.load.lines, msg.line)
+			}
 			switch {
-			case m.load.token != msg.token:
 			case msg.what != "":
 				m.load.what, m.load.done, m.load.total = msg.what, 0, 0
 			default:

@@ -21,6 +21,7 @@ type load struct {
 	start  time.Time
 	done   int
 	total  int
+	lines  []string
 }
 
 func (l load) active() bool { return l.token != 0 }
@@ -98,9 +99,22 @@ func (m model) loadLabel(l load) string {
 func (m model) loadingBlock(width int) string {
 	lines := []string{"", " " + m.spinGlyph() + " " + itemStyle.Render(loadText(m.load))}
 	if m.load.total > 0 {
-		lines = append(lines, " "+progressBar(m.load.done, m.load.total, min(48, width-2)))
+		pct := 100 * min(m.load.done, m.load.total) / m.load.total
+		lines = append(lines, " "+progressBar(m.load.done, m.load.total, min(64, width-8))+dimStyle.Render(fmt.Sprintf(" %3d%%", pct)))
 	}
-	return strings.Join(lines, "\n")
+	if len(m.load.lines) == 0 {
+		return strings.Join(lines, "\n")
+	}
+	var out []string
+	for _, l := range m.load.lines {
+		out = append(out, wrapLine(" "+colorResult(l), width)...)
+	}
+	room := max(1, m.textRows()-len(lines))
+	if len(out) > room {
+		out = out[len(out)-room:]
+	}
+	lines = append(lines, "")
+	return strings.Join(append(lines, out...), "\n")
 }
 
 func progressBar(done, total, width int) string {
@@ -109,8 +123,8 @@ func progressBar(done, total, width int) string {
 	}
 	done = max(0, min(done, total))
 	fill := width * done / total
-	return lipgloss.NewStyle().Foreground(th.Accent).Render(strings.Repeat("━", fill)) +
-		dimStyle.Render(strings.Repeat("─", width-fill))
+	return lipgloss.NewStyle().Foreground(th.Accent).Render(strings.Repeat("█", fill)) +
+		dimStyle.Render(strings.Repeat("░", width-fill))
 }
 
 func (m *model) withPane(id string, fn func()) bool {

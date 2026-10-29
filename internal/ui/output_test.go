@@ -70,8 +70,12 @@ func TestKustomizeApplyProgressAndSummary(t *testing.T) {
 		nm, next := m.Update(msg)
 		m = nm.(model)
 		steps = append(steps, loadText(m.load))
-		if !strings.Contains(ansi.Strip(m.View()), "━") && m.load.done > 0 {
+		view := ansi.Strip(m.View())
+		if !strings.Contains(view, "█") && m.load.done > 0 {
 			t.Fatalf("no progress bar at %s", loadText(m.load))
+		}
+		if m.load.done == 2 && (!strings.Contains(view, "+ deployment.apps/web created") || strings.Contains(view, "service/web")) {
+			t.Fatalf("lines not streamed at 2/3:\n%s", view)
 		}
 		msg = next()
 	}
