@@ -169,11 +169,13 @@ func setRows(lst *list.Model, header string, items []list.Item, vs viewState, pi
 		}
 	}
 	lst.Title = header
-	lst.SetItems(sortItems(items, vs.sortCol, vs.sortDesc))
+	if cmd := lst.SetItems(sortItems(items, vs.sortCol, vs.sortDesc)); cmd != nil {
+		*lst, _ = lst.Update(cmd())
+	}
 	if keep == "" {
 		return
 	}
-	for i, raw := range lst.Items() {
+	for i, raw := range lst.VisibleItems() {
 		if it, ok := raw.(item); ok && it.id == keep {
 			lst.Select(i)
 			return

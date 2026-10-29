@@ -118,6 +118,11 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
 		t.Fatalf("filter lost on reflow: %d rows", len(v))
 	}
+
+	setRows(&lst, "", items, viewState{}, "")
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+		t.Fatalf("filter lost on refresh: %d rows", len(v))
+	}
 }
 
 func sum(xs []int) int {
