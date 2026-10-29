@@ -358,7 +358,9 @@ func (m model) dialogBox(width int) string {
 	}
 	if d.hasIn {
 		if d.hint != "" {
-			lines = append(lines, dimStyle.Render(d.hint))
+			for _, l := range strings.Split(ansi.Wordwrap(d.hint, inner, ""), "\n") {
+				lines = append(lines, dimStyle.Render(l))
+			}
 		}
 		lines = append(lines, d.input.View())
 		lines = append(lines, d.candLines()...)
