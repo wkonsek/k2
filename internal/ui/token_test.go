@@ -23,7 +23,7 @@ func stylePrefix(s lipgloss.Style) string {
 
 func tokenModel(t *testing.T, life kube.TokenLife, at time.Time) model {
 	m := newTestModel(t, testEnv(t), nil)
-	m.tok = tokenState{life: life, at: at, seen: life.Start, oshift: true}
+	m.tok = tokenState{life: life, at: at, seen: life.Start, oshift: true, ctx: infoKey(m.kubeconfig, m.context)}
 	return m
 }
 
@@ -109,6 +109,12 @@ func TestTokenRows(t *testing.T) {
 	m = tokenModel(t, kube.TokenLife{Invalid: true}, t0)
 	if plain := ansi.Strip(m.tokenRows(40)); plain != want {
 		t.Errorf("invalid token: %q", plain)
+	}
+
+	m = tokenModel(t, day, t0)
+	m.context = "other"
+	if out := m.tokenRows(40); out != "" {
+		t.Errorf("row of the previous context: %q", ansi.Strip(out))
 	}
 
 	idle := day

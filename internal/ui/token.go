@@ -115,7 +115,7 @@ func (m *model) tokenClock() {
 
 func (m model) tokenRows(inner int) string {
 	life := m.tok.life
-	if !m.cfg.UI.TokenBar {
+	if !m.cfg.UI.TokenBar || m.tok.ctx != infoKey(m.kubeconfig, m.context) {
 		return ""
 	}
 
