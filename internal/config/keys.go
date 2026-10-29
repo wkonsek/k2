@@ -82,6 +82,8 @@ type Keys struct {
 	CopySelect, CopyYank, CopyAll                                Binding
 	Shell                                                        Binding
 	Previous                                                     Binding
+	Log30                                                        Binding
+	Log60                                                        Binding
 	Scale                                                        Binding
 	SetImage                                                     Binding
 	Restart                                                      Binding
@@ -164,7 +166,7 @@ func DefaultKeys() Keys {
 		Delete: Binding{"ctrl+d"}, KustomizeDelete: Binding{"d"}, Apply: Binding{"a"}, Diff: Binding{"D"},
 		DeleteAll: Binding{"D"}, PfRestart: Binding{"r"}, PfAuto: Binding{"a"}, Scan: Binding{"s"}, Vim: Binding{"v"}, Wrap: Binding{"w"},
 		CopyMode: Binding{"y"}, LogMark: Binding{"m"}, CopySelect: Binding{"v"}, CopyYank: Binding{"y"}, CopyAll: Binding{"Y"},
-		Shell: Binding{"s"}, Previous: Binding{"p"}, Scale: Binding{"S"}, SetImage: Binding{"i"}, Restart: Binding{"r"}, Trigger: Binding{"t"},
+		Shell: Binding{"s"}, Previous: Binding{"p"}, Log30: Binding{"1"}, Log60: Binding{"2"}, Scale: Binding{"S"}, SetImage: Binding{"i"}, Restart: Binding{"r"}, Trigger: Binding{"t"},
 		Label: Binding{"L"}, Annotate: Binding{"A"}, CopyName: Binding{"w"}, CopyRef: Binding{"W"},
 		SortNext: Binding{">"}, SortPrev: Binding{"<"}, SortReverse: Binding{"="}, Approve: Binding{"a"}, KustomizePath: Binding{"p"},
 
@@ -234,6 +236,8 @@ var keyFields = []keyField{
 	{"copy_all", func(k *Keys) *Binding { return &k.CopyAll }},
 	{"shell", func(k *Keys) *Binding { return &k.Shell }},
 	{"previous", func(k *Keys) *Binding { return &k.Previous }},
+	{"log_30m", func(k *Keys) *Binding { return &k.Log30 }},
+	{"log_60m", func(k *Keys) *Binding { return &k.Log60 }},
 	{"scale", func(k *Keys) *Binding { return &k.Scale }},
 	{"set_image", func(k *Keys) *Binding { return &k.SetImage }},
 	{"restart", func(k *Keys) *Binding { return &k.Restart }},
@@ -406,7 +410,7 @@ var screenKeys = func() map[string][]string {
 		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path"),
 		"forwards":  with("delete", "delete_all", "pf_restart", "pf_auto"),
 
-		"viewer": with("vim", "previous", "wrap", "copy_mode", "search", "all_namespaces", "watch"),
+		"viewer": with("vim", "previous", "log_30m", "log_60m", "wrap", "copy_mode", "search", "all_namespaces", "watch"),
 
 		"copy": {"copy_select", "copy_yank", "copy_all", "wrap", "back", "scroll_down", "scroll_up", "page_down", "page_up", "top", "bottom"},
 

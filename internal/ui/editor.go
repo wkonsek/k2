@@ -66,6 +66,10 @@ func (m model) runEditor(kind, label, name, cleanup string, mk func() *exec.Cmd,
 	return m, tea.Batch(t.Next(), m.mouseForShells())
 }
 
+var lessCommand = func(path string) *exec.Cmd {
+	return exec.Command("less", "-R", "+G", path)
+}
+
 var vimCommand = func(path string) *exec.Cmd {
 	editor := "vim"
 	if _, err := exec.LookPath(editor); err != nil {

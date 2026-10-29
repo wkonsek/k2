@@ -167,6 +167,18 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logsMsg:
 		m.applyLogs(msg)
 		return m, nil
+	case scaleOwnerMsg:
+		if m.logID != msg.pane || m.stage != "workpods" {
+			return m, nil
+		}
+		if msg.err != nil {
+			m.status = msg.err.Error()
+			return m, nil
+		}
+		m.dlg = m.newDialog("scale", "⇅ scale "+msg.kind+"/"+msg.name, msg.kind, msg.ns, msg.name).
+			withField(or(msg.replicas, "1"), "replicas", "replicas of "+msg.kind+"/"+msg.name)
+		m.status = ""
+		return m, nil
 	case progressMsg:
 		m.withPane(msg.id, func() {
 			switch {
@@ -196,6 +208,25 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case lessDoneMsg:
 		return m, nil
+	case logRangeMsg:
+		if msg.err != nil {
+			if m.logID == msg.pane {
+				m.status = m.errLine(msg.err)
+			}
+			return m, nil
+		}
+		path, label := msg.path, msg.label
+		var next tea.Model = m
+		var cmd tea.Cmd
+		if !m.withPane(msg.pane, func() {
+			next, cmd = m.runEditor("less", "less "+label, label, path,
+				func() *exec.Cmd { return lessCommand(path) },
+				func(error) tea.Msg { _ = os.Remove(path); return lessDoneMsg{} })
+			m = next.(model)
+		}) {
+			_ = os.Remove(path)
+		}
+		return next, cmd
 	case vimReadyMsg:
 		if msg.err != nil {
 			m.status = m.errLine(msg.err)
@@ -447,6 +478,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.LogMark.Has(key) && (m.stage == "logs" || m.stage == "mlogs") && !filtering && !m.load.active():
 			m.toggleLogMark()
 			return m, nil
+		case m.stage == "logs" && !filtering && !m.load.active() && (km.Log30.Has(key) || km.Log60.Has(key)):
+			return m.openLogRange(km.Log60.Has(key))
 		case km.ScrollDown.Has(key):
 			if m.stage == "nav" && !filtering {
 				m.vs.homeAt++

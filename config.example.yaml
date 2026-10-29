@@ -129,6 +129,8 @@
 #   pf_auto: a
 #   vim: v
 #   previous: p
+#   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
+#   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w
 #   watch: r                  # yaml and describe: refresh the object every 2s. r on a workload is still restart
 #   copy_mode: y

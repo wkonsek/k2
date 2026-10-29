@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -67,6 +68,20 @@ func TestActiveBorderProdStaysRed(t *testing.T) {
 	view := next.(model).View()
 	if colorBefore(view, "┃") != sgr(th.Danger) || !strings.Contains(ansi.Strip(view), skull) {
 		t.Fatalf("prod border not red: %q", colorBefore(view, "┃"))
+	}
+}
+
+func TestActiveBorderGlows(t *testing.T) {
+	trueColor(t)
+	cfg := testEnv(t)
+	cfg.UI.ActiveBorder = "thick"
+	m := newTestModel(t, cfg, nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	view := next.(model).View()
+	want := lipgloss.NewStyle().Foreground(glow(th.Accent)).Render("┃")
+	if colorBefore(view, "┃") != want[:strings.Index(want, "┃")] {
+		t.Fatalf("focused border %q", colorBefore(view, "┃"))
 	}
 }
 

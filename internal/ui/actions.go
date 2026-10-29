@@ -84,6 +84,9 @@ func (m model) tableAction(key string) (tea.Model, tea.Cmd, bool) {
 			withField(or(it.extra["replicas"], "1"), "replicas", "replicas")
 		m.dlg = d
 		return m, nil, true
+	case km.Scale.Has(key) && base == "pods":
+		m.status = "looking up " + name + "…"
+		return m, m.scaleFromPod(ns, name), true
 	case km.SetImage.Has(key) && setImageKinds[base]:
 		next, cmd := m.openSetImage(kind, ns, name)
 		return next, cmd, true
@@ -157,6 +160,15 @@ func (m model) openLogs(podRef, container string, prev bool) (tea.Model, tea.Cmd
 	}
 	m.logBusy = true
 	return m, tea.Batch(m.startLoad("loading logs", false), m.fetchLogs())
+}
+
+func (m model) scaleFromPod(ns, name string) tea.Cmd {
+	kc, ctx, pane := m.kubeconfig, m.context, m.logID
+	run := m.k.Run
+	return func() tea.Msg {
+		kind, owner, reps, err := kube.ScalableOwner(run, kc, ctx, ns, name)
+		return scaleOwnerMsg{pane: pane, pod: name, kind: kind, ns: ns, name: owner, replicas: reps, err: err}
+	}
 }
 
 const shellScript = "command -v bash >/dev/null && exec bash || exec sh"

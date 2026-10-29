@@ -279,16 +279,20 @@ is colored by meaning; names turn the warning color only for real trouble
 lists say where to look: `no pods in shop — press 0 for all namespaces`.
 
 **Pods.** `enter` follows the logs (`p` switches to the previous
-container's log, `m` draws a separator under the current line), `s` opens a
-shell in the pane (bash, else sh), `ctrl+f` port-forwards; pods with several
-containers ask which one. CPU and MEM columns come from `kubectl top pods`
+container's log, `m` draws a separator under the current line, `1` and `2`
+open the last 30 and 60 minutes in `less` with no line cap; not in stern),
+`s` opens a shell in the pane (bash, else sh), `F` port-forwards (`ctrl+f`
+still works), `S` scales the deployment or statefulset that owns the pod.
+Pods with several containers ask which one. CPU and MEM columns come from
+`kubectl top pods`
 every `ui.metrics_every` seconds (15) and show `45m ███░░ 62%`: usage
 against the summed limits, or the requests (`~62%`) when not every
 container has a limit; yellow from `ui.metrics_warn` (70), red from
 `ui.metrics_crit` (90). Without metrics-server they show `N/A` and the list
 keeps working.
 
-**Workloads.** `S` scales, `r` runs `kubectl rollout restart`, `i` sets
+**Workloads.** `S` scales, and on a pod it scales the deployment or
+statefulset that owns it. `r` runs `kubectl rollout restart`, `i` sets
 images: a popup lists every container and init container, and only the
 changed ones are sent after a confirmation showing `old → new`. Jobs show
 status, completions and duration (`enter` lists their pods); cronjobs show

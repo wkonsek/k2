@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"k2/internal/config"
@@ -265,7 +266,7 @@ func (m model) legend() string {
 		parts = append(parts, back, cmd)
 	}
 	if m.stage == "workpods" {
-		parts = append(parts, pair(k.Describe.Short(), "describe"), pair(k.PortForward.Short(), "forward"), pair(k.Shell.Short(), "shell"), pair(k.SetImage.Short(), "image"), pair(k.Edit.Short(), "edit"), pair(k.Delete.Short(), "delete"),
+		parts = append(parts, pair(k.Describe.Short(), "describe"), pair(podForwardKey(k), "forward"), pair(k.Scale.Short(), "scale"), pair(k.Shell.Short(), "shell"), pair(k.SetImage.Short(), "image"), pair(k.Edit.Short(), "edit"), pair(k.Delete.Short(), "delete"),
 			pair(k.Xray.Short(), "xray"), pair(k.MultiLogs.Short(), "all logs"))
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "res" {
@@ -298,7 +299,7 @@ func (m model) legend() string {
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
 		if m.stage == "logs" {
-			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"))
+			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 		}
 		if m.stage == "yaml" || m.stage == "describe" {
 			parts = append(parts, pair(k.Watch.Short(), m.watchLegend()))
@@ -334,7 +335,7 @@ func (m model) legend() string {
 		if m.viewing() {
 			head = append(head, pair(k.CopyMode.Short(), "copy"), pair(k.Wrap.Short(), "wrap"), pair(k.Vim.Short(), "vim"))
 			if m.stage == "logs" {
-				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"))
+				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 			}
 			if m.stage == "yaml" || m.stage == "describe" {
 				head = append(head, pair(k.Watch.Short(), m.watchLegend()))
@@ -391,9 +392,16 @@ func (m model) tableLegend() []string {
 	return []string{pair("/", "filter"), pair(k.SortNext.Short()+k.SortPrev.Short(), "sort"), pair(k.CopyName.Short(), "copy")}
 }
 
+func podForwardKey(k config.Keys) string {
+	if k.PortForward.Has("F") {
+		return "F"
+	}
+	return k.PortForward.Short()
+}
+
 func (m model) podsHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " logs, " + k.Describe.Label() + " describe, " + k.PortForward.Label() + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + " logs, " + k.Describe.Label() + " describe, " + podForwardKey(k) + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
 }
 
 func (m model) scrollKeys() string {
@@ -732,9 +740,27 @@ func borderStyle(active, hot bool) lipgloss.Style {
 	case hot:
 		return errStyle
 	case active:
-		return lipgloss.NewStyle().Foreground(th.Accent)
+		return lipgloss.NewStyle().Foreground(glow(th.Accent))
 	}
 	return dimStyle
+}
+
+func glow(c lipgloss.Color) lipgloss.Color {
+	s := string(c)
+	if len(s) != 7 || s[0] != '#' {
+		return c
+	}
+	n, err := strconv.ParseUint(s[1:], 16, 32)
+	if err != nil {
+		return c
+	}
+	r, g, b := int(n>>16), int((n>>8)&0xff), int(n&0xff)
+	toward, part := 255, 42
+	if th.Light {
+		toward, part = 0, 28
+	}
+	mix := func(v int) int { return (v*(100-part) + toward*part) / 100 }
+	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", mix(r), mix(g), mix(b)))
 }
 
 func drawBox(content string, width, height int, active bool, label, foot string, hot bool) string {

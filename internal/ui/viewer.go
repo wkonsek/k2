@@ -279,7 +279,7 @@ func (m model) logsBody(innerW int) string {
 	if m.vs.logPrev {
 		mode = "previous"
 	}
-	b.WriteString(dimStyle.Render(fmt.Sprintf("%s  %s    %s    %s    %s copy    %s mark    %s vim    %s previous", mode, lineSpan(shown, logical), m.scrollKeys(), wrapNote, m.cfg.Keys.CopyMode.Short(), m.cfg.Keys.LogMark.Short(), m.cfg.Keys.Vim.Short(), m.cfg.Keys.Previous.Short())) + "\n")
+	b.WriteString(dimStyle.Render(fmt.Sprintf("%s  %s    %s    %s    %s copy    %s mark    %s vim    %s previous    %s 30m    %s 60m", mode, lineSpan(shown, logical), m.scrollKeys(), wrapNote, m.cfg.Keys.CopyMode.Short(), m.cfg.Keys.LogMark.Short(), m.cfg.Keys.Vim.Short(), m.cfg.Keys.Previous.Short(), m.cfg.Keys.Log30.Short(), m.cfg.Keys.Log60.Short())) + "\n")
 	gutter := logGutter(logical)
 	room := logRoom(innerW, logical)
 	for _, l := range shown {
@@ -298,6 +298,38 @@ func (m model) logsBody(innerW int) string {
 
 func (m model) fetchLogs() tea.Cmd {
 	return fetchLogs(m.k, m.cfg.Logs.Tail, m.logID, m.logPod, m.namespace, m.kubeconfig, m.context, m.logSince, m.vs.logOpts())
+}
+
+func (m model) openLogRange(hour bool) (tea.Model, tea.Cmd) {
+	span, label := 30*time.Minute, "30m"
+	if hour {
+		span, label = time.Hour, "60m"
+	}
+	since := time.Now().Add(-span)
+	m.status = "loading last " + label + "…"
+	id := m.logID
+	ns, name := kube.SplitRef(m.logPod, m.namespace)
+	kc, ctx, opt := m.kubeconfig, m.context, m.vs.logOpts()
+	return m, func() tea.Msg {
+		out, err := m.k.SinceLogs(name, ns, kc, ctx, since, opt)
+		if err != nil {
+			return logRangeMsg{pane: id, err: err}
+		}
+		f, err := os.CreateTemp("", "k2-*.log")
+		if err != nil {
+			return logRangeMsg{pane: id, err: err}
+		}
+		if len(out) == 0 {
+			out = []byte("(no logs in the last " + label + ")\n")
+		}
+		if _, err := f.Write(out); err != nil {
+			f.Close()
+			os.Remove(f.Name())
+			return logRangeMsg{pane: id, err: err}
+		}
+		f.Close()
+		return logRangeMsg{pane: id, path: f.Name(), label: label}
+	}
 }
 
 func (v viewState) logOpts() kube.LogOpts {

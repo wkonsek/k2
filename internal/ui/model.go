@@ -122,6 +122,16 @@ type logsMsg struct {
 	partial       bool
 }
 
+type logRangeMsg struct {
+	pane, path, label string
+	err               error
+}
+
+type scaleOwnerMsg struct {
+	pane, pod, kind, ns, name, replicas string
+	err                                 error
+}
+
 type viewMsg struct {
 	id, text string
 	err      error

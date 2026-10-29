@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/base64"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -603,5 +604,85 @@ func TestInlineShell(t *testing.T) {
 		if h.m.ed != nil {
 			t.Fatal("back should close the failed shell")
 		}
+	}
+}
+
+func TestLogRangeOpensLess(t *testing.T) {
+	var opened string
+	lessCommand = func(path string) *exec.Cmd {
+		b, _ := os.ReadFile(path)
+		opened = string(b)
+		return exec.Command("true")
+	}
+	t.Cleanup(func() {
+		lessCommand = func(path string) *exec.Cmd { return exec.Command("less", "-R", "+G", path) }
+	})
+
+	f := actionCluster()
+	cfg := testEnv(t)
+	cfg.UI.EditorInline = false
+	m := newTestModel(t, cfg, f)
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	n, c := m.openPods()
+	m = pressSettle(t, selectRow(t, settle(t, n.(model), c), "db-0"), "enter")
+
+	check := func(press string, minutes int) {
+		t.Helper()
+		before := time.Now()
+		next, cmd := m.Update(key(t, press))
+		m = next.(model)
+		if cmd == nil {
+			t.Fatal("no fetch")
+		}
+		next, cmd = m.Update(cmd())
+		m = next.(model)
+		if cmd == nil || m.ed != nil {
+			t.Fatalf("less did not stay outside the pane: cmd %v ed %v", cmd != nil, m.ed)
+		}
+		last := calls(f, "logs")
+		line := last[len(last)-1]
+		if strings.Contains(line, "--tail=") || !strings.Contains(line, "--since-time=") {
+			t.Fatalf("%s args %s", press, line)
+		}
+		stamp := strings.TrimPrefix(line[strings.Index(line, "--since-time="):], "--since-time=")
+		stamp = strings.Fields(stamp)[0]
+		when, err := time.Parse(time.RFC3339, stamp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ago := before.Sub(when)
+		if ago < time.Duration(minutes-1)*time.Minute || ago > time.Duration(minutes+1)*time.Minute {
+			t.Fatalf("%s since %s (%s ago)", press, stamp, ago)
+		}
+		if !strings.Contains(opened, "line from") {
+			t.Fatalf("file %q", opened)
+		}
+	}
+	check("1", 30)
+	check("2", 60)
+}
+
+func TestScaleFromPod(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(r.Args, " ")
+		switch {
+		case strings.HasPrefix(line, "get pods"):
+			return shell.OK(actionPods)
+		case strings.HasPrefix(line, "get pod web-1"):
+			return shell.OK("ReplicaSet/web-6d4f")
+		case strings.HasPrefix(line, "get rs web-6d4f"):
+			return shell.OK("Deployment/web")
+		case strings.Contains(line, "jsonpath={.spec.replicas}"):
+			return shell.OK("4")
+		}
+		return shell.Fail(1, "not in this test: "+line)
+	}}
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "S")
+	if m.dlg == nil || m.dlg.kind != "deploy" || m.dlg.name != "web" || m.dlg.input.Value() != "4" {
+		t.Fatalf("dialog %+v", m.dlg)
+	}
+	m = pressSettle(t, m, "enter")
+	if s := calls(f, "scale"); len(s) != 1 || !strings.HasPrefix(s[0], "scale deploy/web -n shop --replicas=4") {
+		t.Fatalf("scale %v", s)
 	}
 }

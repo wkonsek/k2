@@ -55,8 +55,9 @@ func TestProdPaneIsRedWithSkullOnEveryTheme(t *testing.T) {
 			if strings.Contains(out, skull) {
 				t.Fatal("skull shown for a non-prod context")
 			}
-			if got := colorBefore(out, "1 \x1b[0m"); got != sgr(th.Accent) {
-				t.Fatalf("focused dev pane color %q, want accent %q", got, sgr(th.Accent))
+			frame := lipgloss.NewStyle().Foreground(glow(th.Accent)).Render("x")
+			if got := colorBefore(out, "1 \x1b[0m"); got != frame[:strings.Index(frame, "x")] {
+				t.Fatalf("focused dev pane color %q, want glowing accent %q", got, frame[:strings.Index(frame, "x")])
 			}
 		})
 	}

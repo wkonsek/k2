@@ -147,6 +147,8 @@ catalogsources, `:rt` routes, `:proj` projects.
 | Key | Config | What it does |
 |---|---|---|
 | `enter` | `keys.select` | logs of the pod (container picker when it has several) |
+| `F` | `keys.port_forward` | port-forward. `ctrl+f` still works; the pods legend shows `F` |
+| `S` | `keys.scale` | scale the deployment or statefulset that owns this pod |
 | `s` | `keys.shell` | shell in the pod, inside the pane (bash, else sh) |
 | `ctrl+d` | `keys.delete` | delete the pod (asks in a red popup), also with other panes or tabs open |
 
@@ -158,7 +160,7 @@ of the requests), green / yellow from `ui.metrics_warn` (70) / red from
 
 | Key | Config | What it does |
 |---|---|---|
-| `S` | `keys.scale` | deployments, statefulsets, replicasets: scale popup |
+| `S` | `keys.scale` | deployments, statefulsets, replicasets: scale popup. On a pod, the same key scales the deployment or statefulset that owns it |
 | `i` | `keys.set_image` | pods, deployments, statefulsets, daemonsets, replicasets, cronjobs: set image popup (containers and init containers; only changed ones are sent, after a y/n) (k9s `i`) |
 | `r` | `keys.restart` | deployments, statefulsets, daemonsets: rollout restart (asks y/n) |
 | `t` | `keys.trigger` | cronjobs: create a job now (asks y/n) |
@@ -273,6 +275,8 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |
 | `p` | `keys.previous` | logs: the previous container's log and back |
+| `1` | `keys.log_30m` | logs of one container (not stern): open the last 30 minutes in `less`, from the moment you press it. `q` closes it. The live tail stays at its 400-line cap |
+| `2` | `keys.log_60m` | the same for the last 60 minutes |
 | `/` | `keys.search` | find a text: scrolls to the next line containing it; `/` `enter` again for the next (wraps around) |
 | `j`, `down` / `k`, `up` | `keys.scroll_down` / `keys.scroll_up` | scroll one line |
 | `pgdown`, `}` / `pgup`, `{` | `keys.page_down` / `keys.page_up` | scroll one page |

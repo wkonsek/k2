@@ -15,7 +15,7 @@ import (
 
 func TestHintsUseDefaultKeys(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
-	if got := m.podsHint(); got != "enter logs, d describe, ctrl+f forward, s shell, e edit, ctrl+d delete" {
+	if got := m.podsHint(); got != "enter logs, d describe, F forward, s shell, e edit, ctrl+d delete" {
 		t.Fatalf("pods hint %q (d now describes)", got)
 	}
 	if got := m.scrollKeys(); got != "jk" {

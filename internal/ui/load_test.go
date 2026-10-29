@@ -82,7 +82,7 @@ func TestOpenPodsShowsSpinnerThenTable(t *testing.T) {
 	if m.load.active() || m.stage != "workpods" || len(m.content.Items()) != 2 {
 		t.Fatalf("stage %q items %d", m.stage, len(m.content.Items()))
 	}
-	if m.status != "enter logs, d describe, ctrl+f forward, s shell, e edit, ctrl+d delete" {
+	if m.status != "enter logs, d describe, F forward, s shell, e edit, ctrl+d delete" {
 		t.Fatalf("status %q", m.status)
 	}
 	if strings.Contains(ansi.Strip(m.View()), "loading pods") {
