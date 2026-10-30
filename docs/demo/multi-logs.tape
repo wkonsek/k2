@@ -1,4 +1,3 @@
-# multi-logs.gif: M follows every pod of a deployment, stern-style.
 Source "docs/demo/settings.tape"
 Output "docs/demo/multi-logs.gif"
 

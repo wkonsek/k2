@@ -1,4 +1,3 @@
-# pulse-favorites.gif: favorites, 0 for all namespaces, :pulse, set image.
 Source "docs/demo/settings.tape"
 Output "docs/demo/pulse-favorites.gif"
 Set TypingSpeed 60ms

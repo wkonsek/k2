@@ -1,5 +1,3 @@
-# xray.gif: :xray with tab completion, a folded namespace tree, expand and
-# collapse.
 Source "docs/demo/settings.tape"
 Output "docs/demo/xray.gif"
 

@@ -1,5 +1,3 @@
-# token-bar.gif: the sidebar shows how long the focused context's token
-# lives. kind-dev gets a short token here, so it runs out on camera.
 Source "docs/demo/settings.tape"
 Output "docs/demo/token-bar.gif"
 

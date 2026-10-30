@@ -1,4 +1,3 @@
-# themes.gif: ctrl+t previews every theme as the cursor moves.
 Source "docs/demo/settings.tape"
 Output "docs/demo/themes.gif"
 Set TypingSpeed 0

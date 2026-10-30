@@ -1,5 +1,3 @@
-# prod-safety.gif: a theme per context, the production pane in red with a
-# skull, and a red confirmation that only y accepts.
 Source "docs/demo/settings.tape"
 Output "docs/demo/prod-safety.gif"
 

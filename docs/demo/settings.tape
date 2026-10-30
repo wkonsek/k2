@@ -1,4 +1,3 @@
-# Shared look of the demo GIFs. make demo records them all.
 
 Set Shell "bash"
 Set FontFamily "SauceCodePro Nerd Font"
@@ -7,12 +6,10 @@ Set LineHeight 1.15
 Set Width 1400
 Set Height 800
 Set Padding 18
-Set Margin 22
-Set MarginFill "#3b4261"
 Set WindowBar Colorful
 Set WindowBarSize 36
 Set BorderRadius 10
 Set TypingSpeed 70ms
 Set Framerate 24
 Set CursorBlink false
-Set Theme { "name": "k2 Tokyo Night", "black": "#15161e", "red": "#f7768e", "green": "#9ece6a", "yellow": "#e0af68", "blue": "#7aa2f7", "magenta": "#bb9af7", "cyan": "#7dcfff", "white": "#a9b1d6", "brightBlack": "#414868", "brightRed": "#f7768e", "brightGreen": "#9ece6a", "brightYellow": "#e0af68", "brightBlue": "#7aa2f7", "brightMagenta": "#bb9af7", "brightCyan": "#7dcfff", "brightWhite": "#c0caf5", "background": "#1a1b26", "foreground": "#c0caf5", "selection": "#33467c", "cursor": "#c0caf5" }
+Set Theme { "name": "k2 Monokai", "black": "#090909", "red": "#f92672", "green": "#a6e22e", "yellow": "#e6db74", "blue": "#66d9ef", "magenta": "#ae81ff", "cyan": "#a1efe4", "white": "#f8f8f2", "brightBlack": "#75715e", "brightRed": "#f92672", "brightGreen": "#a6e22e", "brightYellow": "#e6db74", "brightBlue": "#66d9ef", "brightMagenta": "#ae81ff", "brightCyan": "#a1efe4", "brightWhite": "#ffffff", "background": "#090909", "foreground": "#f8f8f2", "selection": "#49483e", "cursor": "#f8f8f2" }
