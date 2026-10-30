@@ -25,7 +25,7 @@ Type "q"
 Sleep 600ms
 
 Ctrl+A
-Type "%"
+Type '"'
 Sleep 1.2s
 Type "c"
 Sleep 900ms
@@ -44,7 +44,7 @@ Enter
 Sleep 1.5s
 
 Ctrl+A
-Left
+Up
 Sleep 1.2s
 Ctrl+A
 Type "z"
