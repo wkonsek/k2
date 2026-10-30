@@ -1,6 +1,6 @@
 <div align="center">
 
-# k2
+<h1><img src="docs/logo.svg" alt="k2" width="120"></h1>
 
 **kubectl, elevated.** A terminal UI for working with several Kubernetes clusters side by side.
 
@@ -11,9 +11,16 @@
 
 k2 puts your clusters in tmux-style panes and tabs. Every pane has its own
 kubeconfig, context and namespace, so a kind cluster, a staging cluster and
-an OpenShift cluster can sit next to each other on one screen. Pane and tab
-keys work like tmux behind a `ctrl+a` prefix, and vim, shells and
-`kubectl edit` run *inside* a pane while the others keep working.
+an OpenShift cluster can sit next to each other on one screen.
+
+- Pane and tab keys work like tmux, behind a `ctrl+a` prefix.
+- vim, shells and `kubectl edit` run *inside* a pane while the others keep
+  working.
+- Under the hood k2 runs `kubectl` for everything, so it works with any
+  resource the cluster serves: built-in kinds, CRDs, OLM objects and
+  OpenShift Routes and Projects.
+- When you quit, your shell lands on the cluster and namespace of the
+  focused pane.
 
 k2 is inspired by [k9s](https://k9scli.io/)
 ([github.com/derailed/k9s](https://github.com/derailed/k9s)), which does
@@ -21,11 +28,6 @@ cluster navigation in the terminal remarkably well. Many of its ideas, `:`
 commands and short names (`:dp`, `:sts`, xray, `0` for all namespaces, `i`
 to set an image) will feel familiar here. k2 adds splits, persistent
 sessions and a few workflows of its own.
-
-Under the hood k2 runs `kubectl` for everything, so it works with any
-resource the cluster serves: built-in kinds, CRDs, OLM objects and OpenShift
-Routes and Projects. When you quit, your shell lands on the cluster and
-namespace of the focused pane.
 
 ![k2 with two panes](docs/demo/hero.gif)
 
@@ -47,74 +49,102 @@ namespace of the focused pane.
 
 ## Highlights
 
-**Sessions that survive a restart.** Quit k2 and start it again: your tabs
-(with their names), split layouts, each pane's kubeconfig, context and
-namespace, the list or logs it showed, a stern view, your favorites and the
-last Kustomize directory come back as you left them. Port-forwards are
-detached `kubectl` processes that keep running after k2 exits; on the next
-start k2 picks up the ones still alive and restarts the ones that died.
+**Sessions that survive a restart.** Quit k2 and start it again, and
+everything comes back as you left it:
+
+- your tabs (with their names) and split layouts;
+- each pane's kubeconfig, context and namespace;
+- the list or logs each pane showed, including a stern view;
+- your favorites and the last Kustomize directory.
+
+Port-forwards are detached `kubectl` processes that keep running after k2
+exits. On the next start k2 picks up the ones still alive and restarts the
+ones that died.
 
 ![port-forwards and the session survive a restart](docs/demo/persistence.gif)
 
-**Splits, tabs and vim in a pane.** `ctrl+a %` splits right, `ctrl+a "`
-splits down, `ctrl+a c` opens a tab, `ctrl+a z` zooms: the keys mean what
-they mean in tmux. `e` (`kubectl edit`), `v` (any text) and `s` (a shell in
-the pod) open inside the pane, and every pane can run its own editor.
+**Splits, tabs and vim in a pane.** The keys mean what they mean in tmux:
+
+- `ctrl+a %` splits right, `ctrl+a "` splits down;
+- `ctrl+a c` opens a tab, `ctrl+a z` zooms;
+- `e` (`kubectl edit`), `v` (any text) and `s` (a shell in the pod) open
+  inside the pane, and every pane can run its own editor.
 
 ![splits, tabs, zoom and vim in a pane](docs/demo/splits.gif)
 
 **Self-healing port-forwards.** `ctrl+f` on a pod, service, deployment or
 statefulset suggests ports from the spec. k2 does not trust a running
-`kubectl port-forward` blindly: it watches kubectl's output and checks the
-forwarded pods, so a forward whose pod went away in a rolling restart is
-marked dead with the reason. `r` restarts it through its owner
-(`pod gone → forwarding via deploy/kafka-connect`), and with
-`portforward.auto_restart` k2 does it on its own, including the next time
-k2 starts. Without that setting, and without `a` on the forward itself, a
-dead forward stays dead across restarts.
+`kubectl port-forward` blindly:
+
+- it watches kubectl's output and checks the forwarded pods, so a forward
+  whose pod went away in a rolling restart is marked dead with the reason;
+- `r` restarts it through its owner
+  (`pod gone → forwarding via deploy/kafka-connect`);
+- with `portforward.auto_restart` k2 does it on its own, including the next
+  time k2 starts.
+
+Without that setting, and without `a` on the forward itself, a dead forward
+stays dead across restarts.
 
 ![a dead port-forward restarted through its deployment](docs/demo/port-forward.gif)
 
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
-green square and diffs, applies or deletes them. A plain YAML file has no square;
-`a` applies it, `D` diffs it and `d` deletes it, all with `kubectl -f`. Apply and delete show a
-progress bar over the objects the kustomization renders to, and every
-output line shows up as kubectl prints it, with an icon and a color (`+` created, `~` configured, `−` deleted,
-`✗` error); a bordered summary closes the run. Diffs get one bold header
-per resource.
+green square and diffs, applies or deletes them.
+
+- A plain YAML file has no square; `a` applies it, `D` diffs it and `d`
+  deletes it, all with `kubectl -f`.
+- Apply and delete show a progress bar over the objects the kustomization
+  renders to.
+- Every output line shows up as kubectl prints it, with an icon and a color
+  (`+` created, `~` configured, `−` deleted, `✗` error); a bordered summary
+  closes the run.
+- Diffs get one bold header per resource.
 
 ![Kustomize diff, apply and delete with live output](docs/demo/kustomize.gif)
 
 **Owner tree (`:xray`).** `X` on a row or `:xray deploy web` shows a
-workload with everything it owns: Deployment → ReplicaSets → Pods →
-containers, plus the services and ingresses in front of it and the config
-maps, secrets and PVCs it uses, with status colors, READY and RESTARTS.
+workload with everything it owns:
+
+- Deployment → ReplicaSets → Pods → containers;
+- the services and ingresses in front of it;
+- the config maps, secrets and PVCs it uses;
+- status colors, READY and RESTARTS.
+
 Namespace-wide trees start folded with a one-line summary per root, and
 roots in trouble start open.
 
 ![the xray owner tree](docs/demo/xray.gif)
 
 **Multi-pod logs.** `M` on a workload, service or pod follows the logs of
-all its pods at once, stern-style, each line prefixed with a colored
-`pod/container`. `:logs app=web --since=10m -c app` takes a label selector
-or a pod-name pattern (not `kind name`); new pods are picked up as they
-appear. `m` draws a rule after the current line so the tail stays separated.
+all its pods at once, stern-style.
+
+- Each line is prefixed with a colored `pod/container`.
+- `:logs app=web --since=10m -c app` takes a label selector or a pod-name
+  pattern (not `kind name`).
+- New pods are picked up as they appear.
+- `m` draws a rule after the current line so the tail stays separated.
 
 ![logs of all pods of a deployment](docs/demo/multi-logs.gif)
 
-**Helm releases without the helm CLI.** `:helm` lists releases and shows
-values, computed values, manifest, notes and a revision history, all
-decoded by k2 from Helm's release secrets. Mark two revisions and diff them
-per resource; roll back to any revision (this one step uses the helm CLI,
-when installed).
+**Helm releases without the helm CLI.** `:helm` lists releases, all decoded
+by k2 from Helm's release secrets.
+
+- See values, computed values, manifest, notes and a revision history.
+- Mark two revisions and diff them per resource.
+- Roll back to any revision (this one step uses the helm CLI, when
+  installed).
 
 ![Helm history, diff and rollback](docs/demo/helm.gif)
 
-**Safe on production.** List your production contexts under `prod:` and
-their panes get a red border and ☠; every destructive action asks in a red
-popup that names the target and context, and `enter` never confirms: only
-`y` does. Separately, `ui.context_themes` gives a context its own theme, and
-the whole UI re-colors live as you move between panes.
+**Safe on production.** List your production contexts under `prod:`:
+
+- their panes get a red border and ☠;
+- every destructive action asks in a red popup that names the target and
+  context;
+- `enter` never confirms: only `y` does.
+
+Separately, `ui.context_themes` gives a context its own theme, and the
+whole UI re-colors live as you move between panes.
 
 ![context themes and the production confirmation](docs/demo/prod-safety.gif)
 
@@ -124,11 +154,15 @@ that shrinks live and turns yellow and red before it expires.
 
 ![the token lifetime bar running out](docs/demo/token-bar.gif)
 
-**And the small things.** `:pulse` shows a namespace's health on one screen.
-`b` pins favorite context + namespace (+ view) targets and jumps back with
-`1`-`9`. `0` toggles all namespaces on every list. Pod lists have live CPU
-and MEM bars against limits. `i` sets images, `S` scales, `r` restarts a
-rollout, and OLM Subscriptions, CSVs and InstallPlans get their own views.
+**And the small things.**
+
+- `:pulse` shows a namespace's health on one screen.
+- `b` pins favorite context + namespace (+ view) targets and jumps back
+  with `1`-`9`.
+- `0` toggles all namespaces on every list.
+- Pod lists have live CPU and MEM bars against limits.
+- `i` sets images, `S` scales, `r` restarts a rollout.
+- OLM Subscriptions, CSVs and InstallPlans get their own views.
 
 ![pulse, favorites, all namespaces and set image](docs/demo/pulse-favorites.gif)
 
@@ -146,12 +180,20 @@ sudo dnf install ./k2-<version>-1.x86_64.rpm      # Fedora
 sudo apt install ./k2_<version>_amd64.deb         # Ubuntu / Debian
 ```
 
-The packages install `/usr/bin/k2`, the example config in
-`/usr/share/k2/config.example.yaml`, and the README, cheatsheet, LICENSE
-and NOTICE in `/usr/share/doc/k2/`. kubectl is recommended, not required, so
-install it the way you like. Building them needs `rpmbuild`
-(`sudo dnf install rpm-build`; `sudo apt install rpm` on Debian/Ubuntu) and
-`dpkg-deb` (`sudo apt install dpkg-dev`; `sudo dnf install dpkg` on Fedora).
+The packages install:
+
+- `/usr/bin/k2`;
+- the example config in `/usr/share/k2/config.example.yaml`;
+- the README, cheatsheet, LICENSE and NOTICE in `/usr/share/doc/k2/`.
+
+kubectl is recommended, not required, so install it the way you like.
+Building the packages needs:
+
+- `rpmbuild` (`sudo dnf install rpm-build`; `sudo apt install rpm` on
+  Debian/Ubuntu);
+- `dpkg-deb` (`sudo apt install dpkg-dev`; `sudo dnf install dpkg` on
+  Fedora).
+
 To update, install the newer package the same way.
 
 **From source** (Go 1.24 or newer):
@@ -182,11 +224,14 @@ k2() {
 }
 ```
 
-It evaluates only a clean exit: k2 must exit 0 and print exactly one
-`export KUBECONFIG=...` line. With arguments (`k2 --version`, `k2 --help`,
-`k2 --init-config`) k2 runs directly. If k2 fails, nothing is
-evaluated; a crash restores the terminal, writes the stack trace to
-`~/.k2/crash.log` and prints one line to standard error.
+It evaluates only a clean exit:
+
+- k2 must exit 0 and print exactly one `export KUBECONFIG=...` line;
+- with arguments (`k2 --version`, `k2 --help`, `k2 --init-config`) k2 runs
+  directly;
+- if k2 fails, nothing is evaluated;
+- a crash restores the terminal, writes the stack trace to
+  `~/.k2/crash.log` and prints one line to standard error.
 
 ## Quick start
 
@@ -225,160 +270,223 @@ The full key list, with the config name of each key, is in
 [CHEATSHEET.md](CHEATSHEET.md). In short:
 
 **Prefix.** Pane and tab keys come after `ctrl+a` (`keys.prefix`): press it,
-let go, press one key. The status line shows `prefix ctrl+a …` and the
-legend lists the keys while k2 waits (1.5 s, `esc` cancels). The prefix
-works in tables, viewers and the in-pane vim / shell; `ctrl+a ctrl+a` sends
-a literal `ctrl+a` there. In k2's own text inputs (`:` line, `/` filter,
-kubectl line, path field, popups) `ctrl+a` keeps its editing meaning (line
-start): press `esc` first or use `ctrl+arrows`. `keys.prefix` takes any
-ctrl+, alt+ or function key, e.g. `ctrl+\`, which also works in inputs.
+let go, press one key.
+
+- The status line shows `prefix ctrl+a …` and the legend lists the keys
+  while k2 waits (1.5 s, `esc` cancels).
+- The prefix works in tables, viewers and the in-pane vim / shell;
+  `ctrl+a ctrl+a` sends a literal `ctrl+a` there.
+- In k2's own text inputs (`:` line, `/` filter, kubectl line, path field,
+  popups) `ctrl+a` keeps its editing meaning (line start): press `esc`
+  first or use `ctrl+arrows`.
+- `keys.prefix` takes any ctrl+, alt+ or function key, e.g. `ctrl+\`, which
+  also works in inputs.
 
 **Panes and tabs.** After the prefix, `"` `%` `c` `&` `,` `n` `p` `o` `;`
 `z` `x`, the arrows and `1`-`9` mean what they mean in tmux, and k2's own
 `h` (split down), `v` (split right), `t` (new tab) and `w` (close tab) work
-too. Splits nest up to 4 panes per tab (`max_panes`). `ctrl+arrows` or the
-prefix plus arrows move to the nearest pane; more arrows within 1 s keep
-moving. `ctrl+a o` cycles panes, `ctrl+a ;` jumps back, `ctrl+a z` or `F`
-zooms. `]` / `[` switch tabs on their own (inside inputs and vim use
-`ctrl+a n` / `ctrl+a p`). `ctrl+a ,` renames a tab (empty restores the
-automatic name). `ctrl+a x` and `ctrl+a &` ask before closing a pane or a
-tab, in red when vim or a shell runs there. `ctrl+d` on the home screen
-closes a pane without asking; the last pane closes the tab, and the only
-tab quits, like `Q`. Off home, `ctrl+d` still deletes and still asks. The
-tab bar appears from two tabs on (`ui.tabbar`) and marks a tab with a
-production pane in red with ☠.
+too.
+
+- Splits nest up to 4 panes per tab (`max_panes`).
+- `ctrl+arrows` or the prefix plus arrows move to the nearest pane; more
+  arrows within 1 s keep moving.
+- `ctrl+a o` cycles panes, `ctrl+a ;` jumps back, `ctrl+a z` or `F` zooms.
+- `]` / `[` switch tabs on their own (inside inputs and vim use
+  `ctrl+a n` / `ctrl+a p`).
+- `ctrl+a ,` renames a tab (empty restores the automatic name).
+- `ctrl+a x` and `ctrl+a &` ask before closing a pane or a tab, in red when
+  vim or a shell runs there.
+- `ctrl+d` on the home screen closes a pane without asking; the last pane
+  closes the tab, and the only tab quits, like `Q`. Off home, `ctrl+d`
+  still deletes and still asks.
+- The tab bar appears from two tabs on (`ui.tabbar`) and marks a tab with a
+  production pane in red with ☠.
 
 **Sidebar.** It never takes focus. It shows the focused pane's target,
-cluster info, token lifetime and forwards; its entries open in the focused
-pane with `C` `c` `n` `K` `U` `f` or `:kubeconfig` (`:kc`), `:context`
-(`:ctx`), `:namespace` (`:ns`), `:kustomize` (`:k`), `:kubectl`,
-`:forwards` (`:pf`, `:fwd`). On OpenShift the namespace picker lists
-projects. Picking a namespace from a pod or resource list returns to that
-list.
+cluster info, token lifetime and forwards.
 
-**Command line (`:`).** Any resource name the cluster reports works
-(`:deployments`, `:subscriptions`, `:routes` …), plus your `aliases:` and
-built-in k9s-style short names (`:dp`, `:sts`, `:ds`, `:cj`, `:ev`, `:sub`,
-`:csv`, `:rt` …) unless your config or the cluster gives a name another
-meaning. `tab` completes targets, resources, aliases, and for `:xray`,
-`:logs` / `:stern` and `:fav` the kinds and names from the cluster. A kind
-the cluster does not serve says `… is not installed on this cluster (no
-OLM)` or `(not OpenShift)`.
+- Its entries open in the focused pane with `C` `c` `n` `K` `U` `f` or
+  `:kubeconfig` (`:kc`), `:context` (`:ctx`), `:namespace` (`:ns`),
+  `:kustomize` (`:k`), `:kubectl`, `:forwards` (`:pf`, `:fwd`).
+- On OpenShift the namespace picker lists projects.
+- Picking a namespace from a pod or resource list returns to that list.
 
-**Every table.** Live refresh with a counting AGE column. `/` filters,
-`>` / `<` sort by the next / previous column and `=` flips the direction,
-`0` toggles all namespaces (the selected object stays selected; remembered
-per pane), `pgdown` / `}` and `pgup` / `{` page, `w` / `W` copy the name /
-`kind/name -n ns`, `L` / `A` label / annotate, `d` describes (warning
-events colored), `e` edits, `ctrl+d` deletes, `enter` shows the YAML. STATUS
-is colored by meaning; names turn the warning color only for real trouble
-(not ready, Pending, CrashLoopBackOff, Terminating …); RESTARTS reads
-`3 (5m ago)` and is red when the last restart was under an hour ago. Empty
-lists say where to look: `no pods in shop — press 0 for all namespaces`.
+**Command line (`:`).**
 
-**Pods.** `enter` follows the logs (`p` switches to the previous
-container's log, `m` draws a separator under the current line, `1` and `2`
-open the last 30 and 60 minutes in `less` with no line cap; not in stern),
-`s` opens a shell in the pane (bash, else sh), `F` port-forwards (`ctrl+f`
-still works), `S` scales the deployment or statefulset that owns the pod.
-Pods with several containers ask which one. CPU and MEM columns come from
-`kubectl top pods`
-every `ui.metrics_every` seconds (15) and show `45m ███░░ 62%`: usage
-against the summed limits, or the requests (`~62%`) when not every
-container has a limit; yellow from `ui.metrics_warn` (70), red from
-`ui.metrics_crit` (90). Without metrics-server they show `N/A` and the list
-keeps working.
+- Any resource name the cluster reports works (`:deployments`,
+  `:subscriptions`, `:routes` …), plus your `aliases:` and built-in
+  k9s-style short names (`:dp`, `:sts`, `:ds`, `:cj`, `:ev`, `:sub`,
+  `:csv`, `:rt` …) unless your config or the cluster gives a name another
+  meaning.
+- `tab` completes targets, resources, aliases, and for `:xray`,
+  `:logs` / `:stern` and `:fav` the kinds and names from the cluster.
+- A kind the cluster does not serve says `… is not installed on this
+  cluster (no OLM)` or `(not OpenShift)`.
 
-**Workloads.** `S` scales, and on a pod it scales the deployment or
-statefulset that owns it. `r` runs `kubectl rollout restart`, `i` sets
-images: a popup lists every container and init container, and only the
-changed ones are sent after a confirmation showing `old → new`. Jobs show
-status, completions and duration (`enter` lists their pods); cronjobs show
-the schedule and last run, and `t` runs one now. `:events` (`:ev`) lists
-events oldest first.
+**Every table.** Live refresh with a counting AGE column.
 
-**OLM and OpenShift.** `:sub` Subscriptions (`enter` jumps to the installed
-CSV), `:csv` ClusterServiceVersions with a colored PHASE (`enter` shows what
-the CSV owns), `:ip` InstallPlans (`a` approves a Manual plan), `:catsrc`
-CatalogSources, `:og` OperatorGroups, `:crd` CRDs (`enter` lists their
-custom resources), `:rt` Routes (HOST as a URL), `:proj` projects. Picking
-an OpenShift context takes that context's namespace (the kubeconfig field,
-or the first part of an `oc` name `namespace/cluster/user`).
+- `/` filters; `>` / `<` sort by the next / previous column and `=` flips
+  the direction.
+- `0` toggles all namespaces (the selected object stays selected;
+  remembered per pane).
+- `pgdown` / `}` and `pgup` / `{` page.
+- `w` / `W` copy the name / `kind/name -n ns`.
+- `L` / `A` label / annotate, `d` describes (warning events colored), `e`
+  edits, `ctrl+d` deletes, `enter` shows the YAML.
+- STATUS is colored by meaning; names turn the warning color only for real
+  trouble (not ready, Pending, CrashLoopBackOff, Terminating …).
+- RESTARTS reads `3 (5m ago)` and is red when the last restart was under an
+  hour ago.
+- Empty lists say where to look:
+  `no pods in shop — press 0 for all namespaces`.
+
+**Pods.**
+
+- `enter` follows the logs: `p` switches to the previous container's log,
+  `m` draws a separator under the current line, `1` and `2` open the last
+  30 and 60 minutes in `less` with no line cap (not in stern).
+- `s` opens a shell in the pane (bash, else sh).
+- `F` port-forwards (`ctrl+f` still works).
+- `S` scales the deployment or statefulset that owns the pod.
+- Pods with several containers ask which one.
+- CPU and MEM columns come from `kubectl top pods` every
+  `ui.metrics_every` seconds (15) and show `45m ███░░ 62%`: usage against
+  the summed limits, or the requests (`~62%`) when not every container has
+  a limit. They turn yellow from `ui.metrics_warn` (70) and red from
+  `ui.metrics_crit` (90).
+- Without metrics-server they show `N/A` and the list keeps working.
+
+**Workloads.**
+
+- `S` scales, and on a pod it scales the deployment or statefulset that
+  owns it.
+- `r` runs `kubectl rollout restart`.
+- `i` sets images: a popup lists every container and init container, and
+  only the changed ones are sent after a confirmation showing `old → new`.
+- Jobs show status, completions and duration (`enter` lists their pods).
+- Cronjobs show the schedule and last run, and `t` runs one now.
+- `:events` (`:ev`) lists events oldest first.
+
+**OLM and OpenShift.**
+
+- `:sub` Subscriptions (`enter` jumps to the installed CSV).
+- `:csv` ClusterServiceVersions with a colored PHASE (`enter` shows what
+  the CSV owns).
+- `:ip` InstallPlans (`a` approves a Manual plan).
+- `:catsrc` CatalogSources, `:og` OperatorGroups.
+- `:crd` CRDs (`enter` lists their custom resources).
+- `:rt` Routes (HOST as a URL), `:proj` projects.
+- Picking an OpenShift context takes that context's namespace (the
+  kubeconfig field, or the first part of an `oc` name
+  `namespace/cluster/user`).
 
 **Owner tree (`X`, `:xray <kind> [name]`).** Kinds: deploy, sts, ds, rs,
-job, cronjob, pod, svc. `space` folds a node, `+` / `-` expand / collapse
-all, `/` filters by name keeping the path, `enter` jumps to the node's table
-(a container opens its log) and back returns, `esc` leaves the tree for the
-list it was opened from (home, when it was opened from home), `d` describes, `y` shows the
-YAML, `M` follows the logs of every pod under the node.
+job, cronjob, pod, svc.
 
-**Multi-pod logs (`M`, `:logs`).** The pods of the selected workload or
-service (its selector) or a pod's siblings, or `:logs app=web`,
-`:logs "tier in (a,b)"`, `:logs ^web- --since=10m -c app --tail=50`.
-`:logs sts kafka` is not a StatefulSet: without `=` it is a pod-name
-pattern. Polled every `logs.multi_every` seconds (2), bounded by a ring
-buffer of `logs.multi_max_lines` (5000). `/` filters (text or regex); `m`
-marks the current line; across namespaces lines are prefixed
-`namespace/pod/container`.
+- `space` folds a node, `+` / `-` expand / collapse all.
+- `/` filters by name keeping the path.
+- `enter` jumps to the node's table (a container opens its log) and back
+  returns.
+- `esc` leaves the tree for the list it was opened from (home, when it was
+  opened from home).
+- `d` describes, `y` shows the YAML, `M` follows the logs of every pod
+  under the node.
 
-**Helm (`:helm`, `:helm all`).** NAME, REVISION, STATUS, CHART, APP VERSION,
-UPDATED. `v` values, `V` computed values, `M` manifest, `N` notes, `t`
-history as a table (`●` current revision). In the history `space` marks a
-revision and `D` diffs it with another (or the selected one with the
-current one), per resource plus user values. `r` rolls back (to the previous
-revision from the list, to the selected one from the history) and `ctrl+d`
-uninstalls; both need the helm CLI (`helm.binary`) and ask in a red popup.
-k2 never installs or upgrades charts.
+**Multi-pod logs (`M`, `:logs`).**
 
-**Favorites (`b`, `:fav`).** `enter` or `1`-`9` jumps, `a` pins the focused
-pane's context, namespace and view, `x` unpins, `K` / `J` reorder.
-`favorites:` in the config adds fixed entries on top.
+- Covers the pods of the selected workload or service (its selector) or a
+  pod's siblings, or `:logs app=web`, `:logs "tier in (a,b)"`,
+  `:logs ^web- --since=10m -c app --tail=50`.
+- `:logs sts kafka` is not a StatefulSet: without `=` it is a pod-name
+  pattern.
+- Polled every `logs.multi_every` seconds (2), bounded by a ring buffer of
+  `logs.multi_max_lines` (5000).
+- `/` filters (text or regex); `m` marks the current line.
+- Across namespaces lines are prefixed `namespace/pod/container`.
 
-**Namespace pulse (`:pulse`).** Pods by phase with crash loops and
-restarts, workloads ready of total, jobs, PVCs, CPU and memory against
-limits, the objects in trouble and the newest warning events; refreshed
-every `ui.refresh_every` seconds.
+**Helm (`:helm`, `:helm all`).** Columns: NAME, REVISION, STATUS, CHART,
+APP VERSION, UPDATED.
+
+- `v` values, `V` computed values, `M` manifest, `N` notes, `t` history as
+  a table (`●` current revision).
+- In the history `space` marks a revision and `D` diffs it with another (or
+  the selected one with the current one), per resource plus user values.
+- `r` rolls back (to the previous revision from the list, to the selected
+  one from the history) and `ctrl+d` uninstalls; both need the helm CLI
+  (`helm.binary`) and ask in a red popup.
+- k2 never installs or upgrades charts.
+
+**Favorites (`b`, `:fav`).**
+
+- `enter` or `1`-`9` jumps.
+- `a` pins the focused pane's context, namespace and view, `x` unpins.
+- `K` / `J` reorder.
+- `favorites:` in the config adds fixed entries on top.
+
+**Namespace pulse (`:pulse`).** Refreshed every `ui.refresh_every` seconds,
+it shows:
+
+- pods by phase with crash loops and restarts;
+- workloads ready of total, jobs, PVCs;
+- CPU and memory against limits;
+- the objects in trouble and the newest warning events.
 
 **Kustomize (`K`).** Every file and directory is listed (only `.git`,
-`node_modules` and `vendor` are skipped); a green square marks kustomizations.
-A plain YAML file has no square; `a`, `D` and `d` use `kubectl -f`. Other files are
-dimmed. `s` scans for kustomizations, `p` jumps to a
-typed path with shell-like `tab` completion, `e` / `enter` opens a file in
-vim. `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
-file. Apply and
-delete ask first, naming the path, context and object count. After a
-delete k2 shows `waiting for N to terminate…`. The summary ends with
-`── exit N · done|failed|differences ──`, and the cursor stays on the same
-entry across runs and rescans.
+`node_modules` and `vendor` are skipped).
+
+- A green square marks kustomizations. A plain YAML file has no square;
+  `a`, `D` and `d` use `kubectl -f`. Other files are dimmed.
+- `s` scans for kustomizations.
+- `p` jumps to a typed path with shell-like `tab` completion.
+- `e` / `enter` opens a file in vim.
+- `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
+  file. Apply and delete ask first, naming the path, context and object
+  count.
+- After a delete k2 shows `waiting for N to terminate…`.
+- The summary ends with `── exit N · done|failed|differences ──`, and the
+  cursor stays on the same entry across runs and rescans.
 
 **kubectl view (`U`).** Runs any kubectl line against the pane's target.
-The prompt shows `◉ context · namespace` (red with ☠ on production) and
-colors the line as you type; `tab` completes, `ctrl+o` cycles the output
-(default, wide, yaml, json, name), `ctrl+j` adds a jq filter. The result
-header shows exit code, outcome and duration.
 
-**Text viewers** (logs, describe, YAML, events, command output). `w` toggles
-wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom (`G` resumes
-tailing), `v` opens the text in vim. On a resource's YAML (`enter`) or
-describe (`d`), `r` refreshes it every 2 seconds until `r` again, so a
-status on a CR stays live. `y` enters copy mode: only the text at
-full screen, so the terminal's own mouse selection copies cleanly (k2 never
-captures the mouse); there `v` selects lines, `y` copies them, `Y` copies
-everything (`ui.clipboard`). The legend still shows `y` when the pane is
-zoomed. Error and warning lines in command output always wrap in full, and
-`!` opens the last error in full from anywhere.
+- The prompt shows `◉ context · namespace` (red with ☠ on production) and
+  colors the line as you type.
+- `tab` completes, `ctrl+o` cycles the output (default, wide, yaml, json,
+  name), `ctrl+j` adds a jq filter.
+- The result header shows exit code, outcome and duration.
 
-**Confirmations.** Deletes, stopping forwards, Kustomize apply / delete,
-closing panes and tabs with the prefix, rollout restart, cronjob trigger,
-OLM approve, set image, Helm rollback / uninstall, and on production also
-scale, label and annotate, ask in one centered popup with the full target.
+**Text viewers** (logs, describe, YAML, events, command output).
+
+- `w` toggles wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom
+  (`G` resumes tailing), `v` opens the text in vim.
+- On a resource's YAML (`enter`) or describe (`d`), `r` refreshes it every
+  2 seconds until `r` again, so a status on a CR stays live.
+- `y` enters copy mode: only the text at full screen, so the terminal's own
+  mouse selection copies cleanly (k2 never captures the mouse). There `v`
+  selects lines, `y` copies them, `Y` copies everything (`ui.clipboard`).
+  The legend still shows `y` when the pane is zoomed.
+- Error and warning lines in command output always wrap in full, and `!`
+  opens the last error in full from anywhere.
+
+**Confirmations.** These ask in one centered popup with the full target:
+
+- deletes and stopping forwards;
+- Kustomize apply / delete;
+- closing panes and tabs with the prefix;
+- rollout restart, cronjob trigger, OLM approve, set image;
+- Helm rollback / uninstall;
+- on production also scale, label and annotate.
+
 Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
 
-**In-pane vim and shells.** All keys go to the program except `ctrl+arrows`
-and the prefix (`Z` or `ctrl+a z` zooms the pane, `ctrl+a x` close, `ctrl+a Q` quit …).
-vim follows splits and resizes; `kubectl edit` uses `KUBE_EDITOR=vim`, and a
-failed edit leaves its last screen for you to read. Quitting k2 kills all
-editors. `ui.editor_inline: false` opens vim fullscreen instead.
+**In-pane vim and shells.**
+
+- All keys go to the program except `ctrl+arrows` and the prefix (`Z` or
+  `ctrl+a z` zooms the pane, `ctrl+a x` close, `ctrl+a Q` quit …).
+- vim follows splits and resizes.
+- `kubectl edit` uses `KUBE_EDITOR=vim`, and a failed edit leaves its last
+  screen for you to read.
+- Quitting k2 kills all editors.
+- `ui.editor_inline: false` opens vim fullscreen instead.
 
 ### Port-forwards
 
@@ -433,11 +541,13 @@ and restores it on the next start:
 - the favorites you pinned and the last Kustomize directory.
 
 A missing or broken state file never stops k2; it just starts fresh.
-`k2 --fresh`, or `:fresh` inside a session, does that on purpose: every tab
-and pane is closed and one home pane is left. The focused kubeconfig,
-context and namespace stay, and so do port-forwards and favorites. The
-next ordinary start then restores that home pane. A `--profile` given with
-`--fresh` still opens the profile.
+`k2 --fresh`, or `:fresh` inside a session, does that on purpose:
+
+- every tab and pane is closed and one home pane is left;
+- the focused kubeconfig, context and namespace stay, and so do
+  port-forwards and favorites;
+- the next ordinary start then restores that home pane;
+- a `--profile` given with `--fresh` still opens the profile.
 
 On exit k2 also writes the focused pane's context and namespace into that
 pane's kubeconfig (current-context) and prints
@@ -448,11 +558,14 @@ pane's kubeconfig (current-context) and prints
 Every key and UI constant is configurable in `~/.k2/config.yaml`.
 [config.example.yaml](config.example.yaml) is the whole list: each setting
 on one line, commented out, at its default. Uncomment a line to change it.
-A bad value is skipped. k2 writes that file to `~/.k2/config.yaml` on its
-first start if no config exists (a notice says `created ~/.k2/config.yaml`),
-and never touches an existing file. If only `~/.k2/config` exists, k2 reads
-that instead. The example is built into the binary and also shipped as
-`/usr/share/k2/config.example.yaml`.
+
+- A bad value is skipped.
+- k2 writes that file to `~/.k2/config.yaml` on its first start if no
+  config exists (a notice says `created ~/.k2/config.yaml`), and never
+  touches an existing file.
+- If only `~/.k2/config` exists, k2 reads that instead.
+- The example is built into the binary and also shipped as
+  `/usr/share/k2/config.example.yaml`.
 
 ```zsh
 k2 --init-config            # write ~/.k2/config.yaml if it is missing
@@ -482,16 +595,17 @@ ui:
     - {kubeconfig: ~/.kube/lab.yaml, theme: nord}
 ```
 
-The theme follows the focused pane and switches without a restart. `ctrl+t`
-(`keys.theme`, also `:theme`) opens the list of themes, previews each one
-as you move, and writes the choice
-into `ui.context_themes` for the focused pane's context, so it sticks. A
-specific context is placed ahead of globs. `ctrl+shift+t` is not the
-binding: terminals use it for a new tab, and k2 does not see
-ctrl+shift+letter. One
-window has one palette, so all panes show the focused pane's theme. An
-unknown theme name or an entry without a context or kubeconfig is ignored
-with a warning.
+The theme follows the focused pane and switches without a restart.
+
+- `ctrl+t` (`keys.theme`, also `:theme`) opens the list of themes, previews
+  each one as you move, and writes the choice into `ui.context_themes` for
+  the focused pane's context, so it sticks.
+- A specific context is placed ahead of globs.
+- `ctrl+shift+t` is not the binding: terminals use it for a new tab, and k2
+  does not see ctrl+shift+letter.
+- One window has one palette, so all panes show the focused pane's theme.
+- An unknown theme name or an entry without a context or kubeconfig is
+  ignored with a warning.
 
 ### Themes and look
 
@@ -554,14 +668,17 @@ ui:
   on them shows a one-time hint.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
-- The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then the
-  focused context, the kubeconfig path and the namespace, then the actions.
-  Shortcut letters are plain. Under that, when it fits, are `k2`, `kubectl`,
-  `k8s server` and (when readable) `ocp` versions of the focused context,
-  fetched in the background (`ui.cluster_info: false` hides them). The big
-  `k2` and the cluster info are dropped first when the sidebar is short.
-  Port-forwards sit at the bottom only when there is one: a `forwards`
-  heading, a green square while it is alive and a red square when it is dead.
+- The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then
+  the focused context, the kubeconfig path and the namespace, then the
+  actions. Shortcut letters are plain.
+  - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
+    readable) `ocp` versions of the focused context, fetched in the
+    background (`ui.cluster_info: false` hides them).
+  - The big `k2` and the cluster info are dropped first when the sidebar is
+    short.
+  - Port-forwards sit at the bottom only when there is one: a `forwards`
+    heading, a green square while it is alive and a red square when it is
+    dead.
 - Pane titles show the context next to the view (`1 kind-kindest ·
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
@@ -571,15 +688,19 @@ ui:
 
 Under the cluster info the sidebar shows how long the focused context's
 token stays valid: `token    ████████▌░░░ 5h12m`. The bar shrinks live
-(computed locally, no API calls), turns yellow below `ui.token_warn` (25 %)
-or under an hour, red below `ui.token_crit` (10 %) or under 15 minutes, and
-says `expired` with `^l or :login` on the next line once it has expired.
+(computed locally, no API calls) and:
+
+- turns yellow below `ui.token_warn` (25 %) or under an hour;
+- turns red below `ui.token_crit` (10 %) or under 15 minutes;
+- says `expired` with `^l or :login` on the next line once it has expired.
+
 A token that is present in the kubeconfig but that the API rejects, and
 that has no expiry of its own (a random string pasted into `:login`), says
-`invalid` with the same hint. `ctrl+l` or `:login`
-opens a box: paste the new token and it replaces that user's `token` in
-the kubeconfig (or rewrites `tokenFile`, when that is where the token
-lives). The token is not printed afterwards.
+`invalid` with the same hint.
+
+`ctrl+l` or `:login` opens a box: paste the new token and it replaces that
+user's `token` in the kubeconfig (or rewrites `tokenFile`, when that is
+where the token lives). The token is not printed afterwards.
 
 | credential of the context's user | sidebar |
 |---|---|
@@ -588,12 +709,14 @@ lives). The token is not printed afterwards.
 | token the API rejects, with no expiry of its own | `invalid`, and the login hint |
 | token without a known expiry, client certificate, exec / auth-provider plugin | nothing |
 
-For OpenShift k2 asks the cluster once in the background (5 s timeout), and
-again when the context changes or the kubeconfig gets a new token, so after
-`oc login` in another terminal the bar starts over by itself. When the
-cluster sets `inactivityTimeoutSeconds`, k2 adds `idle limit 8h00m` under
-the bar, since the token may end earlier. The token itself is never
-printed, logged or passed to kubectl; k2 keeps only a hash of it in memory. `ui.token_bar: false` turns it off.
+- For OpenShift k2 asks the cluster once in the background (5 s timeout),
+  and again when the context changes or the kubeconfig gets a new token, so
+  after `oc login` in another terminal the bar starts over by itself.
+- When the cluster sets `inactivityTimeoutSeconds`, k2 adds
+  `idle limit 8h00m` under the bar, since the token may end earlier.
+- The token itself is never printed, logged or passed to kubectl; k2 keeps
+  only a hash of it in memory.
+- `ui.token_bar: false` turns it off.
 
 ### Requirements
 
