@@ -657,7 +657,7 @@ ui:
   background: transparent   # transparent (default) | theme
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
-  logo_title_color: green   # the bold "k2": green | accent
+  logo_title_color: green   # logo color: green | accent
 ```
 
 - Colors are the themes' official ones (nord's dimmed gray is lightened for
