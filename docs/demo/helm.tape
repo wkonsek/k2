@@ -1,4 +1,3 @@
-# helm.gif: releases, history, a diff of two revisions, rollback.
 Source "docs/demo/settings.tape"
 Output "docs/demo/helm.gif"
 

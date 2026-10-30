@@ -1,4 +1,3 @@
-# splits.gif: tmux keys for splits, tabs and zoom, and vim inside a pane.
 Source "docs/demo/settings.tape"
 Output "docs/demo/splits.gif"
 

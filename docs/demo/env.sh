@@ -1,6 +1,3 @@
-# shellcheck shell=bash
-# The demo environment the tapes source: HOME, PATH and the cluster all live
-# under $K2_DEMO_DIR, so nothing from the recording machine shows up.
 
 K2_DEMO_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export K2_DEMO_DIR="${K2_DEMO_DIR:-/tmp/k2-demo}"
@@ -13,7 +10,6 @@ export EDITOR=vim
 PS1='\[\e[38;5;111m\]~\[\e[0m\] \[\e[1;32m\]❯\[\e[0m\] '
 PROMPT_COMMAND=
 
-# the shell function from the README
 k2() {
   if (( $# )); then
     command k2 "$@"
@@ -26,7 +22,6 @@ k2() {
   fi
 }
 
-# a fresh home and cluster; k2 starts on kind-dev / shop pods unless "fresh"
 demo_reset() {
   pkill -f -- "--kubeconfig $K2_DEMO_DIR/home/.kube/config" 2>/dev/null
   rm -rf "$K2_DEMO_DIR/home" "$K2_DEMO_DIR/world.json" "$K2_DEMO_DIR/unknown.log"

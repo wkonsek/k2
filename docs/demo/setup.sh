@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Builds k2 and the fake kubectl / helm into $K2_DEMO_DIR/bin (default /tmp/k2-demo).
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 dir="${K2_DEMO_DIR:-/tmp/k2-demo}"

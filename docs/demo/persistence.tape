@@ -1,4 +1,3 @@
-# persistence.gif: forwards outlive k2, and the whole session comes back.
 Source "docs/demo/settings.tape"
 Output "docs/demo/persistence.gif"
 Set TypingSpeed 45ms

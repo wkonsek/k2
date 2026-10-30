@@ -1,4 +1,3 @@
-# hero.gif: start k2, browse pods, split, a quick tour.
 Source "docs/demo/settings.tape"
 Output "docs/demo/hero.gif"
 

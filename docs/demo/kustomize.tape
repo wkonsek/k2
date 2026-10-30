@@ -1,5 +1,3 @@
-# kustomize.gif: the Kustomize browser, a diff, and apply / delete with
-# their output streamed line by line under the progress bar.
 Source "docs/demo/settings.tape"
 Output "docs/demo/kustomize.gif"
 

@@ -1,5 +1,3 @@
-# port-forward.gif: a forward whose pod goes away is marked dead with the
-# reason, and r brings it back through the deployment.
 Source "docs/demo/settings.tape"
 Output "docs/demo/port-forward.gif"
 

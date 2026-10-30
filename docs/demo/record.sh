@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Records the README GIFs: docs/demo/record.sh [name ...]
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 if ! command -v vhs >/dev/null; then
