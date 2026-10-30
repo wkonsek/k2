@@ -39,7 +39,27 @@ Sleep 4s
 Type "q"
 Sleep 600ms
 
+Type "q"
+Sleep 600ms
+Type ":"
+Sleep 300ms
+Type "pods"
+Enter
+Sleep 2s
+
+Ctrl+A
+Type '"'
+Sleep 1.2s
+Type "K"
+Sleep 1s
+Type "jj"
+Sleep 500ms
+Enter
+Sleep 1s
+Type "jj"
+Sleep 600ms
+
 Type "d"
 Sleep 1s
 Type "y"
-Sleep 7s
+Sleep 9s
