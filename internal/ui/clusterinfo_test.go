@@ -72,7 +72,7 @@ func TestClusterInfoInSidebar(t *testing.T) {
 	m.context = "broken"
 	m = tickOnce(t, m)
 	side = sidebarText(m)
-	if calls != 2 || !strings.Contains(side, "k8s server  N/A") || !strings.Contains(side, "kubectl     v1.31.2") || strings.Contains(side, "ocp") {
+	if calls != 2 || !strings.Contains(side, "k8s server  unreachable") || !strings.Contains(side, "kubectl     v1.31.2") || strings.Contains(side, "ocp") {
 		t.Fatalf("broken context (calls %d):\n%s", calls, side)
 	}
 

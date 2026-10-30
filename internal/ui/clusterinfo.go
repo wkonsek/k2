@@ -99,7 +99,11 @@ func (m model) infoBlock(inner int) string {
 	row("k2", itemStyle.Render(or(m.version, "dev")))
 	row("kubectl", value(fitVersion(ci.v.Client, inner-infoPad)))
 	if m.context != "" {
-		row("k8s server", value(fitVersion(ci.v.Server, inner-infoPad)))
+		if ci.done && ci.v.Server == "" {
+			row("k8s server", errStyle.Render("unreachable"))
+		} else {
+			row("k8s server", value(fitVersion(ci.v.Server, inner-infoPad)))
+		}
 		if ci.v.OpenShift != "" {
 			row("ocp", itemStyle.Render(ci.v.OpenShift))
 		}
