@@ -23,6 +23,7 @@ k2() {
 }
 
 demo_reset() {
+  pkill -x k2 2>/dev/null
   pkill -f -- "--kubeconfig $K2_DEMO_DIR/home/.kube/config" 2>/dev/null
   rm -rf "$K2_DEMO_DIR/home" "$K2_DEMO_DIR/world.json" "$K2_DEMO_DIR/unknown.log"
   mkdir -p "$HOME/.k2" "$HOME/deploy"
