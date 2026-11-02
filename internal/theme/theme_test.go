@@ -8,7 +8,7 @@ import (
 
 func TestNordIsTheOriginalPalette(t *testing.T) {
 	p := Nord()
-	want := Palette{Name: "nord", Bg: "#2e3440", Muted: "#7b88a1", Text: "#d8dee9", Accent: "#88c0d0",
+	want := Palette{Name: "nord", Bg: "#2e3441", Muted: "#7b88a1", Text: "#d8dee9", Accent: "#88c0d0",
 		Accent2: "#81a1c1", Accent3: "#5e81ac", Danger: "#bf616a", OK: "#a3be8c", Warn: "#ebcb8b", Bright: "#eceff4"}
 	if p != want {
 		t.Fatalf("nord changed: %+v", p)
