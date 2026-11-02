@@ -262,6 +262,7 @@ Then:
 | `ctrl+arrows` | move between panes |
 | `0` | all namespaces and back |
 | `q` / `esc` | back |
+| `?` | help: the keys of the current view in a popup |
 | `Q` | quit; your shell switches to the focused pane's cluster |
 | `space` | select rows; `ctrl+d` deletes them, `M` tails those pods |
 | `ctrl+p` | save this layout as a profile (`:profile save dev`, `k2 --profile dev`) |

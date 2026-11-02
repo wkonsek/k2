@@ -110,6 +110,7 @@ type Keys struct {
 	Fullscreen                                                   Binding
 	Zoom                                                         Binding
 	LastError                                                    Binding
+	Help                                                         Binding
 	Quit                                                         Binding
 	Prefix                                                       Binding
 	Back                                                         Binding
@@ -180,7 +181,7 @@ func DefaultKeys() Keys {
 		NewTab: Binding{"t", "c"}, CloseTab: Binding{"w", "&"}, RenameTab: Binding{","},
 		NextTab: Binding{DirectMark + "]", "n", "]"}, PrevTab: Binding{DirectMark + "[", "p", "["},
 		Tab:        [9]Binding{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"7"}, {"8"}, {"9"}},
-		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
+		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Help: Binding{"?"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
 		Back: Binding{"q", "esc", "H"}, Left: Binding{"left", "h"},
 		Select: Binding{"enter", "right", "l"}, Submit: Binding{"enter"},
 		Cancel: Binding{"esc"}, ShellBack: Binding{"esc", "q"},
@@ -282,6 +283,7 @@ var keyFields = []keyField{
 	{"fullscreen", func(k *Keys) *Binding { return &k.Fullscreen }},
 	{"zoom", func(k *Keys) *Binding { return &k.Zoom }},
 	{"last_error", func(k *Keys) *Binding { return &k.LastError }},
+	{"help", func(k *Keys) *Binding { return &k.Help }},
 	{"quit", func(k *Keys) *Binding { return &k.Quit }},
 	{"prefix", func(k *Keys) *Binding { return &k.Prefix }},
 	{"back", func(k *Keys) *Binding { return &k.Back }},
@@ -383,7 +385,7 @@ var OldPaneKeys = map[string]Binding{
 }
 
 var globalKeys = map[string]bool{
-	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
+	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "help": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
 	"pane_left": true, "pane_right": true, "pane_up": true, "pane_down": true, "prev_pane": true, "next_pane": true, "last_pane": true,
 	"zoom": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true, "profile": true,
 	"tab_1": true, "tab_2": true, "tab_3": true, "tab_4": true, "tab_5": true, "tab_6": true, "tab_7": true, "tab_8": true, "tab_9": true,

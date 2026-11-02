@@ -812,3 +812,16 @@ func TestPaneMoveKeys(t *testing.T) {
 		t.Fatalf("clash: %v %v", w, c.Keys.PaneLeft)
 	}
 }
+
+func TestHelpKey(t *testing.T) {
+	if c, w := Parse(nil); !c.Keys.Help.Has("?") || len(w) != 0 {
+		t.Fatalf("default help %v %v", c.Keys.Help, w)
+	}
+	if c, w := Parse([]byte("keys:\n  help: [f1, \"?\"]\n")); !c.Keys.Help.Has("f1") || !c.Keys.Help.Has("?") || len(w) != 0 {
+		t.Fatalf("rebound help %v %v", c.Keys.Help, w)
+	}
+	c, w := Parse([]byte("keys:\n  help: d\n"))
+	if !c.Keys.Help.Has("?") || len(w) != 1 || !strings.Contains(w[0], "keys.help: d is already used by describe") {
+		t.Fatalf("clash %v %v", c.Keys.Help, w)
+	}
+}

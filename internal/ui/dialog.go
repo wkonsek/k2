@@ -90,6 +90,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.act == "error" {
 		return m.errorKey(key)
 	}
+	if d.act == "help" {
+		return m.helpKey(key)
+	}
 	if d.act == "favorites" {
 		return m.favoritesKey(msg)
 	}
@@ -450,6 +453,9 @@ func (m model) optionWindow() (start, end int) {
 func (m model) withDialog(screen string) string {
 	if m.dlg == nil {
 		return screen
+	}
+	if m.dlg.act == "help" {
+		return m.withHelp(screen)
 	}
 	x, y, w := m.popupRect()
 	box := m.dialogBox(w)

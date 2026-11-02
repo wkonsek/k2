@@ -304,6 +304,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.MouseMsg:
+		if m.dlg != nil && m.dlg.act == "help" {
+			return m.helpWheel(msg)
+		}
 		return m.shellWheel(msg)
 
 	case tea.KeyMsg:
@@ -363,6 +366,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case km.LastError.Has(key) && !m.cmdOn:
 			return m.openLastErr()
+		case km.Help.Has(key) && !m.cmdOn:
+			return m.openHelp()
 		case km.Profile.Has(key) && !m.cmdOn && m.dlg == nil:
 			return m.askSaveProfile()
 		case km.Fullscreen.Has(key):
