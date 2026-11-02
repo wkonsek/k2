@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -167,11 +168,25 @@ func (c Config) OutputIndex() int {
 
 func (c Config) IsProd(ctx string) bool {
 	for _, p := range c.Prod {
-		if p != "" && p == ctx {
+		if ProdMatch(p, ctx) {
 			return true
 		}
 	}
 	return false
+}
+
+func ProdMatch(pattern, ctx string) bool {
+	if pattern == "" || ctx == "" {
+		return false
+	}
+	if expr, ok := strings.CutPrefix(pattern, "re:"); ok {
+		hit, err := regexp.MatchString(expr, ctx)
+		return err == nil && expr != "" && hit
+	}
+	if !strings.ContainsAny(pattern, "*?") {
+		return pattern == ctx
+	}
+	return Glob(pattern, ctx)
 }
 
 func Load() (Config, []string) {
@@ -248,7 +263,7 @@ func Parse(data []byte) (Config, []string) {
 				}
 			}
 		case "prod":
-			cfg.Prod = p.strList(key, val)
+			cfg.Prod = p.prodList(val)
 		case "aliases":
 			p.aliases(val, cfg.Aliases)
 		case "logs":
@@ -321,6 +336,24 @@ func (p *parser) strList(key string, n *yaml.Node) []string {
 		p.warn("%s: expected a list of names (line %d, ignored)", key, n.Line)
 		return nil
 	}
+}
+
+func (p *parser) prodList(n *yaml.Node) []string {
+	var out []string
+	for _, s := range p.strList("prod", n) {
+		if expr, ok := strings.CutPrefix(s, "re:"); ok {
+			if strings.TrimSpace(expr) == "" {
+				p.warn("prod: %q has no expression after re: (ignored)", s)
+				continue
+			}
+			if _, err := regexp.Compile(expr); err != nil {
+				p.warn("prod: %q is not a valid regex: %v (ignored)", s, err)
+				continue
+			}
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 func (p *parser) section(name string, n *yaml.Node, fields map[string]*int, lo, hi int) {

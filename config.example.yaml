@@ -9,7 +9,7 @@
 #   horizon, zenburn, catppuccin-latte, custom
 #   custom needs colors, each #rrggbb. required bg, muted, text, accent,
 #   accent2, accent3, danger, ok, warn, bright. optional sel_bg, sel_fg, light
-# prod: [prod-eu-1, prod, kind-prod]   # exact context names, red border
+# prod: [prod-eu-1, "*prod*"]   # names, globs (* matches / too) or "re:<regex>", red border
 # max_panes: 4            # 1..8
 # state_dir: ~/.k2
 # kubectl_output: default # default | wide | yaml | json | name

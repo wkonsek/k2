@@ -476,7 +476,7 @@ func TestConfigExampleIsDefaults(t *testing.T) {
 	if len(w) != 0 {
 		t.Fatalf("warnings:\n%s", strings.Join(w, "\n"))
 	}
-	if !reflect.DeepEqual(c.Prod, []string{"prod-eu-1", "prod", "kind-prod"}) || c.Aliases["deps"] != "deployments" {
+	if !reflect.DeepEqual(c.Prod, []string{"prod-eu-1", "*prod*"}) || c.Aliases["deps"] != "deployments" {
 		t.Fatalf("prod %v aliases %v", c.Prod, c.Aliases)
 	}
 	def := Default()
