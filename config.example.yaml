@@ -6,7 +6,10 @@
 #   nord, dracula, catppuccin, gruvbox, tokyo-night, kanagawa, rose-pine,
 #   everforest, one-dark, solarized-dark, material, matrix, solarized-light,
 #   night-owl, ayu, monokai, github-dark, flexoki, oxocarbon, poimandres,
-#   horizon, zenburn, catppuccin-latte, custom
+#   horizon, zenburn, catppuccin-latte, catppuccin-frappe,
+#   catppuccin-macchiato, rose-pine-moon, rose-pine-dawn, gruvbox-light,
+#   tokyo-night-storm, tokyo-night-day, moonlight, synthwave84, palenight,
+#   sonokai, vesper, everforest-light, custom
 #   custom needs colors, each #rrggbb. required bg, muted, text, accent,
 #   accent2, accent3, danger, ok, warn, bright. optional sel_bg, sel_fg, light
 # prod: [prod-eu-1, "*prod*"]   # names, globs (* matches / too) or "re:<regex>", red border

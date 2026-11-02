@@ -17,7 +17,12 @@ func TestNordIsTheOriginalPalette(t *testing.T) {
 
 var allThemes = []string{"nord", "dracula", "catppuccin", "gruvbox", "tokyo-night",
 	"kanagawa", "rose-pine", "everforest", "one-dark", "solarized-dark", "material", "matrix", "solarized-light",
-	"night-owl", "ayu", "monokai", "github-dark", "flexoki", "oxocarbon", "poimandres", "horizon", "zenburn", "catppuccin-latte"}
+	"night-owl", "ayu", "monokai", "github-dark", "flexoki", "oxocarbon", "poimandres", "horizon", "zenburn", "catppuccin-latte",
+	"catppuccin-frappe", "catppuccin-macchiato", "rose-pine-moon", "rose-pine-dawn", "gruvbox-light",
+	"tokyo-night-storm", "tokyo-night-day", "moonlight", "synthwave84", "palenight", "sonokai", "vesper", "everforest-light"}
+
+var lightThemes = map[string]bool{"solarized-light": true, "catppuccin-latte": true, "rose-pine-dawn": true,
+	"gruvbox-light": true, "tokyo-night-day": true, "everforest-light": true}
 
 func TestLookupEveryTheme(t *testing.T) {
 	names := Names()
@@ -35,7 +40,7 @@ func TestLookupEveryTheme(t *testing.T) {
 		if Describe[n] == "" {
 			t.Errorf("%s has no description", n)
 		}
-		if p.Light != (n == "solarized-light" || n == "catppuccin-latte") {
+		if p.Light != lightThemes[n] {
 			t.Errorf("%s: Light = %v", n, p.Light)
 		}
 
@@ -76,6 +81,12 @@ func TestThemeContrast(t *testing.T) {
 		if c := Contrast(p.Text, p.Bg); c < 4.5 {
 			t.Errorf("%s: text on bg %.2f < 4.5", n, c)
 		}
+		if c := Contrast(p.Accent, p.Bg); c < 3 {
+			t.Errorf("%s: accent on bg %.2f < 3", n, c)
+		}
+		if c := Contrast(p.Danger, p.Bg); c < 3 {
+			t.Errorf("%s: danger on bg %.2f < 3", n, c)
+		}
 
 		if h := Hue(p.Danger); h > 15 && h < 335 {
 			t.Errorf("%s: danger %s hue %.0f is not red", n, p.Danger, h)
@@ -88,10 +99,17 @@ func TestThemeContrast(t *testing.T) {
 
 func TestSignatureAccents(t *testing.T) {
 	want := map[string][2]string{
-		"dracula":     {"#bd93f9", "#ff79c6"},
-		"tokyo-night": {"#7aa2f7", "#ff9e64"},
-		"catppuccin":  {"#cba6f7", ""},
-		"gruvbox":     {"#fabd2f", ""},
+		"dracula":              {"#bd93f9", "#ff79c6"},
+		"tokyo-night":          {"#7aa2f7", "#ff9e64"},
+		"catppuccin":           {"#cba6f7", ""},
+		"gruvbox":              {"#fabd2f", ""},
+		"catppuccin-frappe":    {"#ca9ee6", "#ef9f76"},
+		"catppuccin-macchiato": {"#c6a0f6", "#f5a97f"},
+		"rose-pine-moon":       {"#ea9a97", "#c4a7e7"},
+		"gruvbox-light":        {"#b57614", ""},
+		"tokyo-night-day":      {"#2e7de9", "#b15c00"},
+		"synthwave84":          {"#ff7edb", "#36f9f6"},
+		"vesper":               {"#ffc799", "#99ffe4"},
 	}
 	for n, w := range want {
 		p, _ := Lookup(n)
