@@ -350,6 +350,7 @@ the bottom unless `ui.copy_mode_hint: false`.
 | `n`, `N`, `esc`, `q` | `keys.no` | confirm popup: no, cancel (`enter` does nothing: the default is no) |
 | `enter` | `keys.submit` | submit a popup / the port input |
 | `esc` | `keys.cancel` | close a popup |
+| `b` | — | theme popup (`ctrl+t`): switch the background between `transparent` and `theme`, previewed live; `enter` saves it to `ui.background` with the theme, `esc` restores both |
 | `tab` / `shift+tab`, `up` / `down` | `keys.complete`, `keys.scroll_down`, `keys.scroll_up` | port popup: cycle suggestions |
 | `ctrl+a` / `ctrl+e`, `ctrl+k`, `ctrl+u`, `ctrl+w`, `ctrl+v` | — | text inputs: line start / end, kill to end, kill to start, delete word, paste |
 

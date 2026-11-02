@@ -700,6 +700,8 @@ ui:
 - `background: transparent` keeps the terminal background; `theme` paints
   the whole screen. Light themes paint by default; forcing `transparent`
   on them shows a one-time hint.
+- In the `ctrl+t` popup `b` switches the background live; `enter` saves it
+  to `ui.background` with the theme, `esc` restores both.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
 - The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then

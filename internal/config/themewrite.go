@@ -70,6 +70,13 @@ func UpsertContextTheme(in []ContextTheme, context, kubeconfig, themeName string
 }
 
 func WriteContextTheme(path string, entries []ContextTheme, context, kubeconfig, themeName string) (next []ContextTheme, err error) {
+	return WriteThemeChoice(path, entries, context, kubeconfig, themeName, "")
+}
+
+func WriteThemeChoice(path string, entries []ContextTheme, context, kubeconfig, themeName, background string) (next []ContextTheme, err error) {
+	if background != "" && !contains(BackgroundModes, background) {
+		return entries, fmt.Errorf("unknown background %q", background)
+	}
 	next, err = UpsertContextTheme(entries, context, kubeconfig, themeName)
 	if err != nil {
 		return entries, err
@@ -81,7 +88,7 @@ func WriteContextTheme(path string, entries []ContextTheme, context, kubeconfig,
 	if readErr != nil && !os.IsNotExist(readErr) {
 		return next, readErr
 	}
-	out, err := renderContextThemes(data, next)
+	out, err := renderContextThemes(data, next, background)
 	if err != nil {
 		return next, err
 	}
@@ -91,16 +98,16 @@ func WriteContextTheme(path string, entries []ContextTheme, context, kubeconfig,
 	return next, nil
 }
 
-func renderContextThemes(data []byte, entries []ContextTheme) ([]byte, error) {
+func renderContextThemes(data []byte, entries []ContextTheme, background string) ([]byte, error) {
 	doc, empty, err := loadDoc(data)
 	if err != nil {
 		return nil, err
 	}
 	if empty {
-		return appendThemeBlock(data, entries), nil
+		return appendThemeBlock(data, entries, background), nil
 	}
 	root := doc.Content[0]
-	if err := ensureThemes(root, entries); err != nil {
+	if err := ensureThemes(root, entries, background); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer
@@ -145,7 +152,7 @@ func mapIndex(n *yaml.Node, key string) int {
 	return -1
 }
 
-func ensureThemes(root *yaml.Node, entries []ContextTheme) error {
+func ensureThemes(root *yaml.Node, entries []ContextTheme, background string) error {
 	ui := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	if i := mapIndex(root, "ui"); i >= 0 && root.Content[i+1].Kind == yaml.MappingNode {
 		ui = root.Content[i+1]
@@ -156,6 +163,18 @@ func ensureThemes(root *yaml.Node, entries []ContextTheme) error {
 			&yaml.Node{Kind: yaml.ScalarNode, Value: "ui"},
 			ui,
 		)
+	}
+	if background != "" {
+		if i := mapIndex(ui, "background"); i >= 0 && ui.Content[i+1].Kind == yaml.ScalarNode {
+			ui.Content[i+1].Value, ui.Content[i+1].Tag, ui.Content[i+1].Style = background, "!!str", 0
+		} else if i >= 0 {
+			ui.Content[i+1] = &yaml.Node{Kind: yaml.ScalarNode, Value: background}
+		} else {
+			ui.Content = append(ui.Content,
+				&yaml.Node{Kind: yaml.ScalarNode, Value: "background"},
+				&yaml.Node{Kind: yaml.ScalarNode, Value: background},
+			)
+		}
 	}
 	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	if i := mapIndex(ui, "context_themes"); i >= 0 {
@@ -189,7 +208,7 @@ func themeNode(e ContextTheme) *yaml.Node {
 	return n
 }
 
-func appendThemeBlock(data []byte, entries []ContextTheme) []byte {
+func appendThemeBlock(data []byte, entries []ContextTheme, background string) []byte {
 	var b strings.Builder
 	b.Write(data)
 	if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
@@ -198,7 +217,11 @@ func appendThemeBlock(data []byte, entries []ContextTheme) []byte {
 	if len(bytes.TrimSpace(data)) > 0 {
 		b.WriteByte('\n')
 	}
-	b.WriteString("ui:\n  context_themes:\n")
+	b.WriteString("ui:\n")
+	if background != "" {
+		b.WriteString("  background: " + background + "\n")
+	}
+	b.WriteString("  context_themes:\n")
 	for _, e := range entries {
 		b.WriteString("    - " + flowEntry(e) + "\n")
 	}
