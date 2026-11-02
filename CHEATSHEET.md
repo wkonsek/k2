@@ -330,6 +330,7 @@ the bottom unless `ui.copy_mode_hint: false`.
 | `D` | `keys.diff` | kubectl diff -k, or kubectl diff -f on a plain YAML file |
 | `d` | `keys.kustomize_delete` | kubectl delete -k, or kubectl delete -f on a plain YAML file (red popup: path, context, object count) |
 | `e` | `keys.edit` | open the file / kustomization in vim |
+| `.` | `keys.open_folder` | open the folder in a new VS Code window: `code <dir>` (`editor.open_folder`), detached from k2; the browsed directory, or the selected kustomization after `s` |
 
 ## Forwards list (`f`)
 

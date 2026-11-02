@@ -29,6 +29,8 @@
 #   multi_all_containers: true
 # helm:
 #   binary: helm          # name or path
+# editor:
+#   open_folder: code     # . in the Kustomize browser runs it on the folder
 # favorites:              # name, context, namespace, kubeconfig, view
 #     - {name: shop dev, context: kind-dev, namespace: shop, view: deploy}
 #     - {context: prod-eu-1, namespace: payments, kubeconfig: ~/.kube/prod, view: pulse}
@@ -126,6 +128,7 @@
 #   kustomize_delete: d
 #   scan: s
 #   kustomize_path: p
+#   open_folder: "."          # Kustomize: open the folder in a new VS Code window
 #   delete_all: D
 #   pf_restart: r
 #   pf_auto: a

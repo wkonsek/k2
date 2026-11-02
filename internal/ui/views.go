@@ -363,7 +363,7 @@ func (m model) legend() string {
 	} else if m.stage == "kcmd" {
 		parts = append(parts, pair(k.Complete.Short(), "complete"), pair(k.Output.Short(), "output"), pair(k.JQ.Short(), "jq"))
 	} else if m.stage == "kdir" || m.stage == "kust" {
-		parts = append(parts, pair(k.Apply.Short(), "apply"), pair(k.KustomizeDelete.Short(), "delete"), pair(k.Diff.Short(), "diff"), pair(k.Edit.Short(), "vim"), pair(k.KustomizePath.Short(), "path"))
+		parts = append(parts, pair(k.Apply.Short(), "apply"), pair(k.KustomizeDelete.Short(), "delete"), pair(k.Diff.Short(), "diff"), pair(k.Edit.Short(), "vim"), pair(k.KustomizePath.Short(), "path"), pair(k.OpenFolder.Short(), m.folderApp()))
 	} else if m.stage == "fwds" {
 		parts = append(parts, pair(k.Delete.Short(), "delete"), pair(k.DeleteAll.Short(), "delete all"))
 	} else if m.stage != "nav" && m.stage != "logs" && m.stage != "yaml" {

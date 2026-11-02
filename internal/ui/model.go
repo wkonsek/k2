@@ -297,6 +297,7 @@ type model struct {
 	favs        []state.Favorite
 	run         shell.Runner
 	k           kube.Client
+	launch      launcher
 }
 
 type Options struct {

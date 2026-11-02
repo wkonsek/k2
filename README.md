@@ -256,6 +256,7 @@ Then:
 | `ctrl+f`, `F`, `f` | port-forward the selected row (`F` on a pod too), list forwards |
 | `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
+| `.` | in the Kustomize browser: open the folder in VS Code (`code <dir>`) |
 | `ctrl+a %`, `ctrl+a "` | split right, split down |
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
 | `ctrl+arrows` | move between panes |
@@ -445,6 +446,10 @@ it shows:
 - `s` scans for kustomizations.
 - `p` jumps to a typed path with shell-like `tab` completion.
 - `e` / `enter` opens a file in vim.
+- `.` opens the folder in a new VS Code window, like `code .` there: the
+  directory you browse, or the selected kustomization in the `s` list. k2
+  keeps running. `editor.open_folder` sets the command (default `code`); if
+  it is not in `PATH` k2 says so.
 - `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
   file. Apply and delete ask first, naming the path, context and object
   count.

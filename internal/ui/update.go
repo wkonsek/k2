@@ -537,6 +537,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case km.KustomizePath.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:
 			return m.openKPath()
+		case km.OpenFolder.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:
+			return m.openFolder()
 		case km.Scan.Has(key):
 			if m.stage == "kdir" && !filtering {
 				m.status = "scanning…"

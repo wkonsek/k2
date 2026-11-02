@@ -45,6 +45,10 @@ type Helm struct {
 	Binary string
 }
 
+type Editor struct {
+	OpenFolder string
+}
+
 type Favorite struct {
 	Name       string
 	Kubeconfig string
@@ -125,6 +129,7 @@ type Config struct {
 	ContextThemes []ContextTheme
 	Logs          Logs
 	Helm          Helm
+	Editor        Editor
 	Favorites     []Favorite
 	PortForward   PortForward
 	UI            UI
@@ -141,6 +146,7 @@ func Default() Config {
 		Aliases:       map[string]string{},
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
+		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
 		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
 		Keys:          DefaultKeys(),
@@ -270,6 +276,8 @@ func Parse(data []byte) (Config, []string) {
 			p.logs(val, &cfg.Logs)
 		case "helm":
 			p.helm(val, &cfg.Helm)
+		case "editor":
+			p.editor(val, &cfg.Editor)
 		case "favorites":
 			cfg.Favorites = p.favorites(val)
 		case "portforward":
@@ -414,6 +422,28 @@ func (p *parser) helm(n *yaml.Node, h *Helm) {
 			}
 		default:
 			p.warn("helm: unknown setting %q (have binary)", k)
+		}
+	}
+}
+
+func (p *parser) editor(n *yaml.Node, e *Editor) {
+	if n.Kind != yaml.MappingNode {
+		p.warn("editor: expected a mapping (line %d, using defaults)", n.Line)
+		return
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		k, v := n.Content[i].Value, n.Content[i+1]
+		switch k {
+		case "open_folder":
+			if s, ok := p.str("editor."+k, v); ok {
+				if s == "" {
+					p.warn("editor.open_folder: empty (using %s)", e.OpenFolder)
+				} else {
+					e.OpenFolder = s
+				}
+			}
+		default:
+			p.warn("editor: unknown setting %q (have open_folder)", k)
 		}
 	}
 }
