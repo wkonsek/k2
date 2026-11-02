@@ -650,6 +650,11 @@ The theme follows the focused pane and switches without a restart.
 
 ![every theme in the theme popup](docs/demo/themes.gif)
 
+The sidebar sits on the left by default; `ui.sidebar_position` moves it to
+the right, or turns it into a strip across the top or the bottom.
+
+![the sidebar on the left, right, top and bottom](docs/demo/sidebar.gif)
+
 ```yaml
 # ~/.k2/config.yaml (restart k2 to apply; ui.context_themes switch live)
 theme: tokyo-night
