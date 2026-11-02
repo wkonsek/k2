@@ -87,6 +87,8 @@ type UI struct {
 
 	CopyModeHint bool
 
+	ForwardScroll bool
+
 	Background string
 
 	BackgroundSet bool
@@ -139,7 +141,7 @@ func Default() Config {
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true},
+		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
 		Keys:          DefaultKeys(),
 	}
 }
@@ -462,7 +464,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		"refresh_every":        &ui.RefreshEvery,
 		"forward_dock_rows":    &ui.ForwardDockRows,
 	}
-	bools := map[string]*bool{"animations": &ui.Animations, "toasts": &ui.Toasts, "editor_inline": &ui.EditorInline, "dim_inactive": &ui.DimInactive, "cluster_info": &ui.ClusterInfo, "pod_metrics": &ui.PodMetrics, "wrap": &ui.Wrap, "metrics_bars": &ui.MetricsBars, "copy_mode_hint": &ui.CopyModeHint, "token_bar": &ui.TokenBar}
+	bools := map[string]*bool{"animations": &ui.Animations, "toasts": &ui.Toasts, "editor_inline": &ui.EditorInline, "dim_inactive": &ui.DimInactive, "cluster_info": &ui.ClusterInfo, "pod_metrics": &ui.PodMetrics, "wrap": &ui.Wrap, "metrics_bars": &ui.MetricsBars, "copy_mode_hint": &ui.CopyModeHint, "token_bar": &ui.TokenBar, "forward_scroll": &ui.ForwardScroll}
 	def := ui.MetricsWarn
 	defCrit := ui.MetricsCrit
 	defer func() {
@@ -553,7 +555,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		case bools[k] != nil:
 			p.boolean("ui."+k, v, bools[k])
 		default:
-			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "sidebar_position", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap")
+			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "sidebar_position", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap", "forward_scroll")
 			sort.Strings(names)
 			p.warn("ui: unknown setting %q (have %s)", k, strings.Join(names, ", "))
 		}

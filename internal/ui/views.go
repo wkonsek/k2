@@ -158,23 +158,13 @@ func (m model) fwdDock(inner int) string {
 		if !forward.Up(f) {
 			dot = errStyle.Render(markSquare)
 		}
-		ports := f.Local + " → " + f.Remote
-		name := f.Pod
-		if f.Namespace != "" {
-			name = f.Namespace + "/" + f.Pod
-		}
+		room := max(1, inner-2)
+		ports := m.fitFwd(fwdPorts(f), room)
+		name := m.fitFwd(fwdName(f), room)
 		if m.sideRight() {
-			rows = append(rows, itemStyle.Render(ports+" ")+dot)
+			rows = append(rows, itemStyle.Render(ports+" ")+dot, dimStyle.Render(name+"  "))
 		} else {
-			rows = append(rows, dot+itemStyle.Render(" "+ports))
-		}
-		for _, line := range wrapText(name, max(6, inner-2)) {
-			if m.sideRight() {
-				line += "  "
-			} else {
-				line = "  " + line
-			}
-			rows = append(rows, dimStyle.Render(line))
+			rows = append(rows, dot+itemStyle.Render(" "+ports), dimStyle.Render("  "+name))
 		}
 		shown++
 	}

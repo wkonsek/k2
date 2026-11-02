@@ -70,31 +70,11 @@ func (m model) stripBody(inner, rows int) string {
 	sep := dimStyle.Render(" │ ")
 	info := m.stripInfo(stripInfo, rows)
 	fwds := m.stripFwds(stripFwds, rows)
-	logo, showInfo, showFwds := inner >= 80, len(info) > 0, len(fwds) > 0
-	midW := func() int {
-		w := inner
-		if logo {
-			w -= stripLogo + 3
-		}
-		if showInfo {
-			w -= stripInfo + 3
-		}
-		if showFwds {
-			w -= stripFwds + 3
-		}
-		return w
-	}
-	for _, drop := range []*bool{&logo, &showInfo, &showFwds} {
-		if midW() >= stripMidW {
-			break
-		}
-		*drop = false
-	}
+	logo, showInfo, showFwds, mid := stripCols(inner, len(info) > 0, len(fwds) > 0)
 	var cols []stripCol
 	if logo {
 		cols = append(cols, stripCol{stripLogo, brandRows(m.cfg.UI, stripLogo, rows >= 3)})
 	}
-	mid := max(midW(), 1)
 	cols = append(cols, stripCol{mid, m.stripMiddle(mid, rows)})
 	if showInfo {
 		cols = append(cols, stripCol{stripInfo, info})
@@ -115,6 +95,30 @@ func (m model) stripBody(inner, rows int) string {
 		out[r] = strings.TrimRight(strings.Join(parts, sep), " ")
 	}
 	return strings.Join(out, "\n")
+}
+
+func stripCols(inner int, showInfo, showFwds bool) (logo, info, fwds bool, mid int) {
+	logo, info, fwds = inner >= 80, showInfo, showFwds
+	midW := func() int {
+		w := inner
+		if logo {
+			w -= stripLogo + 3
+		}
+		if info {
+			w -= stripInfo + 3
+		}
+		if fwds {
+			w -= stripFwds + 3
+		}
+		return w
+	}
+	for _, drop := range []*bool{&logo, &info, &fwds} {
+		if midW() >= stripMidW {
+			break
+		}
+		*drop = false
+	}
+	return logo, info, fwds, max(midW(), 1)
 }
 
 func (m model) stripMiddle(w, rows int) []string {
@@ -201,11 +205,11 @@ func (m model) stripFwds(w, rows int) []string {
 		if !forward.Up(f) {
 			dot = errStyle.Render(markSquare)
 		}
-		name := f.Pod
-		if f.Namespace != "" {
-			name = f.Namespace + "/" + f.Pod
+		ports, name := fwdPorts(f), fwdName(f)
+		if room := stripNameRoom(w, ports); room >= stripNameMin {
+			name = m.fitFwd(name, room)
 		}
-		lines = append(lines, clipLine(dot+itemStyle.Render(" "+f.Local+" → "+f.Remote)+dimStyle.Render("  "+name), w))
+		lines = append(lines, clipLine(dot+itemStyle.Render(" "+ports)+dimStyle.Render("  "+name), w))
 	}
 	if show < n {
 		lines = append(lines, dimStyle.Render(fmt.Sprintf("+%d", n-show)))

@@ -178,7 +178,7 @@ func (m model) layout() (sideW, mainW, panelH int) {
 	sideW = m.cfg.UI.SidebarWidth
 	chrome := sideW + 4
 	if w-chrome < 36 {
-		sideW = m.cfg.UI.SidebarNarrowWidth
+		sideW = min(sideW, m.cfg.UI.SidebarNarrowWidth)
 		chrome = sideW + 4
 	}
 	mainW = w - chrome
