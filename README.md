@@ -143,6 +143,12 @@ by k2 from Helm's release secrets.
   context;
 - `enter` never confirms: only `y` does.
 
+An entry is an exact name, a glob (`"*prod*"`, `"prod-*"`, `?` for one
+character; `*` also matches `/` and `:` in names like
+`arn:aws:eks:…:cluster/prod-x`) or a regex written as `"re:^prod-(eu|us)-"`.
+Quote globs, YAML reads a bare `*` as an alias. A broken regex is reported
+and skipped.
+
 Separately, `ui.context_themes` gives a context its own theme, and the
 whole UI re-colors live as you move between panes.
 
@@ -250,6 +256,7 @@ Then:
 | `ctrl+f`, `F`, `f` | port-forward the selected row (`F` on a pod too), list forwards |
 | `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
+| `.` | in the Kustomize browser: open the folder in VS Code (`code <dir>`) |
 | `ctrl+a %`, `ctrl+a "` | split right, split down |
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
 | `ctrl+arrows` | move between panes |
@@ -439,6 +446,10 @@ it shows:
 - `s` scans for kustomizations.
 - `p` jumps to a typed path with shell-like `tab` completion.
 - `e` / `enter` opens a file in vim.
+- `.` opens the folder in a new VS Code window, like `code .` there: the
+  directory you browse, or the selected kustomization in the `s` list. k2
+  keeps running. `editor.open_folder` sets the command (default `code`); if
+  it is not in `PATH` k2 says so.
 - `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
   file. Apply and delete ask first, naming the path, context and object
   count.
@@ -582,12 +593,12 @@ does is in [CHEATSHEET.md](CHEATSHEET.md).
 
 | | `prod:` | `ui.context_themes` |
 |---|---|---|
-| matches | exact context names | globs on the context name and/or kubeconfig path, first match wins |
+| matches | context names, globs (`*` also matches `/`) or `re:<regex>`, any entry may match | globs on the context name and/or kubeconfig path, first match wins |
 | effect | red border, red context and ☠ in the pane title, red ☠ confirmations (also for scale, label, annotate), in every theme | the whole UI uses another theme while the focused pane is on that context |
 | default | empty | empty (`theme:` everywhere) |
 
 ```yaml
-prod: [prod-eu-1]
+prod: [prod-eu-1, "*prod*", "re:^live-[0-9]+$"]
 ui:
   context_themes:
     - {context: kind-kindest, theme: matrix}

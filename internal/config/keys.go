@@ -93,6 +93,7 @@ type Keys struct {
 	SortNext, SortPrev, SortReverse                              Binding
 	Approve                                                      Binding
 	KustomizePath                                                Binding
+	OpenFolder                                                   Binding
 	Command                                                      Binding
 	SplitDown                                                    Binding
 	SplitRight                                                   Binding
@@ -169,6 +170,7 @@ func DefaultKeys() Keys {
 		Shell: Binding{"s"}, Previous: Binding{"p"}, Log30: Binding{"1"}, Log60: Binding{"2"}, Scale: Binding{"S"}, SetImage: Binding{"i"}, Restart: Binding{"r"}, Trigger: Binding{"t"},
 		Label: Binding{"L"}, Annotate: Binding{"A"}, CopyName: Binding{"w"}, CopyRef: Binding{"W"},
 		SortNext: Binding{">"}, SortPrev: Binding{"<"}, SortReverse: Binding{"="}, Approve: Binding{"a"}, KustomizePath: Binding{"p"},
+		OpenFolder: Binding{"."},
 
 		Command: Binding{":"}, SplitDown: Binding{"h", `"`}, SplitRight: Binding{"v", "%"}, ClosePane: Binding{"x"},
 
@@ -251,6 +253,7 @@ var keyFields = []keyField{
 	{"sort_reverse", func(k *Keys) *Binding { return &k.SortReverse }},
 	{"approve", func(k *Keys) *Binding { return &k.Approve }},
 	{"kustomize_path", func(k *Keys) *Binding { return &k.KustomizePath }},
+	{"open_folder", func(k *Keys) *Binding { return &k.OpenFolder }},
 	{"command", func(k *Keys) *Binding { return &k.Command }},
 	{"split_down", func(k *Keys) *Binding { return &k.SplitDown }},
 	{"split_right", func(k *Keys) *Binding { return &k.SplitRight }},
@@ -407,7 +410,7 @@ var screenKeys = func() map[string][]string {
 		"mlogs": with("vim", "wrap", "copy_mode", "log_filter", "all_namespaces"),
 
 		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down"},
-		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path"),
+		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path", "open_folder"),
 		"forwards":  with("delete", "delete_all", "pf_restart", "pf_auto"),
 
 		"viewer": with("vim", "previous", "log_30m", "log_60m", "wrap", "copy_mode", "search", "all_namespaces", "watch"),
