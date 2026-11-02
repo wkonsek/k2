@@ -56,6 +56,7 @@ type UI struct {
 	LogoTitleColor     string
 	SidebarWidth       int
 	SidebarNarrowWidth int
+	SidebarPosition    string
 	RefreshEvery       int
 	ForwardDockRows    int
 	Animations         bool
@@ -99,6 +100,8 @@ var LogoTitleColors = []string{"green", "accent"}
 
 var TabbarModes = []string{"auto", "always", "never"}
 
+var SidebarPositions = []string{"left", "right", "top", "bottom"}
+
 var BackgroundModes = []string{"transparent", "theme"}
 
 func (u UI) PaintBackground(light bool) bool {
@@ -136,7 +139,7 @@ func Default() Config {
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true},
+		UI:            UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true},
 		Keys:          DefaultKeys(),
 	}
 }
@@ -499,6 +502,14 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 					p.warn("ui.tabbar: %q is not one of %s (using %s)", v.Value, strings.Join(TabbarModes, ", "), ui.Tabbar)
 				}
 			}
+		case k == "sidebar_position":
+			if s, ok := p.str("ui."+k, v); ok {
+				if s = strings.ToLower(s); contains(SidebarPositions, s) {
+					ui.SidebarPosition = s
+				} else {
+					p.warn("ui.sidebar_position: %q is not one of %s (using %s)", v.Value, strings.Join(SidebarPositions, ", "), ui.SidebarPosition)
+				}
+			}
 		case k == "active_border":
 			if s, ok := p.str("ui."+k, v); ok {
 				if s = strings.ToLower(s); contains(BorderStyles, s) {
@@ -542,7 +553,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		case bools[k] != nil:
 			p.boolean("ui."+k, v, bools[k])
 		default:
-			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap")
+			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo_title_color", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "sidebar_position", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap")
 			sort.Strings(names)
 			p.warn("ui: unknown setting %q (have %s)", k, strings.Join(names, ", "))
 		}

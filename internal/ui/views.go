@@ -142,16 +142,21 @@ func pinBottom(top, bottom string, height int) string {
 	return strings.Join(append(topLines, botLines...), "\n")
 }
 
-func (m model) identityBlock(inner int) string {
+func (m model) ctxLabel() (string, lipgloss.Style) {
 	ctx := or(m.context, "no context")
-	ctxStyle := titleStyle
+	style := titleStyle
 	if m.context == "" {
-		ctxStyle = dimStyle
+		style = dimStyle
 	}
 	if m.dangerous() && m.context != "" {
 		ctx = skull + " " + ctx
-		ctxStyle = errStyle
+		style = errStyle
 	}
+	return ctx, style
+}
+
+func (m model) identityBlock(inner int) string {
+	ctx, ctxStyle := m.ctxLabel()
 	var b strings.Builder
 	line := func(s string) { b.WriteString(clipLine(s, inner) + "\n") }
 	for _, part := range wrapText(ctx, inner) {
@@ -622,12 +627,21 @@ func (m model) screen() string {
 	innerW, innerH := area.W, area.H
 	rightBody := padLines(m.renderNode(m.tabs[m.tab].root, innerW, innerH), innerH)
 	activeRight := true
-	sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
 	right := m.panelBox(activeRight && !leftFocus, mainW, panelH).Render(rightBody)
-	return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left,
-		lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right),
-		m.legend(),
-	)), max(1, m.width))
+	var body string
+	switch m.cfg.UI.SidebarPosition {
+	case "top":
+		body = lipgloss.JoinVertical(lipgloss.Left, m.sideStrip(mainW+2, m.stripH()), right)
+	case "bottom":
+		body = lipgloss.JoinVertical(lipgloss.Left, right, m.sideStrip(mainW+2, m.stripH()))
+	case "right":
+		sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, right, sidebar)
+	default:
+		sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
+	}
+	return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left, body, m.legend())), max(1, m.width))
 }
 
 func (m model) renderNode(n *layout.Node, w, h int) string {

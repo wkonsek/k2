@@ -164,6 +164,17 @@ func (m model) layout() (sideW, mainW, panelH int) {
 		}
 		return
 	}
+	if m.stripped() {
+		mainW = w - 2
+		if mainW < 16 {
+			mainW = 16
+		}
+		panelH = h - 3 - m.tabBarRows() - m.stripH()
+		if panelH < 8 {
+			panelH = 8
+		}
+		return
+	}
 	sideW = m.cfg.UI.SidebarWidth
 	chrome := sideW + 4
 	if w-chrome < 36 {

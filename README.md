@@ -658,6 +658,7 @@ ui:
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
   logo_title_color: green   # logo color: green | accent
+  sidebar_position: left    # left (default) | right | top | bottom
 ```
 
 - Colors are the themes' official ones (nord's dimmed gray is lightened for
@@ -679,6 +680,13 @@ ui:
   - Port-forwards sit at the bottom only when there is one: a `forwards`
     heading, a green square while it is alive and a red square when it is
     dead.
+- `ui.sidebar_position` puts the sidebar on the `left` (default), on the
+  `right`, or as a strip across the `top` or `bottom`. The strip is seven
+  rows high with its border, less on short terminals: the logo, then the context, namespace,
+  kubeconfig path and actions, then the versions and the token, then the
+  forwards (at most `ui.forward_dock_rows`, the rest as `+N`). On a narrow
+  terminal the logo goes first, then the versions and the token. Fullscreen
+  (`Z`) hides it like the sidebar.
 - Pane titles show the context next to the view (`1 kind-kindest ·
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
