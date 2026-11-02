@@ -173,6 +173,7 @@
 #   pane_down: ["direct ctrl+down", down]
 #   fullscreen: Z
 #   last_error: "!"
+#   help: "?"
 #   quit: [Q, ctrl+c]
 #   back: [q, esc, H]
 #   left: [left, h]

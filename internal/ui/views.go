@@ -397,10 +397,10 @@ func (m model) legend() string {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))
 			}
 		}
-		head = append(head, pair(k.Fullscreen.Short(), "split"), pair(k.Quit.Short(), "quit"))
+		head = append(head, pair(k.Fullscreen.Short(), "split"), pair(k.Help.Short(), "help"), pair(k.Quit.Short(), "quit"))
 		return "  " + strings.Join(head, dimStyle.Render("    "))
 	}
-	parts = append(parts, pair(k.Fullscreen.Short(), "full"))
+	parts = append(parts, pair(k.Fullscreen.Short(), "full"), pair(k.Help.Short(), "help"))
 	parts = append(parts, pair(k.Quit.Short(), "quit"))
 	return "  " + strings.Join(parts, dimStyle.Render("    "))
 }

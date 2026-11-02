@@ -350,7 +350,7 @@ func (m model) enterShellCopy() (model, tea.Cmd) {
 
 func (m model) globalKey(key string) bool {
 	k := m.cfg.Keys
-	return k.Quit.Has(key) || k.Fullscreen.Has(key) || k.LastError.Has(key) || m.paneMoveKey(key) || k.DirectAction(key) != ""
+	return k.Quit.Has(key) || k.Fullscreen.Has(key) || k.LastError.Has(key) || k.Help.Has(key) || m.paneMoveKey(key) || k.DirectAction(key) != ""
 }
 
 func (m *model) resizeEditors() {

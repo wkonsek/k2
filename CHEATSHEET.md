@@ -24,6 +24,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `ctrl+a` | `keys.prefix` | prefix for the pane and tab keys (also in vim / shell); twice = literal (formerly `keys.editor_prefix`) |
 | `Z`, `ctrl+a z` | `keys.fullscreen`, `keys.zoom` | zoom the focused pane / back to the split |
 | `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
+| `?` | `keys.help` | help popup for the current view: navigation first, then the keys of this screen (Kustomize, forwards, logs …); `j/k` `pgup/pgdown` scroll, `?`, `esc` or `q` close. In text inputs `?` is typed as usual; in vim / shell `ctrl+a ?` |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
 | `q`, `esc`, `H` | `keys.back` | back one screen (or clear a filter) |
