@@ -228,8 +228,8 @@ func (m model) popupRect() (x, y, w int) {
 	ox, oy := 0, m.tabBarRows()
 	r := m.paneArea()
 	if !m.zoom {
-		sideW, _, _ := m.layout()
-		ox, oy = sideW+3, oy+1
+		px, py := m.mainOrigin()
+		ox, oy = px+1, oy+py+1
 		if pr, ok := m.rects(m.tab)[m.logID]; ok {
 			r = pr
 		}

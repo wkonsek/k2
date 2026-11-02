@@ -323,12 +323,12 @@ func (m model) shellOrigin() (x, y, w, h int) {
 	if m.zoom {
 		return 0, m.tabBarRows(), w, h
 	}
-	sideW, _, _ := m.layout()
+	px, py := m.mainOrigin()
 	r, ok := m.rects(m.tab)[m.logID]
 	if !ok {
-		return sideW + 2, m.tabBarRows(), w, h
+		return px, m.tabBarRows() + py, w, h
 	}
-	return sideW + 2 + r.X + 2, m.tabBarRows() + r.Y + 1, w, h
+	return px + r.X + 2, m.tabBarRows() + py + r.Y + 1, w, h
 }
 
 func (m model) enterShellCopy() (model, tea.Cmd) {

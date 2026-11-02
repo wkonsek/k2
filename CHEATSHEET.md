@@ -84,6 +84,11 @@ without the prefix, as a global key: `keys.next_pane: [o, "direct O"]`,
 
 The sidebar never takes focus: its targets open in the focused
 pane with these keys or `:` commands.
+It sits on the left unless `ui.sidebar_position` says `right`, `top` or
+`bottom`; at the top or bottom it is a strip a few rows high, on the
+right it lines up with the right edge.
+Forwards too long for it scroll sideways (`ui.forward_scroll: false`
+cuts them with `…`).
 
 | Key | Config | What it does |
 |---|---|---|

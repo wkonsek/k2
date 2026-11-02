@@ -35,6 +35,9 @@ func (m model) sidebarBody(boxW, height int) string {
 	}
 	dock := m.fwdDock(inner)
 	info := m.infoBlock(inner)
+	if m.sideRight() {
+		info = rightBlock(info, inner)
+	}
 	rule := m.sideRule(inner)
 	body := func(big, withInfo bool) string {
 		var b strings.Builder
@@ -64,9 +67,50 @@ func (m model) sidebarBody(boxW, height int) string {
 		if len(lines) > height {
 			lines = lines[:height]
 		}
-		return strings.Join(lines, "\n")
+		return m.sideAlign(strings.Join(lines, "\n"), boxW)
 	}
-	return pinBottom(top, dock, height)
+	return m.sideAlign(pinBottom(top, dock, height), boxW)
+}
+
+func (m model) sideRight() bool {
+	return m.cfg.UI.SidebarPosition == "right"
+}
+
+func (m model) sideAlign(s string, width int) string {
+	if !m.sideRight() {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = flushRight(line, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func flushRight(s string, width int) string {
+	if s == "" || width < 1 {
+		return s
+	}
+	s = clipLine(s, width)
+	if w := ansi.StringWidth(s); w < width {
+		s = strings.Repeat(" ", width-w) + s
+	}
+	return s
+}
+
+func rightBlock(s string, width int) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	wide := 0
+	for _, line := range lines {
+		wide = max(wide, ansi.StringWidth(clipLine(line, width)))
+	}
+	for i, line := range lines {
+		lines[i] = flushRight(padPlain(line, wide), width)
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func lineCount(s string) int {
@@ -90,6 +134,10 @@ func (m model) menuBlock(inner int) string {
 			key = "·"
 		}
 		line := keyStyle.Render(key) + itemStyle.Render("  "+n.title)
+		if m.sideRight() {
+			room := inner - ansi.StringWidth(key) - 2
+			line = clipLine(itemStyle.Render(n.title), room) + itemStyle.Render("  ") + keyStyle.Render(key)
+		}
 		b.WriteString(clipLine(line, inner) + "\n")
 	}
 	return b.String()
@@ -110,13 +158,13 @@ func (m model) fwdDock(inner int) string {
 		if !forward.Up(f) {
 			dot = errStyle.Render(markSquare)
 		}
-		rows = append(rows, dot+itemStyle.Render(" "+f.Local+" → "+f.Remote))
-		name := f.Pod
-		if f.Namespace != "" {
-			name = f.Namespace + "/" + f.Pod
-		}
-		for _, line := range wrapText(name, max(6, inner-2)) {
-			rows = append(rows, dimStyle.Render("  "+line))
+		room := max(1, inner-2)
+		ports := m.fitFwd(fwdPorts(f), room)
+		name := m.fitFwd(fwdName(f), room)
+		if m.sideRight() {
+			rows = append(rows, itemStyle.Render(ports+" ")+dot, dimStyle.Render(name+"  "))
+		} else {
+			rows = append(rows, dot+itemStyle.Render(" "+ports), dimStyle.Render("  "+name))
 		}
 		shown++
 	}
@@ -142,16 +190,21 @@ func pinBottom(top, bottom string, height int) string {
 	return strings.Join(append(topLines, botLines...), "\n")
 }
 
-func (m model) identityBlock(inner int) string {
+func (m model) ctxLabel() (string, lipgloss.Style) {
 	ctx := or(m.context, "no context")
-	ctxStyle := titleStyle
+	style := titleStyle
 	if m.context == "" {
-		ctxStyle = dimStyle
+		style = dimStyle
 	}
 	if m.dangerous() && m.context != "" {
 		ctx = skull + " " + ctx
-		ctxStyle = errStyle
+		style = errStyle
 	}
+	return ctx, style
+}
+
+func (m model) identityBlock(inner int) string {
+	ctx, ctxStyle := m.ctxLabel()
 	var b strings.Builder
 	line := func(s string) { b.WriteString(clipLine(s, inner) + "\n") }
 	for _, part := range wrapText(ctx, inner) {
@@ -622,12 +675,21 @@ func (m model) screen() string {
 	innerW, innerH := area.W, area.H
 	rightBody := padLines(m.renderNode(m.tabs[m.tab].root, innerW, innerH), innerH)
 	activeRight := true
-	sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
 	right := m.panelBox(activeRight && !leftFocus, mainW, panelH).Render(rightBody)
-	return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left,
-		lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right),
-		m.legend(),
-	)), max(1, m.width))
+	var body string
+	switch m.cfg.UI.SidebarPosition {
+	case "top":
+		body = lipgloss.JoinVertical(lipgloss.Left, m.sideStrip(mainW+2, m.stripH()), right)
+	case "bottom":
+		body = lipgloss.JoinVertical(lipgloss.Left, right, m.sideStrip(mainW+2, m.stripH()))
+	case "right":
+		sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, right, sidebar)
+	default:
+		sidebar := m.panel(leftFocus, sideW).Render(crop(m.sidebarBody(sideW-2, panelH-2), sideW-2, panelH-2))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
+	}
+	return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left, body, m.legend())), max(1, m.width))
 }
 
 func (m model) renderNode(n *layout.Node, w, h int) string {

@@ -658,6 +658,8 @@ ui:
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
   logo_title_color: green   # logo color: green | accent
+  sidebar_position: left    # left (default) | right | top | bottom
+  forward_scroll: true      # scroll long forwards instead of cutting them
 ```
 
 - Colors are the themes' official ones (nord's dimmed gray is lightened for
@@ -679,6 +681,20 @@ ui:
   - Port-forwards sit at the bottom only when there is one: a `forwards`
     heading, a green square while it is alive and a red square when it is
     dead.
+  - A forward whose ports or pod name are wider than the sidebar scrolls
+    sideways like a ticker: it waits a moment at the start, moves one column
+    every 200ms and loops with a short gap. Names that fit stay put, so
+    `ui.sidebar_width` can go down to about 18 columns without losing them.
+    `ui.forward_scroll: false` or `ui.animations: false` cuts them with `…`
+    instead. The top and bottom strip scroll the pod name the same way.
+- `ui.sidebar_position` puts the sidebar on the `left` (default), on the
+  `right`, or as a strip across the `top` or `bottom`. The strip is seven
+  rows high with its border, less on short terminals: the logo, then the context, namespace,
+  kubeconfig path and actions, then the versions and the token, then the
+  forwards (at most `ui.forward_dock_rows`, the rest as `+N`). On a narrow
+  terminal the logo goes first, then the versions and the token. Fullscreen
+  (`Z`) hides it like the sidebar. On the right everything lines up with the
+  right edge and the keys come after the names (`Kubeconfig  C`).
 - Pane titles show the context next to the view (`1 kind-kindest ·
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.

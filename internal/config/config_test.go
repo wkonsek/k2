@@ -17,7 +17,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {
 		t.Fatalf("log defaults: %+v", c.Logs)
 	}
-	if c.UI != (UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true}) {
+	if c.UI != (UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
 		t.Fatalf("ui defaults: %+v", c.UI)
 	}
 	if c.StateDir != DefaultDir() || len(c.Prod) != 0 || len(c.Aliases) != 0 {
@@ -302,7 +302,7 @@ func TestUISwitches(t *testing.T) {
 		`config: ui.animations: "maybe" is not true or false (using true)`,
 		`config: ui.toasts: "" is not true or false (using true)`,
 		`config: ui.toast_seconds: 99 is out of range 1..30 (using 3)`,
-		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
+		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, forward_scroll, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_position, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
 	}
 	if strings.Join(w, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("warnings:\n%s", strings.Join(w, "\n"))
@@ -370,6 +370,22 @@ func TestTabbarSetting(t *testing.T) {
 	c, w := Parse([]byte("ui: {tabbar: sometimes}"))
 	if c.UI.Tabbar != "auto" || len(w) != 1 || !strings.Contains(w[0], `"sometimes" is not one of auto, always, never`) {
 		t.Fatalf("%q %v", c.UI.Tabbar, w)
+	}
+}
+
+func TestSidebarPositionSetting(t *testing.T) {
+	if c, w := Parse(nil); c.UI.SidebarPosition != "left" || len(w) != 0 {
+		t.Fatalf("default %q %v", c.UI.SidebarPosition, w)
+	}
+	for in, want := range map[string]string{"left": "left", "Right": "right", "top": "top", "BOTTOM": "bottom"} {
+		c, w := Parse([]byte("ui: {sidebar_position: " + in + "}"))
+		if c.UI.SidebarPosition != want || len(w) != 0 {
+			t.Errorf("%s: %q %v", in, c.UI.SidebarPosition, w)
+		}
+	}
+	c, w := Parse([]byte("ui: {sidebar_position: middle}"))
+	if c.UI.SidebarPosition != "left" || len(w) != 1 || !strings.Contains(w[0], `ui.sidebar_position: "middle" is not one of left, right, top, bottom (using left)`) {
+		t.Fatalf("%q %v", c.UI.SidebarPosition, w)
 	}
 }
 
@@ -475,7 +491,7 @@ func TestConfigExampleIsDefaults(t *testing.T) {
 		t.Fatalf("example differs from defaults:\n%+v\n%+v", c, def)
 	}
 
-	for _, name := range append(KeyNames(), "editor_inline", "background", "tabbar", "toast_seconds", "active_border", "dim_inactive", "cluster_info", "pod_metrics", "metrics_every", "clipboard", "wrap") {
+	for _, name := range append(KeyNames(), "editor_inline", "background", "tabbar", "sidebar_position", "toast_seconds", "active_border", "dim_inactive", "cluster_info", "pod_metrics", "metrics_every", "clipboard", "wrap", "forward_scroll") {
 		if !regexp.MustCompile(`(?m)^#\s+` + name + `:`).Match(data) {
 			t.Errorf("config.example.yaml lacks %s", name)
 		}
@@ -580,6 +596,20 @@ func TestClusterInfoSwitch(t *testing.T) {
 	c, w := Parse([]byte("ui: {cluster_info: false}"))
 	if len(w) != 0 || c.UI.ClusterInfo {
 		t.Fatalf("cluster_info %v warnings %v", c.UI.ClusterInfo, w)
+	}
+}
+
+func TestForwardScrollSwitch(t *testing.T) {
+	if !Default().UI.ForwardScroll {
+		t.Fatal("forward_scroll should default to true")
+	}
+	c, w := Parse([]byte("ui: {forward_scroll: false}"))
+	if len(w) != 0 || c.UI.ForwardScroll {
+		t.Fatalf("forward_scroll %v warnings %v", c.UI.ForwardScroll, w)
+	}
+	c, w = Parse([]byte("ui: {forward_scroll: sometimes}"))
+	if !c.UI.ForwardScroll || len(w) != 1 || !strings.Contains(w[0], "ui.forward_scroll") {
+		t.Fatalf("bad value: %v %v", c.UI.ForwardScroll, w)
 	}
 }
 

@@ -46,8 +46,10 @@
 #   tabbar: auto              # auto | always | never
 #   sidebar_width: 28         # 1..200
 #   sidebar_narrow_width: 22  # 1..200
+#   sidebar_position: left    # left | right | top | bottom
 #   refresh_every: 3          # seconds, 1..200
 #   forward_dock_rows: 12     # 1..200
+#   forward_scroll: true      # scroll long forwards instead of cutting them
 #   animations: true
 #   toasts: true
 #   toast_seconds: 3          # 1..30

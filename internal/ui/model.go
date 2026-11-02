@@ -287,6 +287,9 @@ type model struct {
 	metrics     map[string]podMetrics
 	metNoted    map[string]bool
 	spinning    bool
+	ticker      int
+	tickerSeq   int
+	tickerAt    time.Time
 	toast       toast
 	toastSeq    int
 	cfgNote     bool
