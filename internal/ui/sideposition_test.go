@@ -124,3 +124,40 @@ func TestZoomHidesStrip(t *testing.T) {
 		}
 	}
 }
+
+func TestRightSidebarHugsTheEdge(t *testing.T) {
+	m := placedModel(t, "right", 120, 35)
+	sideW, _, panelH := m.layout()
+	w := sideW - 2
+	lines := strings.Split(ansi.Strip(m.sidebarBody(w, panelH-2)), "\n")
+	ends := func(suffix string) bool {
+		for _, l := range lines {
+			if strings.HasSuffix(l, suffix) && ansi.StringWidth(l) == w {
+				return true
+			}
+		}
+		return false
+	}
+	for _, want := range []string{wordmark[0], tagline, "kind-dev", "shop", "Kubeconfig  C", "Forwards  f", "forwards", "8080 → 80 ■", "shop/web-0  "} {
+		if !ends(want) {
+			t.Errorf("%q is not flush right:\n%s", want, strings.Join(lines, "\n"))
+		}
+	}
+	for i, l := range lines {
+		if ansi.StringWidth(l) > w {
+			t.Errorf("line %d is %d wide", i, ansi.StringWidth(l))
+		}
+	}
+	left := placedModel(t, "left", 120, 35)
+	if plain := ansi.Strip(left.sidebarBody(w, panelH-2)); !strings.Contains(plain, "\nC  Kubeconfig\n") || !strings.Contains(plain, "\n■ 8080 → 80\n") {
+		t.Fatalf("left sidebar changed:\n%s", plain)
+	}
+	for _, l := range strings.Split(ansi.Strip(m.sidebarBody(12, 40)), "\n") {
+		if ansi.StringWidth(l) > 12 {
+			t.Fatalf("narrow line %q", l)
+		}
+		if strings.Contains(l, "Kubeconf") && !strings.HasSuffix(l, " C") {
+			t.Fatalf("narrow menu row lost its key: %q", l)
+		}
+	}
+}

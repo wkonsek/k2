@@ -35,6 +35,9 @@ func (m model) sidebarBody(boxW, height int) string {
 	}
 	dock := m.fwdDock(inner)
 	info := m.infoBlock(inner)
+	if m.sideRight() {
+		info = rightBlock(info, inner)
+	}
 	rule := m.sideRule(inner)
 	body := func(big, withInfo bool) string {
 		var b strings.Builder
@@ -64,9 +67,50 @@ func (m model) sidebarBody(boxW, height int) string {
 		if len(lines) > height {
 			lines = lines[:height]
 		}
-		return strings.Join(lines, "\n")
+		return m.sideAlign(strings.Join(lines, "\n"), boxW)
 	}
-	return pinBottom(top, dock, height)
+	return m.sideAlign(pinBottom(top, dock, height), boxW)
+}
+
+func (m model) sideRight() bool {
+	return m.cfg.UI.SidebarPosition == "right"
+}
+
+func (m model) sideAlign(s string, width int) string {
+	if !m.sideRight() {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = flushRight(line, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func flushRight(s string, width int) string {
+	if s == "" || width < 1 {
+		return s
+	}
+	s = clipLine(s, width)
+	if w := ansi.StringWidth(s); w < width {
+		s = strings.Repeat(" ", width-w) + s
+	}
+	return s
+}
+
+func rightBlock(s string, width int) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	wide := 0
+	for _, line := range lines {
+		wide = max(wide, ansi.StringWidth(clipLine(line, width)))
+	}
+	for i, line := range lines {
+		lines[i] = flushRight(padPlain(line, wide), width)
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func lineCount(s string) int {
@@ -90,6 +134,10 @@ func (m model) menuBlock(inner int) string {
 			key = "·"
 		}
 		line := keyStyle.Render(key) + itemStyle.Render("  "+n.title)
+		if m.sideRight() {
+			room := inner - ansi.StringWidth(key) - 2
+			line = clipLine(itemStyle.Render(n.title), room) + itemStyle.Render("  ") + keyStyle.Render(key)
+		}
 		b.WriteString(clipLine(line, inner) + "\n")
 	}
 	return b.String()
@@ -110,13 +158,23 @@ func (m model) fwdDock(inner int) string {
 		if !forward.Up(f) {
 			dot = errStyle.Render(markSquare)
 		}
-		rows = append(rows, dot+itemStyle.Render(" "+f.Local+" → "+f.Remote))
+		ports := f.Local + " → " + f.Remote
 		name := f.Pod
 		if f.Namespace != "" {
 			name = f.Namespace + "/" + f.Pod
 		}
+		if m.sideRight() {
+			rows = append(rows, itemStyle.Render(ports+" ")+dot)
+		} else {
+			rows = append(rows, dot+itemStyle.Render(" "+ports))
+		}
 		for _, line := range wrapText(name, max(6, inner-2)) {
-			rows = append(rows, dimStyle.Render("  "+line))
+			if m.sideRight() {
+				line += "  "
+			} else {
+				line = "  " + line
+			}
+			rows = append(rows, dimStyle.Render(line))
 		}
 		shown++
 	}

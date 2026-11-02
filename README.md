@@ -686,7 +686,8 @@ ui:
   kubeconfig path and actions, then the versions and the token, then the
   forwards (at most `ui.forward_dock_rows`, the rest as `+N`). On a narrow
   terminal the logo goes first, then the versions and the token. Fullscreen
-  (`Z`) hides it like the sidebar.
+  (`Z`) hides it like the sidebar. On the right everything lines up with the
+  right edge and the keys come after the names (`Kubeconfig  C`).
 - Pane titles show the context next to the view (`1 kind-kindest ·
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
