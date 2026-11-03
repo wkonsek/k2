@@ -9,9 +9,11 @@ import (
 )
 
 type contextSpec struct {
-	name  string
-	nodes []string
-	scale int
+	name    string
+	nodes   []string
+	scale   int
+	kubelet string
+	nodeAge time.Duration
 
 	trouble bool
 }
@@ -20,6 +22,16 @@ var demoContexts = []contextSpec{
 	{name: "kind-dev", nodes: []string{"dev-control-plane"}, scale: 1, trouble: true},
 	{name: "staging-eu-1", nodes: []string{"staging-a-7x2kq", "staging-b-m4c9t", "staging-c-q8w2z"}, scale: 1},
 	{name: "prod-eu-1", nodes: []string{"prod-a-k2v9m", "prod-a-x7r4d", "prod-b-c5n8p", "prod-b-w2j6s", "prod-c-h9t3f"}, scale: 2},
+}
+
+var rke2Context = contextSpec{name: "rke2-lab", nodes: []string{"master1", "master2", "master3", "worker1", "worker2", "worker3"},
+	scale: 1, kubelet: "v1.34.2+rke2r1", nodeAge: 16 * time.Hour}
+
+func worldContexts() []contextSpec {
+	if os.Getenv("FAKEKUBE_RKE2") == "" {
+		return demoContexts
+	}
+	return append(append([]contextSpec(nil), demoContexts...), rke2Context)
 }
 
 func initWorld() error {
@@ -31,10 +43,11 @@ func initWorld() error {
 	}
 	w := &world{Contexts: map[string][]obj{}, Applied: map[string]bool{}}
 	now := time.Now()
-	for _, spec := range demoContexts {
+	specs := worldContexts()
+	for _, spec := range specs {
 		buildContext(w, spec, now)
 	}
-	if err := writeDemoKubeconfig(now); err != nil {
+	if err := writeDemoKubeconfig(now, len(specs) > len(demoContexts)); err != nil {
 		return err
 	}
 	unlock := lockWorld()
@@ -193,16 +206,26 @@ func buildContext(w *world, spec contextSpec, now time.Time) {
 }
 
 func (b *builder) node(n string, i int) {
-	role := "worker"
-	if strings.Contains(n, "control-plane") {
-		role = "control-plane"
+	labels := obj{"kubernetes.io/hostname": n, "kubernetes.io/os": "linux", "kubernetes.io/arch": "amd64",
+		"topology.kubernetes.io/zone": []string{"eu-west-1a", "eu-west-1b", "eu-west-1c"}[i%3]}
+	switch {
+	case strings.Contains(n, "control-plane"):
+		labels["node-role.kubernetes.io/control-plane"] = ""
+	case strings.HasPrefix(n, "master"):
+		labels["node-role.kubernetes.io/control-plane"] = "true"
+		labels["node-role.kubernetes.io/etcd"] = "true"
+		labels["node-role.kubernetes.io/master"] = "true"
 	}
-	zone := []string{"eu-west-1a", "eu-west-1b", "eu-west-1c"}[i%3]
+	kubelet, age := b.spec.kubelet, b.spec.nodeAge
+	if kubelet == "" {
+		kubelet = "v1.31.2"
+	}
+	if age == 0 {
+		age = 150 * 24 * time.Hour
+	}
 	b.c.add(obj{"apiVersion": "v1", "kind": "Node",
-		"metadata": obj{"name": n, "uid": uid(b.spec.name, "node", n), "creationTimestamp": ts(b.now.Add(-150 * 24 * time.Hour)),
-			"labels": obj{"kubernetes.io/hostname": n, "kubernetes.io/os": "linux", "kubernetes.io/arch": "amd64",
-				"node-role.kubernetes.io/" + role: "", "topology.kubernetes.io/zone": zone}},
-		"spec": obj{"podCIDR": fmt.Sprintf("10.244.%d.0/24", i)},
+		"metadata": obj{"name": n, "uid": uid(b.spec.name, "node", n), "creationTimestamp": ts(b.now.Add(-age)), "labels": labels},
+		"spec":     obj{"podCIDR": fmt.Sprintf("10.244.%d.0/24", i)},
 		"status": obj{
 			"capacity":    obj{"cpu": "8", "memory": "32734204Ki", "pods": "110"},
 			"allocatable": obj{"cpu": "7910m", "memory": "31583228Ki", "pods": "110"},
@@ -212,7 +235,7 @@ func (b *builder) node(n string, i int) {
 				obj{"type": "Ready", "status": "True", "reason": "KubeletReady", "message": "kubelet is posting ready status"},
 			},
 			"addresses": []any{obj{"type": "InternalIP", "address": fmt.Sprintf("172.18.0.%d", i+2)}, obj{"type": "Hostname", "address": n}},
-			"nodeInfo": obj{"kubeletVersion": "v1.31.2", "osImage": "Ubuntu 24.04.1 LTS", "kernelVersion": "6.8.0-1016-aws",
+			"nodeInfo": obj{"kubeletVersion": kubelet, "osImage": "Ubuntu 24.04.1 LTS", "kernelVersion": "6.8.0-1016-aws",
 				"containerRuntimeVersion": "containerd://1.7.22", "architecture": "amd64", "operatingSystem": "linux"},
 		}})
 }

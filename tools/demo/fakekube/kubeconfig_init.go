@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func writeDemoKubeconfig(now time.Time) error {
+func writeDemoKubeconfig(now time.Time, rke2 bool) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -38,6 +38,11 @@ func writeDemoKubeconfig(now time.Time) error {
 			map[string]any{"name": "staging-eu-1", "user": map[string]any{"token": demoJWT(now.Add(-2*time.Hour-48*time.Minute), now.Add(5*time.Hour+12*time.Minute))}},
 			map[string]any{"name": "prod-eu-1", "user": map[string]any{"token": demoJWT(now.Add(-9*time.Hour-20*time.Minute), now.Add(2*time.Hour+40*time.Minute))}},
 		},
+	}
+	if rke2 {
+		cfg["clusters"] = append(cfg["clusters"].([]any), cluster("rke2-lab", "https://rke2-lab.example.com:6443"))
+		cfg["contexts"] = append(cfg["contexts"].([]any), context("rke2-lab", "default"))
+		cfg["users"] = append(cfg["users"].([]any), map[string]any{"name": "rke2-lab", "user": map[string]any{"token": demoJWT(now.Add(-time.Hour), now.Add(7*time.Hour))}})
 	}
 	return writeKubeconfig(path, cfg)
 }

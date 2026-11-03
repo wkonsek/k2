@@ -60,7 +60,7 @@ func statusTone(s string) tone {
 
 		return toneOK
 	case has("pending", "warning", "suspend", "connecting", "idle", "install", "creating", "init", "terminating", "waiting", "progressing", "unknown", "notready",
-		"installing", "replacing", "deleting", "requiresapproval", "upgrade", "unschedulable"):
+		"installing", "replacing", "deleting", "requiresapproval", "upgrade", "unschedulable", "schedulingdisabled"):
 		return toneWarn
 	case has("complet", "succeed"):
 		return toneDone
