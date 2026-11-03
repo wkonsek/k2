@@ -19,6 +19,7 @@ var kindNames = map[string]string{
 	"og": "operatorgroups", "operatorgroup": "operatorgroups", "operatorgroups": "operatorgroups",
 	"crd": "customresourcedefinitions", "crds": "customresourcedefinitions", "customresourcedefinition": "customresourcedefinitions", "customresourcedefinitions": "customresourcedefinitions",
 	"route": "routes", "routes": "routes",
+	"no": "nodes", "node": "nodes", "nodes": "nodes",
 }
 
 var kindGroups = map[string]string{
@@ -30,6 +31,7 @@ var kindGroups = map[string]string{
 	"operatorgroups":            "operators.coreos.com",
 	"customresourcedefinitions": "apiextensions.k8s.io",
 	"routes":                    "route.openshift.io",
+	"nodes":                     "",
 }
 
 func BaseKind(kind string) string {

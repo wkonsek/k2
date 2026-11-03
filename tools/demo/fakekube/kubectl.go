@@ -168,7 +168,7 @@ func kubectlMain(args []string) int {
 func versionCmd(f flags) int {
 	client := `"clientVersion":{"major":"1","minor":"31","gitVersion":"v1.31.2","gitCommit":"5864a4677267e6adeae276ad85882a8714d69d9d","gitTreeState":"clean","goVersion":"go1.22.8","compiler":"gc","platform":"linux/amd64"},"kustomizeVersion":"v5.4.2"`
 	_, ctx, _ := f.target()
-	server := map[string]string{"kind-dev": "v1.31.2", "staging-eu-1": "v1.30.5-eks-ce1d5eb", "prod-eu-1": "v1.30.5-eks-ce1d5eb"}[ctx]
+	server := map[string]string{"kind-dev": "v1.31.2", "staging-eu-1": "v1.30.5-eks-ce1d5eb", "prod-eu-1": "v1.30.5-eks-ce1d5eb", "rke2-lab": "v1.34.2+rke2r1"}[ctx]
 	if f.output != "json" {
 		fmt.Println("Client Version: v1.31.2\nKustomize Version: v5.4.2")
 		if server != "" && !f.bools["--client"] {
@@ -515,6 +515,9 @@ func printTable(objs []obj, all, wide, noHeaders bool) {
 				ports = append(ports, fmt.Sprintf("%d/%s", num(p, "port"), str(p, "protocol")))
 			}
 			r = []string{objName(o), str(o, "spec", "type"), str(o, "spec", "clusterIP"), "<none>", strings.Join(ports, ","), age(parseTS(str(o, "metadata", "creationTimestamp")))}
+		case "Node":
+			head = []string{"NAME", "STATUS", "ROLES", "AGE", "VERSION"}
+			r = []string{objName(o), "Ready", nodeRoles(o), age(parseTS(str(o, "metadata", "creationTimestamp"))), str(o, "status", "nodeInfo", "kubeletVersion")}
 		default:
 			head = []string{"NAME", "AGE"}
 			r = []string{objName(o), age(parseTS(str(o, "metadata", "creationTimestamp")))}
@@ -551,7 +554,39 @@ func printTable(objs []obj, all, wide, noHeaders bool) {
 	}
 }
 
+func nodeRoles(o obj) string {
+	var roles []string
+	for k := range sub(o, "metadata", "labels") {
+		if r, ok := strings.CutPrefix(k, "node-role.kubernetes.io/"); ok {
+			roles = append(roles, r)
+		}
+	}
+	if len(roles) == 0 {
+		return "<none>"
+	}
+	sort.Strings(roles)
+	return strings.Join(roles, ",")
+}
+
+func topNodes(f flags) int {
+	_, ctx, _ := f.target()
+	if !f.bools["--no-headers"] {
+		fmt.Printf("%-20s %-11s %-7s %-14s %s\n", "NAME", "CPU(cores)", "CPU(%)", "MEMORY(bytes)", "MEMORY(%)")
+	}
+	bucket := strconv.FormatInt(time.Now().Unix()/15, 10)
+	for _, n := range newCl(readOnly(), ctx).nodeNames() {
+		cpu := 8 + hashN(60, n, bucket)
+		mem := 20 + hashN(55, n)
+		fmt.Printf("%-20s %-11s %-7s %-14s %s\n", n, fmt.Sprintf("%dm", 7910*cpu/100), fmt.Sprintf("%d%%", cpu),
+			fmt.Sprintf("%dMi", 30843*mem/100), fmt.Sprintf("%d%%", mem))
+	}
+	return 0
+}
+
 func topCmd(f flags) int {
+	if len(f.pos) >= 2 && strings.HasPrefix(f.pos[1], "no") {
+		return topNodes(f)
+	}
 	if len(f.pos) < 2 || !strings.HasPrefix(f.pos[1], "po") {
 		return unknown("kubectl", f.raw)
 	}

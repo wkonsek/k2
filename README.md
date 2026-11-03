@@ -363,6 +363,9 @@ cluster info, token lifetime and forwards.
   a limit. They turn yellow from `ui.metrics_warn` (70) and red from
   `ui.metrics_crit` (90).
 - Without metrics-server they show `N/A` and the list keeps working.
+- `:nodes` shows NAME, STATUS, ROLES, AGE and VERSION like `kubectl get
+  nodes`, plus CPU and MEM from `kubectl top nodes` against the
+  allocatable. Without metrics-server those two columns are left out.
 
 **Workloads.**
 

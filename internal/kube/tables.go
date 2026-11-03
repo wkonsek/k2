@@ -108,6 +108,7 @@ type column struct {
 
 type spec struct {
 	cols   []column
+	after  []column
 	status string
 	extra  func(o Object) map[string]string
 }
@@ -121,6 +122,9 @@ func build(objs []Object, showNS bool, s spec) Table {
 		heads = append(heads, c.head)
 	}
 	heads = append(heads, "AGE")
+	for _, c := range s.after {
+		heads = append(heads, c.head)
+	}
 	t := Table{Headers: heads, ColorCol: -1}
 	for i, h := range heads {
 		if s.status != "" && h == s.status {
@@ -141,6 +145,9 @@ func build(objs []Object, showNS bool, s spec) Table {
 			row = append(row, orDash(c.cell(o)))
 		}
 		row = append(row, Age(o.Metadata.CreationTimestamp))
+		for _, c := range s.after {
+			row = append(row, orDash(c.cell(o)))
+		}
 		t.Rows = append(t.Rows, row)
 		t.Refs = append(t.Refs, [2]string{o.Metadata.Namespace, name})
 		t.Born = append(t.Born, o.Metadata.CreationTimestamp)
@@ -154,6 +161,7 @@ func build(objs []Object, showNS bool, s spec) Table {
 }
 
 func TableFor(kind string, objs []Object, showNS bool) Table {
+	showNS = showNS && anyNamespaced(objs)
 	if s, ok := specs[BaseKind(kind)]; ok {
 		return build(objs, showNS, s)
 	}
@@ -164,6 +172,55 @@ func TableFor(kind string, objs []Object, showNS bool) Table {
 		return EventTable(objs, showNS)
 	}
 	return ResourceTable(kind, objs, showNS)
+}
+
+func anyNamespaced(objs []Object) bool {
+	for _, o := range objs {
+		if o.Metadata.Namespace != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func NodeStatus(o Object) string {
+	st := "Unknown"
+	switch o.condition("Ready") {
+	case "True":
+		st = "Ready"
+	case "False":
+		st = "NotReady"
+	}
+	if o.Str("spec", "unschedulable") == "true" {
+		st += ",SchedulingDisabled"
+	}
+	return st
+}
+
+func NodeRoles(o Object) string {
+	labels, _ := o.Get("metadata", "labels").(map[string]any)
+	seen := map[string]bool{}
+	var roles []string
+	add := func(r string) {
+		if r != "" && !seen[r] {
+			seen[r] = true
+			roles = append(roles, r)
+		}
+	}
+	for k, v := range labels {
+		if r, ok := strings.CutPrefix(k, "node-role.kubernetes.io/"); ok {
+			add(r)
+		}
+		if k == "kubernetes.io/role" {
+			s, _ := v.(string)
+			add(s)
+		}
+	}
+	if len(roles) == 0 {
+		return "<none>"
+	}
+	sort.Strings(roles)
+	return strings.Join(roles, ",")
 }
 
 func ratio(a, b int) string { return fmt.Sprintf("%d/%d", a, b) }
@@ -177,6 +234,12 @@ func replicasExtra(o Object) map[string]string {
 }
 
 var specs = map[string]spec{
+	"nodes": {cols: []column{
+		{"STATUS", NodeStatus},
+		{"ROLES", NodeRoles},
+	}, after: []column{
+		{"VERSION", func(o Object) string { return o.Str("status", "nodeInfo", "kubeletVersion") }},
+	}, status: "STATUS", extra: nodeAllocatable},
 	"deployments": {cols: []column{
 		{"READY", func(o Object) string {
 			return ratio(o.IntOr(0, "status", "readyReplicas"), o.IntOr(1, "spec", "replicas"))

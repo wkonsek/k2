@@ -23,11 +23,29 @@ type podMetrics struct {
 
 type metricsMsg struct {
 	key   string
+	what  string
 	usage map[string]kube.Usage
 	err   error
 }
 
 func metricsKey(kc, ctx, ns string) string { return kc + "\x00" + ctx + "\x00" + ns }
+
+func metricsKeyFor(what, kc, ctx, ns string) string {
+	if what == "nodes" {
+		return metricsKey(kc, ctx, "") + "\x00nodes"
+	}
+	return metricsKey(kc, ctx, ns)
+}
+
+func metricsOf(stage, kind string) string {
+	switch {
+	case showsPods(stage, kind):
+		return "pods"
+	case stage == "res" && kube.BaseKind(kind) == "nodes":
+		return "nodes"
+	}
+	return ""
+}
 
 func (m *model) metricsCmds() []tea.Cmd {
 	if !m.cfg.UI.PodMetrics {
@@ -39,10 +57,11 @@ func (m *model) metricsCmds() []tea.Cmd {
 	}
 	var cmds []tea.Cmd
 	try := func(id, stage, kind, kc, ctx, ns string) {
-		if !shown[id] || !showsPods(stage, kind) || kc == "" || ctx == "" {
+		what := metricsOf(stage, kind)
+		if !shown[id] || what == "" || kc == "" || ctx == "" {
 			return
 		}
-		key := metricsKey(kc, ctx, ns)
+		key := metricsKeyFor(what, kc, ctx, ns)
 		cur := m.metrics[key]
 		if cur.loading || (cur.done && m.beat-cur.at < max(5, m.cfg.UI.MetricsEvery)) {
 			return
@@ -53,14 +72,18 @@ func (m *model) metricsCmds() []tea.Cmd {
 		cmds = append(cmds, func() tea.Msg {
 			ch := make(chan metricsMsg, 1)
 			go func() {
-				usage, err := k.TopPods(kc, ctx, ns)
-				ch <- metricsMsg{key: key, usage: usage, err: err}
+				top := func() (map[string]kube.Usage, error) { return k.TopPods(kc, ctx, ns) }
+				if what == "nodes" {
+					top = func() (map[string]kube.Usage, error) { return k.TopNodes(kc, ctx) }
+				}
+				usage, err := top()
+				ch <- metricsMsg{key: key, what: what, usage: usage, err: err}
 			}()
 			select {
 			case msg := <-ch:
 				return msg
 			case <-time.After(kube.InfoTimeout + infoGrace):
-				return metricsMsg{key: key, err: errTimeout}
+				return metricsMsg{key: key, what: what, err: errTimeout}
 			}
 		})
 	}
@@ -99,7 +122,7 @@ func (m *model) applyMetrics(msg metricsMsg) {
 	}
 	m.setMetrics(msg.key, pm)
 	parts := strings.SplitN(msg.key, "\x00", 3)
-	if pm.err != "" && len(parts) == 3 {
+	if pm.err != "" && msg.what != "nodes" && len(parts) == 3 {
 		ctxKey := parts[0] + "\x00" + parts[1]
 		if !m.metNoted[ctxKey] {
 			next := map[string]bool{ctxKey: true}
@@ -113,7 +136,7 @@ func (m *model) applyMetrics(msg metricsMsg) {
 		}
 	}
 	merge := func(lst *list.Model, vs viewState, id, stage, kind, kc, ctx, ns string) {
-		if !showsPods(stage, kind) || metricsKey(kc, ctx, ns) != msg.key || lst.FilterState() != list.Unfiltered || len(lst.Items()) == 0 {
+		if metricsOf(stage, kind) == "" || metricsKeyFor(metricsOf(stage, kind), kc, ctx, ns) != msg.key || lst.FilterState() != list.Unfiltered || len(lst.Items()) == 0 {
 			return
 		}
 		header, items := m.withMetrics(lst.Title, lst.Items(), kc, ctx, ns, m.paneTableWidth(id))
@@ -147,19 +170,28 @@ func (m model) withMetrics(header string, items []list.Item, kc, ctx, ns string,
 		return header, items
 	}
 	first, ok := items[0].(item)
-	if !ok || !isPodHeads(first.heads) {
+	what := ""
+	if ok {
+		what = metricsKind(first.heads)
+	}
+	if what == "" {
 		return header, items
 	}
-	pm := m.metrics[metricsKey(kc, ctx, ns)]
+	pm := m.metrics[metricsKeyFor(what, kc, ctx, ns)]
 	out := make([]list.Item, len(items))
 	var natural []int
 	for i, raw := range items {
 		it, ok := raw.(item)
-		if !ok || !isPodHeads(it.heads) {
+		if !ok || metricsKind(it.heads) != what {
 			out[i] = raw
 			continue
 		}
 		it = stripMetrics(it)
+		if what == "nodes" && pm.done && pm.err != "" {
+			out[i] = it
+			natural = widen(natural, it)
+			continue
+		}
 		cpu, mem := "…", "…"
 		tones := map[int]tone{}
 		pos := metricsPos(it.heads)
@@ -167,7 +199,11 @@ func (m model) withMetrics(header string, items []list.Item, kc, ctx, ns string,
 		case pm.done && pm.err != "":
 			cpu, mem = "N/A", "N/A"
 		case pm.done:
-			u, found := pm.usage[podRef(it, ns)]
+			ref := it.id
+			if what == "pods" {
+				ref = podRef(it, ns)
+			}
+			u, found := pm.usage[ref]
 			if found {
 				cpu, mem = u.CPU, u.Mem
 			} else {
@@ -239,7 +275,7 @@ func (m model) withMetrics(header string, items []list.Item, kc, ctx, ns string,
 	var heads []string
 	for i, raw := range out {
 		it, ok := raw.(item)
-		if !ok || !isPodHeads(it.heads) {
+		if !ok || metricsKind(it.heads) != what {
 			continue
 		}
 		if widths == nil {
@@ -272,9 +308,19 @@ func isPodHeads(heads []string) bool {
 	return true
 }
 
+func metricsKind(heads []string) string {
+	switch {
+	case isPodHeads(heads):
+		return "pods"
+	case indexOf(heads, "ROLES") >= 0 && indexOf(heads, "VERSION") >= 0 && indexOf(heads, "STATUS") >= 0:
+		return "nodes"
+	}
+	return ""
+}
+
 func metricsPos(heads []string) int {
 	for i, h := range heads {
-		if h == "RESTARTS" {
+		if h == "RESTARTS" || h == "ROLES" {
 			return i + 1
 		}
 	}

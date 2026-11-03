@@ -161,6 +161,8 @@ catalogsources, `:rt` routes, `:proj` projects.
 CPU and MEM show `value ███░░ 62%` (usage of the summed limits; `~62%` =
 of the requests), green / yellow from `ui.metrics_warn` (70) / red from
 `ui.metrics_crit` (90).
+`:nodes` gets the same CPU and MEM columns from `kubectl top nodes`
+(usage of the allocatable), left out without metrics-server.
 
 ## Workloads
 
