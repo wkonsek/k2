@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -129,7 +130,13 @@ func ParseObjects(out []byte) ([]Object, error) {
 		Items []json.RawMessage `json:"items"`
 	}
 	if json.Unmarshal(out, &list) != nil {
-		return nil, fmt.Errorf("bad kubectl json")
+		i := bytes.Index(out, []byte("\n{"))
+		if i < 0 || json.Unmarshal(out[i+1:], &list) != nil {
+			if text := strings.TrimSpace(string(out)); text != "" && !strings.HasPrefix(text, "{") {
+				return nil, fmt.Errorf("%s", shell.FailText(out, nil))
+			}
+			return nil, fmt.Errorf("bad kubectl json")
+		}
 	}
 	var wrap struct{ Items []Object }
 	for _, raw := range list.Items {

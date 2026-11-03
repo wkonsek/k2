@@ -149,6 +149,7 @@ type openedMsg struct {
 	token                     int
 	items                     []list.Item
 	names                     []string
+	also                      []string
 	toggled                   bool
 	err                       error
 }
@@ -172,19 +173,57 @@ func (m model) openListAs(stage, kind string, toggled bool) (tea.Model, tea.Cmd)
 	}
 	spin := m.startLoad(what, true)
 	k, kc, ctx, ns, sel, width := m.k, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.tableWidth()
+	alts := m.kindAlts
+	m.kindAlts = nil
 	msg := openedMsg{pane: m.logID, stage: stage, kind: kind, token: m.load.token, toggled: toggled}
 	fetch := func() tea.Msg {
 		switch stage {
 		case "workpods":
 			msg.header, msg.items, msg.err = getPodItems(k, kc, ctx, ns, sel, width)
 		case "res":
-			msg.header, msg.items, msg.err = getResourceItems(k, kc, ctx, ns, kind, width)
+			msg.kind, msg.header, msg.items, msg.also, msg.err = firstListing(append([]string{kind}, alts...), func(kind string) (string, []list.Item, error) {
+				return getResourceItems(k, kc, ctx, ns, kind, width)
+			})
 		case "projects":
 			msg.names, msg.err = k.Projects(kc, ctx)
 		}
 		return msg
 	}
 	return m, tea.Batch(spin, fetch)
+}
+
+func firstListing(kinds []string, get func(string) (string, []list.Item, error)) (string, string, []list.Item, []string, error) {
+	type got struct {
+		kind, header string
+		items        []list.Item
+		err          error
+	}
+	var first, empty *got
+	for _, kind := range kinds {
+		h, items, err := get(kind)
+		g := &got{kind, h, items, err}
+		if first == nil {
+			first = g
+		}
+		if err == nil && len(items) > 0 {
+			first, empty = g, nil
+			break
+		}
+		if err == nil && empty == nil {
+			empty = g
+		}
+	}
+	pick := first
+	if empty != nil {
+		pick = empty
+	}
+	var also []string
+	for _, kind := range kinds {
+		if kind != pick.kind {
+			also = append(also, kind)
+		}
+	}
+	return pick.kind, pick.header, pick.items, also, pick.err
 }
 
 func (m *model) applyOpened(msg openedMsg) tea.Cmd {
@@ -234,6 +273,7 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 		m.vs.marks = nil
 		m.kind = msg.kind
 		m.stage = msg.stage
+		m.status += alsoNote(msg.also)
 		return m.notify(toneWarn, m.status)
 	}
 	m.content.ResetFilter()
@@ -252,9 +292,16 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 	if msg.stage == "workpods" {
 		m.status = m.podsHint()
 	} else {
-		m.status = msg.kind
+		m.status = msg.kind + alsoNote(msg.also)
 	}
 	return nil
+}
+
+func alsoNote(also []string) string {
+	if len(also) == 0 {
+		return ""
+	}
+	return " · also :" + strings.Join(also, " :")
 }
 
 func (m *model) cancelLoad() bool {

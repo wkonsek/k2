@@ -131,7 +131,7 @@ func buildContext(w *world, spec contextSpec, now time.Time) {
 	for i, n := range spec.nodes {
 		b.node(n, i)
 	}
-	for _, ns := range []string{"default", "kube-system", "shop", "payments", "kafka", "monitoring", "argocd"} {
+	for _, ns := range []string{"default", "kube-system", "shop", "payments", "kafka", "monitoring", "argocd", "edge", "gateway-system"} {
 		b.namespace(ns)
 	}
 	s := spec.scale
@@ -197,6 +197,7 @@ func buildContext(w *world, spec contextSpec, now time.Time) {
 	b.jobs()
 	b.argoApps()
 	b.helmReleases()
+	b.gateways()
 	if spec.trouble {
 		b.trouble()
 	}
@@ -528,4 +529,49 @@ func (b *builder) hashOf(ns, n string) string {
 		return "0"
 	}
 	return templateHash(deepCopy(sub(d, "spec", "template")))
+}
+
+func (b *builder) gateways() {
+	days := 24 * time.Hour
+	meta := func(kind, ns, n string, age time.Duration) obj {
+		m := obj{"name": n, "uid": uid(b.spec.name, kind, ns, n), "creationTimestamp": ts(b.now.Add(-age))}
+		if ns != "" {
+			m["namespace"] = ns
+		}
+		return m
+	}
+	cond := func(typ, st, reason string) obj {
+		return obj{"type": typ, "status": st, "reason": reason, "lastTransitionTime": ts(b.now.Add(-2 * days))}
+	}
+	gapi := "gateway.networking.k8s.io/v1"
+	b.c.add(obj{"apiVersion": gapi, "kind": "GatewayClass", "metadata": meta("gc", "", "openshift-default", 90*days),
+		"spec":   obj{"controllerName": "openshift.io/gateway-controller/v1"},
+		"status": obj{"conditions": []any{cond("Accepted", "True", "Accepted")}}})
+	for i, g := range []struct {
+		n, host, addr string
+		ok            bool
+	}{
+		{"main-gw", "*.apps.example.com", "10.0.40.12", true},
+		{"internal-gw", "*.internal.example.com", "", false},
+	} {
+		st := obj{"conditions": []any{cond("Accepted", "True", "Accepted"), cond("Programmed", "False", "AddressNotAssigned")}}
+		if g.ok {
+			st = obj{"addresses": []any{obj{"type": "IPAddress", "value": g.addr}},
+				"conditions": []any{cond("Accepted", "True", "Accepted"), cond("Programmed", "True", "Programmed")}}
+		}
+		b.c.add(obj{"apiVersion": gapi, "kind": "Gateway", "metadata": meta("gtw", "edge", g.n, time.Duration(30-i*10)*days),
+			"spec": obj{"gatewayClassName": "openshift-default",
+				"listeners": []any{obj{"name": "https", "port": 443, "protocol": "HTTPS", "hostname": g.host}}},
+			"status": st})
+	}
+	b.c.add(obj{"apiVersion": gapi, "kind": "HTTPRoute", "metadata": meta("route", "shop", "web", 20*days),
+		"spec": obj{"hostnames": []any{"shop.apps.example.com"},
+			"parentRefs": []any{obj{"name": "main-gw", "namespace": "edge"}},
+			"rules":      []any{obj{"backendRefs": []any{obj{"name": "web", "port": 80}}}}}})
+	iapi := "networking.istio.io/v1"
+	b.c.add(obj{"apiVersion": iapi, "kind": "Gateway", "metadata": meta("gw", "gateway-system", "ingress", 60*days),
+		"spec": obj{"selector": obj{"istio": "ingressgateway"},
+			"servers": []any{obj{"port": obj{"number": 443, "name": "https", "protocol": "HTTPS"}, "hosts": []any{"shop.example.com", "api.example.com"}}}}})
+	b.c.add(obj{"apiVersion": iapi, "kind": "VirtualService", "metadata": meta("vs", "gateway-system", "shop", 60*days),
+		"spec": obj{"hosts": []any{"shop.example.com"}, "gateways": []any{"ingress"}}})
 }

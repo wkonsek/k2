@@ -10,6 +10,15 @@ import (
 )
 
 func (m model) updateCmd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	next, cmd := m.updateCmdKey(msg)
+	if nm, ok := next.(model); ok && nm.cmdOn {
+		nm.setGhost()
+		return nm, cmd
+	}
+	return next, cmd
+}
+
+func (m model) updateCmdKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	km, key := m.cfg.Keys, msg.String()
 	switch {
 	case km.Cancel.Has(key):
@@ -84,7 +93,7 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	case "kubectl", "shell", "sh":
 		return m.openNamed("sh")
 	}
-	kind := m.canonical(q)
+	kind, alts := m.resolveKind(q)
 	if kind == "" {
 
 		if target, ok := kube.Builtin[q]; ok {
@@ -104,6 +113,10 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 		}
 		kind = q
 	}
+	if kind == "" && len(m.apis) > 0 && strings.ContainsAny(q, "./") {
+		m.status = kube.MissingAPI(q, "doesn't have a resource type")
+		return m, m.notify(toneWarn, "not installed: "+q)
+	}
 	if kind == "" {
 		m.status = "unknown: " + q
 		return m, nil
@@ -111,7 +124,49 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	if kind == "pods" {
 		return m.openNamed("pods")
 	}
+	m.kindAlts = alts
 	return m.openResource(kind)
+}
+
+func (m model) resolveKind(q string) (string, []string) {
+	if len(m.apis) > 0 {
+		if c := kube.Resolve(q, m.apis); len(c) > 0 {
+			return c[0], c[1:]
+		}
+		return "", nil
+	}
+	if kind := m.canonical(q); kind != "" {
+		return kind, nil
+	}
+	if len(m.resources) == 0 && strings.ContainsAny(q, "./") && !kube.KnownKind(q) {
+		if _, ok := kube.Builtin[q]; !ok {
+			if c := kube.Resolve(q, nil); len(c) > 0 {
+				return c[0], nil
+			}
+		}
+	}
+	return "", nil
+}
+
+func (m *model) setGhost() {
+	val := m.cmd.Value()
+	if val == "" || strings.Contains(val, " ") || m.cmdCycleAt >= 0 {
+		m.cmd.SetSuggestions(nil)
+		return
+	}
+	tok := strings.ToLower(val)
+	var ghost string
+	for _, c := range m.cmdCandidates(tok) {
+		if len(c) > len(tok) {
+			ghost = c
+			break
+		}
+	}
+	if ghost == "" {
+		m.cmd.SetSuggestions(nil)
+		return
+	}
+	m.cmd.SetSuggestions([]string{val + ghost[len(tok):]})
 }
 
 func (m model) runViewCommand(raw string) (tea.Model, tea.Cmd, bool) {
@@ -284,10 +339,10 @@ func (m model) canonical(q string) string {
 
 func fetchResources(k kube.Client, kc, ctx string) tea.Cmd {
 	return func() tea.Msg {
-		names, err := k.APIResources(kc, ctx)
+		apis, err := k.APIList(kc, ctx)
 		if err != nil {
 			return resListMsg{ctx: ctx}
 		}
-		return resListMsg{ctx: ctx, names: names}
+		return resListMsg{ctx: ctx, names: kube.ResourceNames(apis), apis: apis}
 	}
 }

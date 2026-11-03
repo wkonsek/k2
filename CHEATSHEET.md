@@ -110,6 +110,7 @@ cuts them with `…`).
 | — | — | namespace pulse: health of the pane's namespace (`:pulse`) |
 | — | — | pods (`:pods`, `:pod`, `:po`, `:r`); the pods list to start a forward from (`:forward`, `:p`) |
 | `tab` | `keys.complete` | complete a `:` command (targets, cluster resources, aliases); again cycles |
+| `right` | — | take the dimmed suggestion after the cursor on the `:` line |
 | `enter` | `keys.submit` | run the `:` line |
 | `esc` | `keys.cancel` | close the `:` line |
 
@@ -119,7 +120,9 @@ statefulsets, `:ds` daemonsets, `:rs` replicasets, `:cm` configmaps, `:sec`
 secrets, `:svc` services, `:ing` ingresses, `:pvc` persistentvolumeclaims,
 `:cj` cronjobs, `:ev` events, `:crd` CRDs, `:sub` subscriptions, `:csv`
 clusterserviceversions, `:ip` installplans, `:og` operatorgroups, `:cs`
-catalogsources, `:rt` routes, `:proj` projects.
+catalogsources, `:rt` routes, `:proj` projects. A name served by several
+API groups can be spelled out: `:gateways.networking.istio.io`,
+`:gateway.networking.k8s.io/v1/gatewayclasses`.
 
 ## Resource tables (every list)
 

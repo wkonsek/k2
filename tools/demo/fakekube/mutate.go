@@ -218,7 +218,7 @@ func editCmd(f flags) int {
 	_, ctx, ns := f.target()
 	var shown obj
 	for _, o := range snapshot(ctx) {
-		if str(o, "kind") == k.Kind && objName(o) == nm && (!k.Namespaced || nsOf(o) == ns) {
+		if isKind(o, k) && objName(o) == nm && (!k.Namespaced || nsOf(o) == ns) {
 			shown = o
 		}
 	}

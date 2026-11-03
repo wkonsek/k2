@@ -104,7 +104,7 @@ func resolvePod(ctx, ns string, k kindInfo, nm string) string {
 		}
 	default:
 		for _, o := range view {
-			if str(o, "kind") == k.Kind && nsOf(o) == ns && objName(o) == nm {
+			if isKind(o, k) && nsOf(o) == ns && objName(o) == nm {
 				sel = labels(o, "spec", "selector", "matchLabels")
 			}
 		}

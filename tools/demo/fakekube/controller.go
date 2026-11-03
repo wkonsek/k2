@@ -33,7 +33,7 @@ func (c *cl) find(kind, ns, nm string) obj {
 		return nil
 	}
 	for _, o := range c.objs() {
-		if str(o, "kind") == k.Kind && objName(o) == nm && (!k.Namespaced || nsOf(o) == ns) && !c.gone(o) {
+		if isKind(o, k) && objName(o) == nm && (!k.Namespaced || nsOf(o) == ns) && !c.gone(o) {
 			return o
 		}
 	}
@@ -51,7 +51,7 @@ func (c *cl) remove(o obj) {
 }
 
 func sameRef(a, b obj) bool {
-	return str(a, "kind") == str(b, "kind") && nsOf(a) == nsOf(b) && objName(a) == objName(b)
+	return str(a, "kind") == str(b, "kind") && apiGroup(str(a, "apiVersion")) == apiGroup(str(b, "apiVersion")) && nsOf(a) == nsOf(b) && objName(a) == objName(b)
 }
 
 func (c *cl) birth() time.Time {

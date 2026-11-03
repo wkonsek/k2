@@ -123,11 +123,32 @@ var kinds = []kindInfo{
 	{"ingresses", "Ingress", "networking.k8s.io/v1", true, []string{"ing"}},
 	{"clusterroles", "ClusterRole", "rbac.authorization.k8s.io/v1", false, nil},
 	{"storageclasses", "StorageClass", "storage.k8s.io/v1", false, []string{"sc"}},
+	{"gateways", "Gateway", "networking.istio.io/v1", true, []string{"gw"}},
+	{"virtualservices", "VirtualService", "networking.istio.io/v1", true, []string{"vs"}},
+	{"gatewayclasses", "GatewayClass", "gateway.networking.k8s.io/v1", false, []string{"gc"}},
+	{"gateways", "Gateway", "gateway.networking.k8s.io/v1", true, []string{"gtw"}},
+	{"httproutes", "HTTPRoute", "gateway.networking.k8s.io/v1", true, nil},
+}
+
+func isVersion(s string) bool {
+	if len(s) < 2 || s[0] != 'v' || s[1] < '0' || s[1] > '9' {
+		return false
+	}
+	rest := strings.TrimLeft(s[1:], "0123456789")
+	for _, tag := range []string{"alpha", "beta"} {
+		if t, ok := strings.CutPrefix(rest, tag); ok {
+			return t != "" && strings.TrimLeft(t, "0123456789") == ""
+		}
+	}
+	return rest == ""
 }
 
 func lookupKind(s string) (kindInfo, bool) {
 	s = strings.ToLower(s)
 	base, grp, _ := strings.Cut(s, ".")
+	if v, rest, ok := strings.Cut(grp, "."); ok && isVersion(v) {
+		grp = rest
+	}
 	for _, k := range kinds {
 		if grp != "" && !strings.HasPrefix(k.group(), grp) && k.group() != grp {
 			continue
@@ -145,8 +166,24 @@ func lookupKind(s string) (kindInfo, bool) {
 }
 
 func kindOf(o obj) kindInfo {
+	for _, k := range kinds {
+		if isKind(o, k) {
+			return k
+		}
+	}
 	k, _ := lookupKind(str(o, "kind"))
 	return k
+}
+
+func apiGroup(apiVersion string) string {
+	if g, _, ok := strings.Cut(apiVersion, "/"); ok {
+		return g
+	}
+	return ""
+}
+
+func isKind(o obj, k kindInfo) bool {
+	return str(o, "kind") == k.Kind && apiGroup(str(o, "apiVersion")) == k.group()
 }
 
 func get(o any, path ...string) any {

@@ -157,6 +157,7 @@ type vimDoneMsg struct{}
 type resListMsg struct {
 	ctx   string
 	names []string
+	apis  []kube.APIResource
 }
 
 type yamlMsg struct {
@@ -269,6 +270,8 @@ type model struct {
 	cmdCycle    []string
 	cmdCycleAt  int
 	resources   []string
+	apis        []kube.APIResource
+	kindAlts    []string
 	resContext  string
 	restored    bool
 	zoom        bool
@@ -407,6 +410,10 @@ func initialModel(opts Options) model {
 	cmd.Prompt = ": "
 	cmd.PromptStyle = keyStyle
 	cmd.TextStyle = itemStyle
+	cmd.ShowSuggestions = true
+	cmd.KeyMap.AcceptSuggestion.SetKeys("right")
+	cmd.KeyMap.NextSuggestion.SetEnabled(false)
+	cmd.KeyMap.PrevSuggestion.SetEnabled(false)
 
 	sh := textinput.New()
 	sh.Placeholder = "get pods"

@@ -165,6 +165,9 @@ func TableFor(kind string, objs []Object, showNS bool) Table {
 	if s, ok := specs[BaseKind(kind)]; ok {
 		return build(objs, showNS, s)
 	}
+	if s, ok := specFor(kind, objs); ok {
+		return build(objs, showNS, s)
+	}
 	switch BaseKind(kind) {
 	case "pods":
 		return PodTable(objs, showNS)

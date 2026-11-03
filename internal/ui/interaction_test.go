@@ -82,7 +82,7 @@ func TestCommandLineCompletesClusterResourcesAndAliases(t *testing.T) {
 	send(t, tm, ":")
 	waitFor(t, tm, "tab completes cluster resources")
 	send(t, tm, "s", "u", "tab")
-	waitFor(t, tm, "sub  subs  subscriptions  subx")
+	waitFor(t, tm, "sub  subs  subscriptions  subscriptions.operators.coreos.com  subx")
 	send(t, tm, "tab", "tab", "tab")
 	m := finish(t, tm)
 	if m.cmd.Value() != "subscriptions" {

@@ -326,8 +326,19 @@ cluster info, token lifetime and forwards.
   k9s-style short names (`:dp`, `:sts`, `:ds`, `:cj`, `:ev`, `:sub`,
   `:csv`, `:rt` …) unless your config or the cluster gives a name another
   meaning.
+- Custom resources work by plural, singular or short name, or with the
+  group spelled out: `:gateways.networking.istio.io` or
+  `:gateway.networking.k8s.io/v1/gatewayclasses`. When several API groups
+  serve the same name (`:gateways` from Gateway API and Istio), k2 asks
+  the upstream `*.k8s.io` group first, falls back to the one that has
+  objects, and names the others in the status line.
+- Gateway API gateways, gateway classes and HTTP routes, and Istio
+  gateways and virtual services get their own columns; other custom
+  resources show NAME and AGE.
 - `tab` completes targets, resources, aliases, and for `:xray`,
   `:logs` / `:stern` and `:fav` the kinds and names from the cluster.
+  Resources are also offered as `name.group` and `group/version/name`;
+  the first match shows dimmed after the cursor and `right` takes it.
 - A kind the cluster does not serve says `… is not installed on this
   cluster (no OLM)` or `(not OpenShift)`.
 
