@@ -73,7 +73,7 @@ func (m model) stripBody(inner, rows int) string {
 	logo, showInfo, showFwds, mid := stripCols(inner, len(info) > 0, len(fwds) > 0)
 	var cols []stripCol
 	if logo {
-		cols = append(cols, stripCol{stripLogo, brandRows(m.cfg.UI, stripLogo, rows >= 3)})
+		cols = append(cols, stripCol{stripLogo, logoRows(m.cfg.UI, stripLogo, rows, rows >= 3)})
 	}
 	cols = append(cols, stripCol{mid, m.stripMiddle(mid, rows)})
 	if showInfo {

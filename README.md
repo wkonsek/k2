@@ -723,9 +723,9 @@ ui:
   focused context, the kubeconfig path and the namespace, then the actions.
   Shortcut letters are plain.
   - `ui.logo: wordmark` (default) is the pixel `k2`; `mountain` swaps it for
-    a taller pixel mountain with `k2` and the tagline centred under it. The
-    top and bottom strip and a sidebar too narrow or too short for the
-    mountain show the wordmark.
+    a small pixel mountain with `k2` and the tagline under it, in the
+    sidebar and in the top and bottom strip. Where the mountain does not
+    fit (a short sidebar or strip) the wordmark is shown.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
     background (`ui.cluster_info: false` hides them).

@@ -89,7 +89,7 @@ It sits on the left unless `ui.sidebar_position` says `right`, `top` or
 `bottom`; at the top or bottom it is a strip a few rows high, on the
 right it lines up with the right edge.
 `ui.logo` picks the logo at the top: `wordmark` (default, the pixel
-`k2`) or `mountain` (a taller pixel mountain over `k2`).
+`k2`) or `mountain` (a small pixel mountain over `k2`).
 Forwards too long for it scroll sideways (`ui.forward_scroll: false`
 cuts them with `…`).
 

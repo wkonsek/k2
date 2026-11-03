@@ -61,29 +61,12 @@ func brandRows(cfg config.UI, inner int, big bool) []string {
 	return rows
 }
 
-var mountain = []string{"      ▄", "     ▟█▙", "    ▟███▙", "  ▄▟█████▙▄", "▄▟█████████▙▄"}
+var mountain = []string{"    ▄    ", "  ▄███▄  ", "▄███████▄"}
 
-var mountainMask = []string{"      S", "     SSS", "    AAAAA", "  BAAAAAAAB", "BBAAAAAAAAABB"}
-
-func mountainWidth() int {
-	w := 0
-	for _, row := range mountain {
-		w = max(w, ansi.StringWidth(row))
-	}
-	return w - mountainIndent()
-}
-
-func mountainIndent() int {
-	n := 1 << 30
-	for _, row := range mountain {
-		n = min(n, len(row)-len(strings.TrimLeft(row, " ")))
-	}
-	return n
-}
+var mountainMask = []string{"    S    ", "  ASSSA  ", "BAAAAAAAB"}
 
 func paintMountain(i int) string {
-	cut := mountainIndent()
-	r, mk := []rune(mountain[i])[cut:], []rune(mountainMask[i])[cut:]
+	r, mk := []rune(mountain[i]), []rune(mountainMask[i])
 	var b strings.Builder
 	for j := 0; j < len(r); {
 		k := j + 1
@@ -106,32 +89,32 @@ func paintMountain(i int) string {
 }
 
 func mountainRows(cfg config.UI, inner int) []string {
-	mw := mountainWidth()
-	tag := taglineRows(tagline, max(inner, 1))
-	block := mw
-	for _, t := range tag {
-		block = max(block, ansi.StringWidth(t))
-	}
-	at := func(s string, w int) string {
-		row := strings.Repeat(" ", (block-w)/2) + s
-		if cfg.SidebarPosition == "right" {
-			row = padPlain(row, block)
-		}
-		return row
-	}
 	var rows []string
 	for i := range mountain {
-		rows = append(rows, at(paintMountain(i), mw))
+		row := paintMountain(i)
+		if cfg.SidebarPosition != "right" {
+			row = strings.TrimRight(row, " ")
+		}
+		rows = append(rows, row)
 	}
-	rows = append(rows, "", at(logoTitle(cfg.LogoTitleColor).Render("k2"), 2))
-	for _, t := range tag {
-		rows = append(rows, at(dimStyle.Render(t), ansi.StringWidth(t)))
+	rows = append(rows, logoTitle(cfg.LogoTitleColor).Render("k2"))
+	for _, t := range taglineRows(tagline, max(inner, 1)) {
+		rows = append(rows, dimStyle.Render(t))
 	}
 	return rows
 }
 
+func logoRows(cfg config.UI, inner, room int, big bool) []string {
+	if cfg.Logo == "mountain" && ansi.StringWidth(mountain[0]) <= inner {
+		if rows := mountainRows(cfg, inner); len(rows) <= room {
+			return rows
+		}
+	}
+	return brandRows(cfg, inner, big)
+}
+
 func (m model) mark(inner, level int) string {
-	if level >= 2 && m.cfg.UI.Logo == "mountain" && mountainWidth() <= inner {
+	if level >= 2 && m.cfg.UI.Logo == "mountain" && ansi.StringWidth(mountain[0]) <= inner {
 		return strings.Join(mountainRows(m.cfg.UI, inner), "\n") + "\n\n"
 	}
 	return strings.Join(brandRows(m.cfg.UI, inner, level >= 1), "\n") + "\n\n"
