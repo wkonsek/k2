@@ -239,7 +239,7 @@ var specs = map[string]spec{
 		{"ROLES", NodeRoles},
 	}, after: []column{
 		{"VERSION", func(o Object) string { return o.Str("status", "nodeInfo", "kubeletVersion") }},
-	}, status: "STATUS"},
+	}, status: "STATUS", extra: nodeAllocatable},
 	"deployments": {cols: []column{
 		{"READY", func(o Object) string {
 			return ratio(o.IntOr(0, "status", "readyReplicas"), o.IntOr(1, "spec", "replicas"))

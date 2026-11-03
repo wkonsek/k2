@@ -49,6 +49,46 @@ func ParseTop(out, namespace string) map[string]Usage {
 	return usage
 }
 
+func TopNodesArgs(kubeconfig, context string) []string {
+	return append([]string{"top", "nodes", "--no-headers", "--request-timeout=" + InfoTimeout.String()}, targetArgs(kubeconfig, context)...)
+}
+
+func (c Client) TopNodes(kubeconfig, context string) (map[string]Usage, error) {
+	out, err := shell.Combined(c.Run, "kubectl", TopNodesArgs(kubeconfig, context)...)
+	if err != nil {
+		return nil, cmdError(out, err)
+	}
+	return ParseTopNodes(string(out)), nil
+}
+
+func ParseTopNodes(out string) map[string]Usage {
+	usage := map[string]Usage{}
+	for _, line := range strings.Split(out, "\n") {
+		f := strings.Fields(line)
+		if len(f) < 4 {
+			continue
+		}
+		if _, ok := ParseCPU(f[1]); !ok {
+			continue
+		}
+		if _, ok := ParseMem(f[3]); ok {
+			usage[f[0]] = Usage{CPU: f[1], Mem: f[3]}
+		}
+	}
+	return usage
+}
+
+func nodeAllocatable(o Object) map[string]string {
+	ex := map[string]string{}
+	if v, ok := ParseCPU(o.Str("status", "allocatable", "cpu")); ok && v > 0 {
+		ex["cpuLimit"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	if v, ok := ParseMem(o.Str("status", "allocatable", "memory")); ok && v > 0 {
+		ex["memLimit"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	return ex
+}
+
 func ParseCPU(s string) (float64, bool) {
 	s = strings.TrimSpace(s)
 	scale := 1000.0

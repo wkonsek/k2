@@ -114,3 +114,18 @@ func TestNamespacedKeepsNamespace(t *testing.T) {
 		}
 	}
 }
+
+func TestParseTopNodes(t *testing.T) {
+	out := "master1   250m   6%   2048Mi   25%\nworker1   <unknown>   <unknown>   <unknown>   <unknown>\nworker2   1   12%   3Gi   40%\n\nbad\n"
+	got := ParseTopNodes(out)
+	if len(got) != 2 || got["master1"] != (Usage{CPU: "250m", Mem: "2048Mi"}) || got["worker2"] != (Usage{CPU: "1", Mem: "3Gi"}) {
+		t.Fatalf("%v", got)
+	}
+	if args := strings.Join(TopNodesArgs("/kc", "rke2"), " "); args != "top nodes --no-headers --request-timeout=5s --kubeconfig /kc --context rke2" {
+		t.Fatal(args)
+	}
+	ex := TableFor("nodes", objs(t, `{"items":[{"metadata":{"name":"n"},"status":{"allocatable":{"cpu":"7910m","memory":"8Gi"}}}]}`), false).Extra[0]
+	if ex["cpuLimit"] != "7910" || ex["memLimit"] != "8589934592" {
+		t.Fatalf("extra %v", ex)
+	}
+}

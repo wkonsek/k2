@@ -568,7 +568,25 @@ func nodeRoles(o obj) string {
 	return strings.Join(roles, ",")
 }
 
+func topNodes(f flags) int {
+	_, ctx, _ := f.target()
+	if !f.bools["--no-headers"] {
+		fmt.Printf("%-20s %-11s %-7s %-14s %s\n", "NAME", "CPU(cores)", "CPU(%)", "MEMORY(bytes)", "MEMORY(%)")
+	}
+	bucket := strconv.FormatInt(time.Now().Unix()/15, 10)
+	for _, n := range newCl(readOnly(), ctx).nodeNames() {
+		cpu := 8 + hashN(60, n, bucket)
+		mem := 20 + hashN(55, n)
+		fmt.Printf("%-20s %-11s %-7s %-14s %s\n", n, fmt.Sprintf("%dm", 7910*cpu/100), fmt.Sprintf("%d%%", cpu),
+			fmt.Sprintf("%dMi", 30843*mem/100), fmt.Sprintf("%d%%", mem))
+	}
+	return 0
+}
+
 func topCmd(f flags) int {
+	if len(f.pos) >= 2 && strings.HasPrefix(f.pos[1], "no") {
+		return topNodes(f)
+	}
 	if len(f.pos) < 2 || !strings.HasPrefix(f.pos[1], "po") {
 		return unknown("kubectl", f.raw)
 	}

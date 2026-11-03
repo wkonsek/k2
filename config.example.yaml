@@ -62,7 +62,7 @@
 #   active_border: thick      # thick (default) | normal | double
 #   dim_inactive: false
 #   cluster_info: true
-#   pod_metrics: true
+#   pod_metrics: true         # CPU / MEM on pods and nodes
 #   metrics_every: 15         # seconds, 5..600
 #   metrics_bars: true
 #   metrics_warn: 70          # 1..99, must be below metrics_crit
