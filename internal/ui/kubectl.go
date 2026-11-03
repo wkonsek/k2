@@ -68,6 +68,7 @@ func (m model) typeInto(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		fetch := m.liveHint()
 		cmd = tea.Batch(cmd, fetch)
+		m.setGhost()
 	case m.stage == "kcmd" && m.jqOn:
 		m.jq, cmd = m.jq.Update(msg)
 	case m.stage == "kcmd":

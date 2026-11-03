@@ -296,7 +296,7 @@ func selectObjects(f flags, refs []resourceRef) (out []obj, missing []resourceRe
 	for _, r := range refs {
 		found := false
 		for _, o := range view {
-			if str(o, "kind") != r.kind.Kind {
+			if !isKind(o, r.kind) {
 				continue
 			}
 			if r.kind.Namespaced && !f.all && nsOf(o) != ns {

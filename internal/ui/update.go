@@ -126,7 +126,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case resListMsg:
 		if msg.ctx == m.context {
 			m.resources = msg.names
+			m.apis = msg.apis
 			m.resContext = msg.ctx
+			m.setGhost()
 			if m.cmdOn && m.cmdHint == "kubeconfig  context  namespace  pods  forward  forwards" {
 				m.cmdHint = m.cfg.Keys.Complete.Label() + " completes cluster resources"
 			}

@@ -16,7 +16,7 @@ func describeCmd(f flags) int {
 	view := snapshot(ctx)
 	var o obj
 	for _, x := range view {
-		if str(x, "kind") == k.Kind && objName(x) == nm && (!k.Namespaced || nsOf(x) == ns) {
+		if isKind(x, k) && objName(x) == nm && (!k.Namespaced || nsOf(x) == ns) {
 			o = x
 		}
 	}
