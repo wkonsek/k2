@@ -88,6 +88,8 @@ pane with these keys or `:` commands.
 It sits on the left unless `ui.sidebar_position` says `right`, `top` or
 `bottom`; at the top or bottom it is a strip a few rows high, on the
 right it lines up with the right edge.
+`ui.logo` picks the logo at the top: `mountain` (default, a pixel
+mountain next to the `k2` wordmark) or `wordmark`.
 Forwards too long for it scroll sideways (`ui.forward_scroll: false`
 cuts them with `…`).
 

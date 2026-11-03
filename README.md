@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1><img src="docs/logo.svg" alt="k2" width="120"></h1>
+<h1><img src="docs/logo.svg" alt="k2" width="300"></h1>
 
 **kubectl, elevated.** A terminal UI for working with several Kubernetes clusters side by side.
 
@@ -701,6 +701,7 @@ ui:
   background: transparent   # transparent (default) | theme
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
+  logo: mountain            # mountain (default) | wordmark
   logo_title_color: green   # logo color: green | accent
   sidebar_position: left    # left (default) | right | top | bottom
   forward_scroll: true      # scroll long forwards instead of cutting them
@@ -718,13 +719,17 @@ ui:
   to `ui.background` with the theme, `esc` restores both.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
-- The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then
-  the focused context, the kubeconfig path and the namespace, then the
-  actions. Shortcut letters are plain.
+- The sidebar leads with the logo and `kubectl, elevated`, then the
+  focused context, the kubeconfig path and the namespace, then the actions.
+  Shortcut letters are plain.
+  - `ui.logo: mountain` (default) draws a small pixel mountain next to the
+    `k2` wordmark; `wordmark` shows the wordmark alone. On the right the
+    mountain sits on the outer edge. A sidebar too narrow for both shows the
+    wordmark alone.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
     background (`ui.cluster_info: false` hides them).
-  - The big `k2` and the cluster info are dropped first when the sidebar is
+  - The big logo and the cluster info are dropped first when the sidebar is
     short.
   - Port-forwards sit at the bottom only when there is one: a `forwards`
     heading, a green square while it is alive and a red square when it is

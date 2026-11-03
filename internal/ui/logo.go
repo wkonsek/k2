@@ -45,14 +45,60 @@ func logoTitle(color string) lipgloss.Style {
 
 var wordmark = []string{"█ ▄ ▀█", "█▀▄ █▄"}
 
+var mountain = []string{"  ▄█▄  ", "▄█████▄"}
+
+var mountainMask = []string{"  SSS  ", "BAAAAAB"}
+
+const logoGap = "  "
+
+func mountainRow(i int) string {
+	r, mk := []rune(mountain[i]), []rune(mountainMask[i])
+	var b strings.Builder
+	for j := 0; j < len(r); {
+		k := j + 1
+		for k < len(r) && mk[k] == mk[j] {
+			k++
+		}
+		run := string(r[j:k])
+		switch mk[j] {
+		case 'S':
+			run = lipgloss.NewStyle().Foreground(th.Bright).Render(run)
+		case 'A':
+			run = lipgloss.NewStyle().Foreground(th.Accent).Render(run)
+		case 'B':
+			run = dimStyle.Render(run)
+		}
+		b.WriteString(run)
+		j = k
+	}
+	return b.String()
+}
+
+func logoWidth(cfg config.UI) int {
+	w := ansi.StringWidth(wordmark[0])
+	if cfg.Logo != "wordmark" {
+		w += ansi.StringWidth(mountain[0]) + len(logoGap)
+	}
+	return w
+}
+
 func brandRows(cfg config.UI, inner int, big bool) []string {
 	style := logoTitle(cfg.LogoTitleColor)
 	var rows []string
-	if big && ansi.StringWidth(wordmark[0]) <= inner {
+	switch {
+	case big && cfg.Logo != "wordmark" && logoWidth(cfg) <= inner:
+		for i, row := range wordmark {
+			if cfg.SidebarPosition == "right" {
+				rows = append(rows, style.Render(row)+logoGap+mountainRow(i))
+			} else {
+				rows = append(rows, mountainRow(i)+logoGap+style.Render(row))
+			}
+		}
+	case big && ansi.StringWidth(wordmark[0]) <= inner:
 		for _, row := range wordmark {
 			rows = append(rows, style.Render(row))
 		}
-	} else {
+	default:
 		rows = append(rows, style.Render("k2"))
 	}
 	for _, t := range taglineRows(tagline, max(inner, 1)) {

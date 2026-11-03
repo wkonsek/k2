@@ -138,7 +138,7 @@ func TestRightSidebarHugsTheEdge(t *testing.T) {
 		}
 		return false
 	}
-	for _, want := range []string{wordmark[0], tagline, "kind-dev", "shop", "Kubeconfig  C", "Forwards  f", "forwards", "8080 → 80 ■", "shop/web-0  "} {
+	for _, want := range []string{wordmark[0] + logoGap + mountain[0], wordmark[1] + logoGap + mountain[1], tagline, "kind-dev", "shop", "Kubeconfig  C", "Forwards  f", "forwards", "8080 → 80 ■", "shop/web-0  "} {
 		if !ends(want) {
 			t.Errorf("%q is not flush right:\n%s", want, strings.Join(lines, "\n"))
 		}
