@@ -106,7 +106,7 @@ var ClipboardModes = []string{"auto", "wl-copy", "xclip", "xsel", "osc52"}
 
 var LogoTitleColors = []string{"green", "accent"}
 
-var LogoStyles = []string{"mountain", "wordmark"}
+var LogoStyles = []string{"wordmark", "mountain"}
 
 var TabbarModes = []string{"auto", "always", "never"}
 
@@ -151,7 +151,7 @@ func Default() Config {
 		Helm:          Helm{Binary: "helm"},
 		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{Logo: "mountain", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
+		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
 		Keys:          DefaultKeys(),
 	}
 }

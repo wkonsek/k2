@@ -72,7 +72,7 @@
 #   token_crit: 10            # percent, 1..99
 #   wrap: false
 #   copy_mode_hint: true
-#   logo: mountain            # mountain (default) | wordmark
+#   logo: wordmark            # wordmark (default) | mountain
 #   logo_title_color: green   # logo color: green | accent
 #   clipboard: auto           # auto | wl-copy | xclip | xsel | osc52
 # keys:                       # one key, or a list. "direct " means without the ctrl+a prefix

@@ -17,7 +17,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {
 		t.Fatalf("log defaults: %+v", c.Logs)
 	}
-	if c.UI != (UI{Logo: "mountain", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
+	if c.UI != (UI{Logo: "wordmark", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
 		t.Fatalf("ui defaults: %+v", c.UI)
 	}
 	if c.StateDir != DefaultDir() || len(c.Prod) != 0 || len(c.Aliases) != 0 {

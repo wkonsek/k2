@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1><img src="docs/logo.svg" alt="k2" width="300"></h1>
+<h1><img src="docs/logo.svg" alt="k2" width="120"></h1>
 
 **kubectl, elevated.** A terminal UI for working with several Kubernetes clusters side by side.
 
@@ -701,7 +701,7 @@ ui:
   background: transparent   # transparent (default) | theme
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
-  logo: mountain            # mountain (default) | wordmark
+  logo: wordmark            # wordmark (default) | mountain
   logo_title_color: green   # logo color: green | accent
   sidebar_position: left    # left (default) | right | top | bottom
   forward_scroll: true      # scroll long forwards instead of cutting them
@@ -722,10 +722,10 @@ ui:
 - The sidebar leads with the logo and `kubectl, elevated`, then the
   focused context, the kubeconfig path and the namespace, then the actions.
   Shortcut letters are plain.
-  - `ui.logo: mountain` (default) draws a small pixel mountain next to the
-    `k2` wordmark; `wordmark` shows the wordmark alone. On the right the
-    mountain sits on the outer edge. A sidebar too narrow for both shows the
-    wordmark alone.
+  - `ui.logo: wordmark` (default) is the pixel `k2`; `mountain` swaps it for
+    a taller pixel mountain with `k2` and the tagline centred under it. The
+    top and bottom strip and a sidebar too narrow or too short for the
+    mountain show the wordmark.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
     background (`ui.cluster_info: false` hides them).

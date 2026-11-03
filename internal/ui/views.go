@@ -39,9 +39,9 @@ func (m model) sidebarBody(boxW, height int) string {
 		info = rightBlock(info, inner)
 	}
 	rule := m.sideRule(inner)
-	body := func(big, withInfo bool) string {
+	body := func(level int, withInfo bool) string {
 		var b strings.Builder
-		b.WriteString(m.mark(inner, big))
+		b.WriteString(m.mark(inner, level))
 		b.WriteString(m.identityBlock(inner))
 		b.WriteString(rule)
 		b.WriteString(m.menuBlock(inner))
@@ -52,15 +52,14 @@ func (m model) sidebarBody(boxW, height int) string {
 		return b.String()
 	}
 	fits := func(s string) bool { return lineCount(s)+lineCount(dock) <= height }
-	top := body(true, true)
-	if !fits(top) {
-		top = body(true, false)
-	}
-	if !fits(top) {
-		top = body(false, true)
-	}
-	if !fits(top) {
-		top = body(false, false)
+	var top string
+	for _, level := range []int{2, 1, 0} {
+		if top = body(level, true); fits(top) {
+			break
+		}
+		if top = body(level, false); fits(top) {
+			break
+		}
 	}
 	if dock == "" {
 		lines := strings.Split(strings.TrimRight(top, "\n"), "\n")

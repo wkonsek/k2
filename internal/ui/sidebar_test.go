@@ -79,11 +79,11 @@ func TestSidebarIdentity(t *testing.T) {
 		{Namespace: "shop", Pod: "db", Local: "9090", Remote: "90", PID: -1, Reason: "pod gone"},
 	}
 	plain := ansi.Strip(m.sidebarBody(26, 40))
-	if strings.Contains(plain, "active ·") || strings.Contains(plain, "⇄") || strings.Contains(plain, "▟███████▙") {
+	if strings.Contains(plain, "active ·") || strings.Contains(plain, "⇄") || strings.Contains(plain, "▟") || strings.HasPrefix(plain, " ") {
 		t.Fatalf("old chrome:\n%s", plain)
 	}
-	if !strings.HasPrefix(plain, mountain[0]+logoGap+wordmark[0]+"\n"+mountain[1]+logoGap+wordmark[1]+"\nkubectl, elevated\n") {
-		t.Fatalf("logo:\n%s", plain)
+	if !strings.HasPrefix(plain, wordmark[0]+"\n"+wordmark[1]+"\nkubectl, elevated\n") {
+		t.Fatalf("wordmark:\n%s", plain)
 	}
 	ctx := strings.Index(plain, "kind-preprod")
 	path := strings.Index(plain, "~/.kube/preprod1")

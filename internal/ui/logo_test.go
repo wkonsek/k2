@@ -16,104 +16,18 @@ func sidebarPlain(m model, w, h int) []string {
 	return strings.Split(ansi.Strip(m.sidebarBody(w, h)), "\n")
 }
 
-func logoLine(i int) string {
-	return mountain[i] + logoGap + wordmark[i]
-}
-
-func wordmarkModel(t *testing.T) model {
-	m := newTestModel(t, testEnv(t), nil)
-	m.cfg.UI.Logo = "wordmark"
-	return m
-}
-
 func TestSidebarDefaultLogoAndTagline(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
 	lines := sidebarPlain(m, 26, 60)
-	if lines[0] != logoLine(0) || lines[1] != logoLine(1) || lines[2] != "kubectl, elevated" || lines[3] != "" {
+	if lines[0] != wordmark[0] || lines[1] != wordmark[1] || lines[2] != "kubectl, elevated" || lines[3] != "" || strings.HasPrefix(lines[0], " ") {
 		t.Fatalf("head:\n%s", strings.Join(lines[:4], "\n"))
 	}
 }
 
-func TestMountainArt(t *testing.T) {
-	if len(mountain) != len(wordmark) || len(mountainMask) != len(mountain) {
-		t.Fatalf("mountain has %d rows, wordmark %d", len(mountain), len(wordmark))
-	}
-	w := ansi.StringWidth(mountain[0])
-	if w%2 != 1 {
-		t.Fatalf("mountain width %d is even", w)
-	}
-	for i, row := range mountain {
-		r := []rune(row)
-		if len(r) != w || len([]rune(mountainMask[i])) != w {
-			t.Fatalf("row %d: %q is not %d wide", i, row, w)
-		}
-		for j := range r {
-			if mirror(r[j]) != r[len(r)-1-j] {
-				t.Fatalf("row %d is not symmetric: %q", i, row)
-			}
-		}
-	}
-	if []rune(mountain[0])[w/2] != '█' || strings.TrimSpace(mountain[1]) != mountain[1] {
-		t.Fatalf("peak is off the axis:\n%s", strings.Join(mountain, "\n"))
-	}
-}
-
-func mirror(r rune) rune {
-	pairs := map[rune]rune{'▟': '▙', '▙': '▟', '▗': '▖', '▖': '▗', '▛': '▜', '▜': '▛', '▘': '▝', '▝': '▘'}
-	if m, ok := pairs[r]; ok {
-		return m
-	}
-	return r
-}
-
 func TestSidebarPicksWordmark(t *testing.T) {
-	lines := sidebarPlain(wordmarkModel(t), 26, 60)
-	if lines[0] != wordmark[0] || lines[1] != wordmark[1] || lines[2] != tagline || strings.HasPrefix(lines[0], " ") {
+	lines := sidebarPlain(newTestModel(t, testEnv(t), nil), 26, 60)
+	if lines[0] != wordmark[0] || lines[1] != wordmark[1] || lines[2] != tagline {
 		t.Fatalf("wordmark:\n%s", strings.Join(lines[:4], "\n"))
-	}
-}
-
-func TestMountainWidths(t *testing.T) {
-	for _, w := range []int{26, 20, 16, 15} {
-		lines := sidebarPlain(newTestModel(t, testEnv(t), nil), w, 60)
-		if lines[0] != logoLine(0) || lines[1] != logoLine(1) {
-			t.Fatalf("%d:\n%s", w, strings.Join(lines[:3], "\n"))
-		}
-	}
-	for _, w := range []int{14, 12, 10} {
-		lines := sidebarPlain(newTestModel(t, testEnv(t), nil), w, 60)
-		if lines[0] != wordmark[0] || lines[1] != wordmark[1] {
-			t.Fatalf("%d should drop the mountain:\n%s", w, strings.Join(lines[:3], "\n"))
-		}
-	}
-}
-
-func TestRightSidebarMirrorsLogo(t *testing.T) {
-	m := newTestModel(t, testEnv(t), nil)
-	m.cfg.UI.SidebarPosition = "right"
-	for _, w := range []int{26, 20, 16} {
-		lines := sidebarPlain(m, w, 60)
-		for i := range wordmark {
-			want := wordmark[i] + logoGap + mountain[i]
-			if strings.TrimLeft(lines[i], " ") != want || ansi.StringWidth(lines[i]) != w {
-				t.Fatalf("%d row %d: %q", w, i, lines[i])
-			}
-		}
-	}
-}
-
-func TestStripShowsMountain(t *testing.T) {
-	for _, pos := range []string{"top", "bottom"} {
-		m := newTestModel(t, testEnv(t), nil)
-		m.cfg.UI.SidebarPosition = pos
-		lines := strings.Split(ansi.Strip(m.stripBody(130, stripRows)), "\n")
-		if !strings.HasPrefix(lines[0], logoLine(0)) || !strings.HasPrefix(lines[1], logoLine(1)) || !strings.HasPrefix(lines[2], tagline) {
-			t.Fatalf("%s:\n%s", pos, strings.Join(lines, "\n"))
-		}
-		two := strings.Split(ansi.Strip(m.stripBody(130, 2)), "\n")
-		if len(two) != 2 || !strings.HasPrefix(two[0], "k2") {
-			t.Fatalf("%s two rows:\n%s", pos, strings.Join(two, "\n"))
-		}
 	}
 }
 
@@ -140,11 +54,11 @@ func TestSidebarDegrades(t *testing.T) {
 		h++
 	}
 	short := ansi.Strip(m.sidebarBody(26, h))
-	if strings.Contains(short, wordmark[0]) || strings.Contains(short, mountain[1]) || !strings.Contains(short, "Kustomize") {
+	if strings.Contains(short, "▟") || !strings.Contains(short, "Kustomize") {
 		t.Fatalf("short:\n%s", short)
 	}
-	if tall := ansi.Strip(m.sidebarBody(26, 40)); !strings.HasPrefix(tall, logoLine(0)+"\n") {
-		t.Fatalf("tall lost the logo:\n%s", tall)
+	if tall := ansi.Strip(m.sidebarBody(26, 40)); !strings.HasPrefix(tall, wordmark[0]+"\n") || strings.Contains(tall, "▟") {
+		t.Fatalf("tall lost the wordmark:\n%s", tall)
 	}
 }
 
@@ -158,42 +72,23 @@ func TestBrandIsLeftAligned(t *testing.T) {
 		if want := lipgloss.NewStyle().Foreground(pal.OK).Bold(true).Render("k2"); logoTitle("green").Render("k2") != want {
 			t.Fatalf("%s: k2 is not the OK green", name)
 		}
-		for _, logo := range []string{"mountain", "wordmark"} {
-			for _, inner := range []int{12, 22, 23} {
-				cfg := config.Default().UI
-				cfg.Logo = logo
-				rows := brandRows(cfg, inner, true)
-				plain := make([]string, len(rows))
-				for i, r := range rows {
-					plain[i] = ansi.Strip(r)
-					if w := ansi.StringWidth(plain[i]); w > inner {
-						t.Fatalf("%s %s %d: %q", name, logo, inner, plain[i])
-					}
-				}
-				want := wordmark
-				if logo == "mountain" && inner >= 15 {
-					want = []string{logoLine(0), logoLine(1)}
-				}
-				if plain[0] != want[0] || plain[1] != want[1] || strings.HasPrefix(plain[1], " ") {
-					t.Fatalf("%s %s %d: %q %q", name, logo, inner, plain[0], plain[1])
-				}
-				if strings.Join(plain[2:], " ") != tagline || strings.HasPrefix(plain[2], " ") {
-					t.Fatalf("%s: tagline %q", name, plain[2:])
+		for _, inner := range []int{12, 22, 23} {
+			cfg := config.Default().UI
+			rows := brandRows(cfg, inner, true)
+			plain := make([]string, len(rows))
+			for i, r := range rows {
+				plain[i] = ansi.Strip(r)
+				if w := ansi.StringWidth(plain[i]); w > inner || strings.HasPrefix(plain[i], " ") {
+					t.Fatalf("%s %d: %q", name, inner, plain[i])
 				}
 			}
+			if plain[0] != wordmark[0] || plain[1] != wordmark[1] || strings.HasPrefix(plain[0], " ") {
+				t.Fatalf("%s: %q %q", name, plain[0], plain[1])
+			}
+			if strings.Join(plain[2:], " ") != tagline {
+				t.Fatalf("%s: tagline %q", name, plain[2:])
+			}
 		}
-	}
-}
-
-func TestMountainColors(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	defer lipgloss.SetColorProfile(termenv.Ascii)
-	rows := brandRows(config.Default().UI, 26, true)
-	snow := lipgloss.NewStyle().Foreground(th.Bright).Render("▄█▄")
-	body := lipgloss.NewStyle().Foreground(th.Accent).Render("█████")
-	base := dimStyle.Render("▄")
-	if !strings.Contains(rows[0], snow) || !strings.Contains(rows[1], body) || !strings.HasPrefix(rows[1], base) {
-		t.Fatalf("colors: %q %q", rows[0], rows[1])
 	}
 }
 
@@ -202,12 +97,9 @@ func TestLogoTitleAccent(t *testing.T) {
 	defer lipgloss.SetColorProfile(termenv.Ascii)
 	cfg := config.Default().UI
 	cfg.LogoTitleColor = "accent"
+	rows := brandRows(cfg, 26, true)
 	want := lipgloss.NewStyle().Foreground(th.Accent).Bold(true).Render(wordmark[0])
-	if rows := brandRows(cfg, 26, true); !strings.HasSuffix(rows[0], want) {
-		t.Fatalf("wordmark not in the accent: %q", rows[0])
-	}
-	cfg.Logo = "wordmark"
-	if rows := brandRows(cfg, 26, true); rows[0] != want {
+	if rows[0] != want {
 		t.Fatalf("wordmark not in the accent: %q", rows[0])
 	}
 }
@@ -225,7 +117,7 @@ func TestLogoFallbackCountsBlankRow(t *testing.T) {
 	for !strings.Contains(ansi.Strip(m.sidebarBody(26, h)), wordmark[0]) {
 		h++
 		if h > 40 {
-			t.Fatal("logo never fit")
+			t.Fatal("wordmark never fit")
 		}
 	}
 	tall := ansi.Strip(m.sidebarBody(26, h))
@@ -237,7 +129,161 @@ func TestLogoFallbackCountsBlankRow(t *testing.T) {
 			}
 		}
 	}
-	if !strings.HasPrefix(tall, logoLine(0)) || strings.Contains(short, wordmark[0]) || !strings.Contains(short, "k2") {
+	if strings.Contains(short, wordmark[0]) || !strings.Contains(short, "k2") {
 		t.Fatalf("short should fall back to k2:\n%s", short)
+	}
+}
+
+func mountainModel(t *testing.T, pos string) model {
+	m := newTestModel(t, testEnv(t), nil)
+	m.cfg.UI.Logo = "mountain"
+	m.cfg.UI.SidebarPosition = pos
+	return m
+}
+
+func mirrorGlyph(r rune) rune {
+	pairs := map[rune]rune{'▟': '▙', '▙': '▟', '▗': '▖', '▖': '▗', '▛': '▜', '▜': '▛', '▘': '▝', '▝': '▘'}
+	if m, ok := pairs[r]; ok {
+		return m
+	}
+	return r
+}
+
+func TestMountainShape(t *testing.T) {
+	if len(mountain) != 5 || len(mountainMask) != len(mountain) || mountainIndent() != 0 {
+		t.Fatalf("%d rows, %d masks, indent %d", len(mountain), len(mountainMask), mountainIndent())
+	}
+	w := mountainWidth()
+	if w%2 != 1 {
+		t.Fatalf("width %d has no middle column", w)
+	}
+	for i, row := range mountain {
+		r, mk := []rune(row), []rune(mountainMask[i])
+		if len(r) != len(mk) {
+			t.Fatalf("row %d: mask %q for %q", i, mountainMask[i], row)
+		}
+		lead := len(r) - len([]rune(strings.TrimLeft(row, " ")))
+		full := []rune(padPlain(row, w))
+		for j := range full {
+			if mirrorGlyph(full[j]) != full[w-1-j] {
+				t.Fatalf("row %d is not symmetric: %q", i, row)
+			}
+		}
+		for j, g := range r {
+			if (g == ' ') != (mk[j] == ' ') {
+				t.Fatalf("row %d col %d: glyph %q mask %q", i, j, g, mk[j])
+			}
+		}
+		if i == 0 && (lead != w/2 || strings.TrimSpace(row) != "▄") {
+			t.Fatalf("peak %q is not on the middle column %d", row, w/2)
+		}
+	}
+	if []rune(mountain[1])[w/2] != '█' || strings.TrimSpace(mountain[len(mountain)-1]) != mountain[len(mountain)-1] {
+		t.Fatalf("body is off the axis:\n%s", strings.Join(mountain, "\n"))
+	}
+}
+
+func TestMountainColors(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	defer useTheme(theme.Nord())
+	for _, name := range []string{"nord", "monokai", "solarized-light"} {
+		pal, _ := theme.Lookup(name)
+		useTheme(pal)
+		open := func(st lipgloss.Style) string {
+			s := st.Render("x")
+			return s[:strings.Index(s, "x")]
+		}
+		snow, body, base := open(lipgloss.NewStyle().Foreground(th.Bright)), open(lipgloss.NewStyle().Foreground(th.Accent)), open(dimStyle)
+		for i := range mountain {
+			line := paintMountain(i)
+			for c, o := range map[rune]string{'S': snow, 'A': body, 'B': base} {
+				if strings.ContainsRune(mountainMask[i], c) != strings.Contains(line, o) {
+					t.Fatalf("%s row %d: color %c in %q", name, i, c, line)
+				}
+			}
+		}
+	}
+}
+
+func TestMountainSidebar(t *testing.T) {
+	for _, w := range []int{26, 20, 16, 13} {
+		lines := sidebarPlain(mountainModel(t, "left"), w, 60)
+		block := mountainWidth()
+		if w >= len(tagline) {
+			block = len(tagline)
+		}
+		pad := (block - mountainWidth()) / 2
+		for i, row := range mountain {
+			if lines[i] != strings.Repeat(" ", pad)+row {
+				t.Fatalf("%d row %d: %q", w, i, lines[i])
+			}
+		}
+		n := len(mountain)
+		if lines[n] != "" || strings.TrimSpace(lines[n+1]) != "k2" || !strings.HasPrefix(strings.TrimSpace(lines[n+2]), "kubectl,") {
+			t.Fatalf("%d head:\n%s", w, strings.Join(lines[:n+4], "\n"))
+		}
+		axis := pad*2 + mountainWidth()
+		if k := strings.Index(lines[n+1], "k2"); k*2+2 != axis-1 {
+			t.Fatalf("%d: k2 at %d is off the axis %d", w, k, axis)
+		}
+	}
+}
+
+func TestMountainFallsBack(t *testing.T) {
+	lines := sidebarPlain(mountainModel(t, "left"), 12, 60)
+	if lines[0] != wordmark[0] || lines[1] != wordmark[1] {
+		t.Fatalf("narrow:\n%s", strings.Join(lines[:4], "\n"))
+	}
+	m := mountainModel(t, "left")
+	h := 8
+	for !strings.Contains(ansi.Strip(m.sidebarBody(26, h)), mountain[len(mountain)-1]) {
+		h++
+		if h > 60 {
+			t.Fatal("mountain never fit")
+		}
+	}
+	short := ansi.Strip(m.sidebarBody(26, h-1))
+	if strings.Contains(short, "▟") || !strings.Contains(short, wordmark[0]) {
+		t.Fatalf("short should show the wordmark:\n%s", short)
+	}
+}
+
+func TestMountainRightIsMirrored(t *testing.T) {
+	for _, w := range []int{26, 20, 16} {
+		lines := sidebarPlain(mountainModel(t, "right"), w, 60)
+		block := mountainWidth()
+		if w >= len(tagline) {
+			block = len(tagline)
+		}
+		pad := (block - mountainWidth()) / 2
+		for i, row := range mountain {
+			want := strings.Repeat(" ", w-block+pad) + padPlain(row, block-pad)
+			if lines[i] != want {
+				t.Fatalf("%d row %d: %q want %q", w, i, lines[i], want)
+			}
+		}
+		if tag := lines[len(mountain)+2]; ansi.StringWidth(tag) != w || !strings.Contains(tag, "kubectl,") {
+			t.Fatalf("%d tagline: %q", w, tag)
+		}
+	}
+}
+
+func TestMountainStripUsesWordmark(t *testing.T) {
+	for _, pos := range []string{"top", "bottom"} {
+		m := mountainModel(t, pos)
+		lines := strings.Split(ansi.Strip(m.stripBody(130, stripRows)), "\n")
+		if !strings.HasPrefix(lines[0], wordmark[0]) || !strings.HasPrefix(lines[1], wordmark[1]) || !strings.HasPrefix(lines[2], tagline) || strings.Contains(strings.Join(lines, "\n"), "▟") {
+			t.Fatalf("%s:\n%s", pos, strings.Join(lines, "\n"))
+		}
+	}
+}
+
+func TestDefaultIsWordmark(t *testing.T) {
+	if config.Default().UI.Logo != "wordmark" {
+		t.Fatalf("default %q", config.Default().UI.Logo)
+	}
+	if out := ansi.Strip(newTestModel(t, testEnv(t), nil).sidebarBody(26, 60)); strings.Contains(out, "▟") {
+		t.Fatalf("default drew the mountain:\n%s", out)
 	}
 }
