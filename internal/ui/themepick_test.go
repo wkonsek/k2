@@ -99,3 +99,103 @@ func TestThemePopupScrollsInAShortPane(t *testing.T) {
 		t.Fatalf("scrolled box:\n%s", box)
 	}
 }
+
+func TestThemePopupBackgroundSwitch(t *testing.T) {
+	defer useTheme(theme.Nord())
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m = pressSettle(t, m, "ctrl+t")
+	if m.paintBg || !strings.Contains(ansi.Strip(m.View()), "background: transparent") {
+		t.Fatalf("start painted %v", m.paintBg)
+	}
+	plain := m.View()
+	m = pressSettle(t, m, "b")
+	if !m.paintBg || m.dlg == nil || !strings.Contains(ansi.Strip(m.View()), "background: theme") {
+		t.Fatalf("not switched: paint %v dlg %v", m.paintBg, m.dlg != nil)
+	}
+	if m.View() == plain {
+		t.Fatal("view did not change")
+	}
+	for m.dlg.picked() != "solarized-light" {
+		m = press(t, m, "down")
+	}
+	if !m.paintBg || th.Name != "solarized-light" {
+		t.Fatalf("light preview paint %v %s", m.paintBg, th.Name)
+	}
+	m = pressSettle(t, m, "b")
+	if m.paintBg || !strings.Contains(ansi.Strip(m.View()), "background: transparent") {
+		t.Fatal("light theme did not go transparent")
+	}
+	m = pressSettle(t, m, "b", "up")
+	if !m.paintBg || th.Light {
+		t.Fatalf("dark preview after switch: paint %v %s", m.paintBg, th.Name)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.dlg != nil || m.paintBg || m.themeName != "nord" || m.cfg.UI.BackgroundSet {
+		t.Fatalf("not reverted: paint %v theme %s cfg %+v", m.paintBg, m.themeName, m.cfg.UI.Background)
+	}
+	if _, err := os.Stat(config.Path()); err == nil {
+		t.Fatal("esc wrote the config")
+	}
+}
+
+func TestThemePopupSavesBackground(t *testing.T) {
+	defer useTheme(theme.Nord())
+	cfg := testEnv(t)
+	m := newTestModel(t, cfg, nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m = pressSettle(t, m, "ctrl+t", "down", "b", "enter")
+	if m.dlg != nil || !m.paintBg || m.themeName != "dracula" || m.cfg.UI.Background != "theme" {
+		t.Fatalf("paint %v theme %s bg %s", m.paintBg, m.themeName, m.cfg.UI.Background)
+	}
+	b, err := os.ReadFile(config.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, w := config.Parse(b)
+	if len(w) != 0 || c.UI.Background != "theme" || c.ThemeFor("/kc", "kind-dev") != "dracula" {
+		t.Fatalf("config:\n%s", b)
+	}
+
+	cfg.UI, cfg.ContextThemes = c.UI, c.ContextThemes
+	again := initialModel(Options{Runner: m.run, Config: &cfg})
+	again.kubeconfig, again.context = "/kc", "kind-dev"
+	if !again.paintBg {
+		t.Fatal("saved background not used")
+	}
+
+	m = pressSettle(t, m, "ctrl+t", "enter")
+	if !m.paintBg {
+		t.Fatal("enter without switching dropped the background")
+	}
+	m = pressSettle(t, m, "ctrl+t", "b", "esc")
+	if !m.paintBg || m.cfg.UI.Background != "theme" {
+		t.Fatal("esc did not restore the saved background")
+	}
+}
+
+func TestThemePopupStartsFromConfig(t *testing.T) {
+	defer useTheme(theme.Nord())
+	cfg := testEnv(t)
+	cfg.UI.Background, cfg.UI.BackgroundSet = "theme", true
+	m := newTestModel(t, cfg, nil)
+	m.context = "kind-dev"
+	m = pressSettle(t, m, "ctrl+t")
+	if !m.paintBg || !strings.Contains(ansi.Strip(m.View()), "background: theme") {
+		t.Fatal("config background not shown")
+	}
+	m = pressSettle(t, m, "b")
+	if m.paintBg {
+		t.Fatal("b did not switch off")
+	}
+}
+
+func TestBackgroundKeyStillTypesInInputs(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.context = "kind-dev"
+	m.dlg = m.newDialog("rename_tab", "rename", "", "", "").withField("", "", "")
+	m = press(t, m, "b")
+	if m.dlg == nil || m.dlg.input.Value() != "b" || m.paintBg {
+		t.Fatalf("input %q paint %v", m.dlg.input.Value(), m.paintBg)
+	}
+}

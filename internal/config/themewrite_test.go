@@ -99,3 +99,44 @@ func TestWriteContextThemeKeepsComments(t *testing.T) {
 		t.Fatalf("out %+v", out)
 	}
 }
+
+func TestWriteThemeChoiceSetsBackground(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	in := "ui:\n  background: transparent   # transparent | theme\n  sidebar_width: 30\n"
+	if err := os.WriteFile(path, []byte(in), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteThemeChoice(path, nil, "kind-dev", "", "nord", "theme"); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(path)
+	if strings.Count(string(b), "background:") != 1 || !strings.Contains(string(b), "# transparent | theme") {
+		t.Fatalf("config:\n%s", b)
+	}
+	c, w := Parse(b)
+	if len(w) != 0 || c.UI.Background != "theme" || !c.UI.BackgroundSet || c.UI.SidebarWidth != 30 || c.ThemeFor("", "kind-dev") != "nord" {
+		t.Fatalf("parsed %+v %v", c.UI, w)
+	}
+
+	fresh := filepath.Join(dir, "new.yaml")
+	if _, err := WriteThemeChoice(fresh, nil, "kind-dev", "", "dracula", "transparent"); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = os.ReadFile(fresh)
+	c, w = Parse(b)
+	if len(w) != 0 || c.UI.Background != "transparent" || !c.UI.BackgroundSet || c.ThemeFor("", "kind-dev") != "dracula" {
+		t.Fatalf("fresh:\n%s %v", b, w)
+	}
+
+	if _, err := WriteThemeChoice(fresh, nil, "kind-dev", "", "nord", "neon"); err == nil {
+		t.Fatal("unknown background accepted")
+	}
+	if _, err := WriteContextTheme(fresh, nil, "kind-dev", "", "nord"); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = os.ReadFile(fresh)
+	if c, _ = Parse(b); c.UI.Background != "transparent" {
+		t.Fatalf("background lost:\n%s", b)
+	}
+}

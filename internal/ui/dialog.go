@@ -36,6 +36,7 @@ type dialog struct {
 	seq     int
 	errAt   int
 	images  []imageField
+	bg      string
 
 	cands    []string
 	candBase string
@@ -123,6 +124,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case km.Submit.Has(key):
 		return m.submitDialog()
+	case d.act == "theme" && key == "b":
+		m.toggleBackground()
+		return m, nil
 	case d.act == "setimage":
 		return m.setImageKey(msg)
 	case d.act == "kpath":
@@ -166,7 +170,7 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		m.dlg = nil
 		return m.openLogs(d.ns+"/"+d.name, d.picked(), d.act == "prevlogs")
 	case "theme":
-		return m.applyThemePick(d.picked())
+		return m.applyThemePick(d.picked(), d.bg)
 	case "login":
 		return m.submitLogin()
 	case "profile":
@@ -394,6 +398,11 @@ func (m model) dialogBox(width int) string {
 	case len(d.images) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" apply  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+	case d.act == "theme":
+		lines = append(lines, dimStyle.Render("background: ")+itemStyle.Render(m.bgMode()),
+			keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
+				keyStyle.Render("b")+dimStyle.Render(" background  ")+
+				keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
 	case len(d.options) > 0:
 		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
@@ -421,6 +430,9 @@ func (m model) optionWindow() (start, end int) {
 	chrome := 6
 	if len(d.details) > 0 {
 		chrome += len(d.details) + 1
+	}
+	if d.act == "theme" {
+		chrome++
 	}
 	limit := m.height - chrome
 	if y > 0 && m.height-y-chrome >= min(n, 6) {

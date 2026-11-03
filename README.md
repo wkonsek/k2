@@ -646,9 +646,27 @@ The theme follows the focused pane and switches without a restart.
 | `horizon` | coral and peach on indigo | dark |
 | `zenburn` | low-contrast cream on gray | dark |
 | `catppuccin-latte` | mauve on warm paper | light |
+| `catppuccin-frappe` | Frappé: mauve on muted blue-gray | dark |
+| `catppuccin-macchiato` | Macchiato: mauve on slate blue | dark |
+| `rose-pine-moon` | Moon: rose and iris on dusky violet | dark |
+| `rose-pine-dawn` | Dawn: iris and pine on parchment | light |
+| `gruvbox-light` | retro yellow and orange on cream | light |
+| `tokyo-night-storm` | Storm: cyan and orange on stormy navy | dark |
+| `tokyo-night-day` | Day: blue ink on pale gray | light |
+| `moonlight` | sky blue and lilac on midnight | dark |
+| `synthwave84` | neon pink and cyan on dusk purple | dark |
+| `palenight` | Material Palenight: purple and blue on dusky indigo | dark |
+| `sonokai` | Monokai pro tones, blue on charcoal | dark |
+| `vesper` | peach and mint on black | dark |
+| `everforest-light` | Light medium: blue and green on soft paper | light |
 | `custom` | your own `colors:` block | either |
 
 ![every theme in the theme popup](docs/demo/themes.gif)
+
+The sidebar sits on the left by default; `ui.sidebar_position` moves it to
+the right, or turns it into a strip across the top or the bottom.
+
+![the sidebar on the left, right, top and bottom](docs/demo/sidebar.gif)
 
 ```yaml
 # ~/.k2/config.yaml (restart k2 to apply; ui.context_themes switch live)
@@ -674,12 +692,16 @@ ui:
   forward_scroll: true      # scroll long forwards instead of cutting them
 ```
 
-- Colors are the themes' official ones (nord's dimmed gray is lightened for
-  readability). The selected row has at least 4.5:1 contrast, dimmed text at
-  least 3:1, and the production color is always a red.
+- Colors are the themes' official ones (nord's dimmed gray is lightened and
+  palenight uses its lighter gray for readability; rose-pine-dawn and
+  everforest-light lead with iris and blue, whose contrast holds on paper).
+  The selected row has at least 4.5:1 contrast, dimmed text and the accent
+  at least 3:1, and the production color is always a red.
 - `background: transparent` keeps the terminal background; `theme` paints
   the whole screen. Light themes paint by default; forcing `transparent`
   on them shows a one-time hint.
+- In the `ctrl+t` popup `b` switches the background live; `enter` saves it
+  to `ui.background` with the theme, `esc` restores both.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
 - The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then

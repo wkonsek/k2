@@ -42,22 +42,54 @@ func (m *model) previewTheme() {
 	}
 }
 
-func (m model) applyThemePick(name string) (tea.Model, tea.Cmd) {
+func (m model) bgPaint(light bool) bool {
+	if m.dlg != nil && m.dlg.act == "theme" && m.dlg.bg != "" {
+		return m.dlg.bg == "theme"
+	}
+	return m.cfg.UI.PaintBackground(light)
+}
+
+func (m model) bgMode() string {
+	if m.paintBg {
+		return "theme"
+	}
+	return "transparent"
+}
+
+func (m *model) toggleBackground() {
+	if m.dlg == nil || m.dlg.act != "theme" {
+		return
+	}
+	m.dlg.bg = "theme"
+	if m.paintBg {
+		m.dlg.bg = "transparent"
+	}
+	m.paintBg = m.dlg.bg == "theme"
+}
+
+func (m model) applyThemePick(name, bg string) (tea.Model, tea.Cmd) {
 	m.dlg = nil
 	name = strings.TrimSpace(name)
 	if name == "" {
 		m.status = "cancelled"
 		return m, nil
 	}
-	next, err := config.WriteContextTheme(config.FilePath(), m.cfg.ContextThemes, m.context, m.kubeconfig, name)
+	next, err := config.WriteThemeChoice(config.FilePath(), m.cfg.ContextThemes, m.context, m.kubeconfig, name, bg)
 	m.cfg.ContextThemes = next
+	if bg != "" {
+		m.cfg.UI.Background, m.cfg.UI.BackgroundSet = bg, true
+	}
 	m.syncTheme()
 	if err != nil {
 		m.status = "theme " + name + " · not saved"
 		return m, m.notify(toneWarn, m.status+" ("+oneLine(err.Error())+")")
 	}
 	m.status = "theme " + name
-	return m, m.notify(toneOK, "theme "+name+" · "+m.context)
+	note := "theme " + name + " · " + m.context
+	if bg != "" {
+		note += " · background " + bg
+	}
+	return m, m.notify(toneOK, note)
 }
 
 func oneLine(s string) string {

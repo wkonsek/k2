@@ -23,7 +23,7 @@ Show
 Sleep 1s
 Ctrl+T
 Sleep 1s
-Down@750ms 22
+Down@700ms 35
 Sleep 1s
 Escape
 Sleep 1.5s

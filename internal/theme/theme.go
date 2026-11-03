@@ -74,7 +74,7 @@ func (p Palette) Styles() Styles {
 func Nord() Palette {
 	return Palette{
 		Name:    "nord",
-		Bg:      lipgloss.Color("#2e3440"),
+		Bg:      lipgloss.Color("#2e3441"),
 		Muted:   lipgloss.Color("#7b88a1"),
 		Text:    lipgloss.Color("#d8dee9"),
 		Accent:  lipgloss.Color("#88c0d0"),

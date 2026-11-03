@@ -4,18 +4,34 @@ func init() {
 	registry = append(registry,
 		NightOwl, Ayu, Monokai, GitHubDark, Flexoki,
 		Oxocarbon, Poimandres, Horizon, Zenburn, CatppuccinLatte,
+		CatppuccinFrappe, CatppuccinMacchiato, RosePineMoon, RosePineDawn, GruvboxLight,
+		TokyoNightStorm, TokyoNightDay, Moonlight, Synthwave84, Palenight,
+		Sonokai, Vesper, EverforestLight,
 	)
 	extra := map[string]string{
-		"night-owl":        "Night Owl: blue and gold on deep navy",
-		"ayu":              "Ayu Mirage: warm yellow on blue-gray",
-		"monokai":          "Monokai: green and pink on olive black",
-		"github-dark":      "GitHub Dark: blue links on near black",
-		"flexoki":          "Flexoki: warm paper ink, dark",
-		"oxocarbon":        "IBM Oxocarbon: cool gray and cyan",
-		"poimandres":       "Poimandres: ice blue on blue-black",
-		"horizon":          "Horizon: coral and peach on indigo",
-		"zenburn":          "Zenburn: low contrast cream on gray",
-		"catppuccin-latte": "Catppuccin Latte: mauve on warm paper (light)",
+		"night-owl":            "Night Owl: blue and gold on deep navy",
+		"ayu":                  "Ayu Mirage: warm yellow on blue-gray",
+		"monokai":              "Monokai: green and pink on olive black",
+		"github-dark":          "GitHub Dark: blue links on near black",
+		"flexoki":              "Flexoki: warm paper ink, dark",
+		"oxocarbon":            "IBM Oxocarbon: cool gray and cyan",
+		"poimandres":           "Poimandres: ice blue on blue-black",
+		"horizon":              "Horizon: coral and peach on indigo",
+		"zenburn":              "Zenburn: low contrast cream on gray",
+		"catppuccin-latte":     "Catppuccin Latte: mauve on warm paper (light)",
+		"catppuccin-frappe":    "Catppuccin Frappé: mauve on muted blue-gray",
+		"catppuccin-macchiato": "Catppuccin Macchiato: mauve on slate blue",
+		"rose-pine-moon":       "Rosé Pine Moon: rose and iris on dusky violet",
+		"rose-pine-dawn":       "Rosé Pine Dawn: iris and pine on parchment (light)",
+		"gruvbox-light":        "Gruvbox light: retro yellow and orange on cream (light)",
+		"tokyo-night-storm":    "Tokyo Night Storm: cyan and orange on stormy navy",
+		"tokyo-night-day":      "Tokyo Night Day: blue ink on pale gray (light)",
+		"moonlight":            "Moonlight II: sky blue and lilac on midnight",
+		"synthwave84":          "Synthwave '84: neon pink and cyan on dusk purple",
+		"palenight":            "Material Palenight: purple and blue on dusky indigo",
+		"sonokai":              "Sonokai: Monokai pro tones, blue on charcoal",
+		"vesper":               "Vesper: peach and mint on black",
+		"everforest-light":     "Everforest light medium: blue and green on soft paper (light)",
 	}
 	for k, v := range extra {
 		Describe[k] = v
@@ -100,5 +116,113 @@ func CatppuccinLatte() Palette {
 		Accent: "#8839ef", Accent2: "#1e66f5", Accent3: "#fe640b",
 		Danger: "#d20f39", OK: "#40a02b", Warn: "#df8e1d", Bright: "#4c4f69",
 		SelBg: "#ccd0da", SelFg: "#4c4f69",
+	}
+}
+
+func CatppuccinFrappe() Palette {
+	return Palette{
+		Name: "catppuccin-frappe", Bg: "#303446", Muted: "#838ba7", Text: "#c6d0f5",
+		Accent: "#ca9ee6", Accent2: "#8caaee", Accent3: "#ef9f76",
+		Danger: "#e78284", OK: "#a6d189", Warn: "#e5c890", Bright: "#f2d5cf",
+	}
+}
+
+func CatppuccinMacchiato() Palette {
+	return Palette{
+		Name: "catppuccin-macchiato", Bg: "#24273a", Muted: "#8087a2", Text: "#cad3f5",
+		Accent: "#c6a0f6", Accent2: "#8aadf4", Accent3: "#f5a97f",
+		Danger: "#ed8796", OK: "#a6da95", Warn: "#eed49f", Bright: "#f4dbd6",
+	}
+}
+
+func RosePineMoon() Palette {
+	return Palette{
+		Name: "rose-pine-moon", Bg: "#232136", Muted: "#908caa", Text: "#e0def4",
+		Accent: "#ea9a97", Accent2: "#c4a7e7", Accent3: "#3e8fb0",
+		Danger: "#eb6f92", OK: "#9ccfd8", Warn: "#f6c177", Bright: "#e0def4",
+	}
+}
+
+func RosePineDawn() Palette {
+	return Palette{
+		Name: "rose-pine-dawn", Light: true, Bg: "#faf4ed", Muted: "#797593", Text: "#464261",
+		Accent: "#907aa9", Accent2: "#286983", Accent3: "#d7827e",
+		Danger: "#b4637a", OK: "#56949f", Warn: "#ea9d34", Bright: "#464261",
+		SelBg: "#dfdad9", SelFg: "#464261",
+	}
+}
+
+func GruvboxLight() Palette {
+	return Palette{
+		Name: "gruvbox-light", Light: true, Bg: "#fbf1c7", Muted: "#7c6f64", Text: "#3c3836",
+		Accent: "#b57614", Accent2: "#427b58", Accent3: "#8f3f71",
+		Danger: "#9d0006", OK: "#79740e", Warn: "#af3a03", Bright: "#282828",
+		SelBg: "#ebdbb2", SelFg: "#282828",
+	}
+}
+
+func TokyoNightStorm() Palette {
+	return Palette{
+		Name: "tokyo-night-storm", Bg: "#24283b", Muted: "#737aa2", Text: "#c0caf5",
+		Accent: "#7dcfff", Accent2: "#bb9af7", Accent3: "#ff9e64",
+		Danger: "#f7768e", OK: "#9ece6a", Warn: "#e0af68", Bright: "#ffffff",
+	}
+}
+
+func TokyoNightDay() Palette {
+	return Palette{
+		Name: "tokyo-night-day", Light: true, Bg: "#e1e2e7", Muted: "#68709a", Text: "#3760bf",
+		Accent: "#2e7de9", Accent2: "#9854f1", Accent3: "#b15c00",
+		Danger: "#f52a65", OK: "#587539", Warn: "#8c6c3e", Bright: "#3760bf",
+		SelBg: "#3760bf", SelFg: "#e1e2e7",
+	}
+}
+
+func Moonlight() Palette {
+	return Palette{
+		Name: "moonlight", Bg: "#222436", Muted: "#828bb8", Text: "#c8d3f5",
+		Accent: "#7cafff", Accent2: "#c4a2ff", Accent3: "#ff966c",
+		Danger: "#ff757f", OK: "#c3e88d", Warn: "#ffc777", Bright: "#ffffff",
+	}
+}
+
+func Synthwave84() Palette {
+	return Palette{
+		Name: "synthwave84", Bg: "#262335", Muted: "#848bbd", Text: "#ffffff",
+		Accent: "#ff7edb", Accent2: "#36f9f6", Accent3: "#f97e72",
+		Danger: "#fe4450", OK: "#72f1b8", Warn: "#fede5d", Bright: "#ffffff",
+	}
+}
+
+func Palenight() Palette {
+	return Palette{
+		Name: "palenight", Bg: "#292d3e", Muted: "#717cb4", Text: "#a6accd",
+		Accent: "#c792ea", Accent2: "#82aaff", Accent3: "#f78c6c",
+		Danger: "#ff5370", OK: "#c3e88d", Warn: "#ffcb6b", Bright: "#ffffff",
+	}
+}
+
+func Sonokai() Palette {
+	return Palette{
+		Name: "sonokai", Bg: "#2c2e34", Muted: "#7f8490", Text: "#e2e2e3",
+		Accent: "#76cce0", Accent2: "#b39df3", Accent3: "#f39660",
+		Danger: "#fc5d7c", OK: "#9ed072", Warn: "#e7c664", Bright: "#ffffff",
+	}
+}
+
+func Vesper() Palette {
+	return Palette{
+		Name: "vesper", Bg: "#101010", Muted: "#a0a0a0", Text: "#ffffff",
+		Accent: "#ffc799", Accent2: "#99ffe4", Accent3: "#ffcfa8",
+		Danger: "#ff8080", OK: "#99ffe4", Warn: "#ffc799", Bright: "#ffffff",
+	}
+}
+
+func EverforestLight() Palette {
+	return Palette{
+		Name: "everforest-light", Light: true, Bg: "#fdf6e3", Muted: "#829181", Text: "#5c6a72",
+		Accent: "#3a94c5", Accent2: "#8da101", Accent3: "#df69ba",
+		Danger: "#f85552", OK: "#8da101", Warn: "#dfa000", Bright: "#5c6a72",
+		SelBg: "#eaedc8", SelFg: "#5c6a72",
 	}
 }

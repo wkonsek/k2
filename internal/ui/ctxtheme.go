@@ -12,6 +12,7 @@ func (m *model) syncTheme() {
 	}
 	name := m.cfg.ThemeFor(m.kubeconfig, m.context)
 	if name == m.themeName {
+		m.paintBg = m.cfg.UI.PaintBackground(th.Light)
 		return
 	}
 	pal := m.cfg.PaletteNamed(name)
@@ -22,7 +23,7 @@ func (m *model) syncTheme() {
 func (m *model) retheme(pal theme.Palette) {
 	useTheme(pal)
 	m.themeName = pal.Name
-	m.paintBg = m.cfg.UI.PaintBackground(pal.Light)
+	m.paintBg = m.bgPaint(pal.Light)
 	for _, in := range []*struct{ p, t *lipgloss.Style }{
 		{&m.portInput.PromptStyle, &m.portInput.TextStyle},
 		{&m.cmd.PromptStyle, &m.cmd.TextStyle},
