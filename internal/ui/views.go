@@ -307,6 +307,9 @@ func (m model) legend() string {
 		pair("↑↓", "move"),
 		pair(k.Select.Label(), "select"),
 	}
+	if m.readOnly {
+		parts = append([]string{warnStyle.Render("VIEW-ONLY")}, parts...)
+	}
 	if m.stage == "nav" {
 
 		parts = []string{pair(k.Select.Label(), "pods")}

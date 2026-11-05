@@ -465,7 +465,7 @@ it shows:
   directory you browse, or the selected kustomization in the `s` list. k2
   keeps running. `editor.open_folder` sets the command (default `code`); if
   it is not in `PATH` k2 says so.
-- `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
+- `A` apply, `D` diff, `ctrl+d` delete act on a green-square row or a plain YAML
   file. Apply and delete ask first, naming the path, context and object
   count.
 - After a delete k2 shows `waiting for N to terminate…`.
@@ -497,6 +497,7 @@ it shows:
 
 - deletes and stopping forwards;
 - Kustomize apply / delete;
+- view-only mode (`R` / `keys.readonly`): blocks those mutating actions for the session;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
 - Helm rollback / uninstall;
@@ -752,6 +753,9 @@ ui:
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
 - The line under `k2` is always `kubectl, elevated`.
+- Resource lists that k2 does not customize still show the cluster's
+  additional printer columns (what `kubectl get` shows), such as Ready on
+  cert-manager certificates.
 
 ### Token lifetime
 

@@ -74,35 +74,59 @@ func (m model) tableAction(key string) (tea.Model, tea.Cmd, bool) {
 	it, _ := m.selectedItem()
 	switch {
 	case km.Shell.Has(key) && base == "pods":
+		if next, cmd, blocked := m.readOnlyBlock("shell"); blocked {
+			return next, cmd, true
+		}
 		if picked, cmd, asked := m.pickContainer("shell", it, ns, name); asked {
 			return picked, cmd, true
 		}
 		next, cmd := m.openShell(ns, name, "")
 		return next, cmd, true
 	case km.Scale.Has(key) && (base == "deployments" || base == "statefulsets" || base == "replicasets"):
+		if next, cmd, blocked := m.readOnlyBlock("scale"); blocked {
+			return next, cmd, true
+		}
 		d := m.newDialog("scale", "⇅ scale "+kind+"/"+name, kind, ns, name).
 			withField(or(it.extra["replicas"], "1"), "replicas", "replicas")
 		m.dlg = d
 		return m, nil, true
 	case km.Scale.Has(key) && base == "pods":
+		if next, cmd, blocked := m.readOnlyBlock("scale"); blocked {
+			return next, cmd, true
+		}
 		m.status = "looking up " + name + "…"
 		return m, m.scaleFromPod(ns, name), true
 	case km.SetImage.Has(key) && setImageKinds[base]:
+		if next, cmd, blocked := m.readOnlyBlock("set image"); blocked {
+			return next, cmd, true
+		}
 		next, cmd := m.openSetImage(kind, ns, name)
 		return next, cmd, true
 	case km.Restart.Has(key) && (base == "deployments" || base == "statefulsets" || base == "daemonsets"):
+		if next, cmd, blocked := m.readOnlyBlock("restart"); blocked {
+			return next, cmd, true
+		}
 		what := "restarted " + kind + "/" + name
 		cmd := m.kubectlAction(what, "rollout", "restart", kind+"/"+name, "-n", ns)
 		return m.confirmDialog("↻ rollout restart", "rollout restart "+kind+"/"+name+"?", kind, ns, name, "restarting…", cmd), nil, true
 	case km.Trigger.Has(key) && base == "cronjobs":
+		if next, cmd, blocked := m.readOnlyBlock("trigger"); blocked {
+			return next, cmd, true
+		}
 		job := manualJobName(name, time.Now())
 		what := "created job " + job
 		cmd := m.kubectlAction(what, "create", "job", "--from=cronjob/"+name, job, "-n", ns)
 		return m.confirmDialog("▶ trigger cronjob", "run cronjob/"+name+" now as job "+job+"?", kind, ns, name, "creating job…", cmd), nil, true
 	case km.Approve.Has(key) && base == "installplans":
+		if next, cmd, blocked := m.readOnlyBlock("approve"); blocked {
+			return next, cmd, true
+		}
 		next, cmd := m.approvePlan(it, kind, ns, name)
 		return next, cmd, true
 	case km.Label.Has(key), km.Annotate.Has(key):
+		if next, cmd, blocked := m.readOnlyBlock("label"); blocked {
+			return next, cmd, true
+		}
 		act, icon := "label", "🏷"
 		if km.Annotate.Has(key) {
 			act, icon = "annotate", "✎"

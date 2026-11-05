@@ -100,6 +100,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.ask != "" {
 		switch {
 		case km.Yes.Has(key):
+			if next, cmd, blocked := m.readOnlyBlock("change"); blocked {
+				return next, cmd
+			}
 			cmd := d.pending
 			m.dlg = nil
 			if d.onYes != nil {
@@ -123,6 +126,11 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "cancelled"
 		return m, nil
 	case km.Submit.Has(key):
+		if d.act != "theme" && d.act != "help" && d.act != "error" && d.act != "favorites" {
+			if next, cmd, blocked := m.readOnlyBlock("change"); blocked {
+				return next, cmd
+			}
+		}
 		return m.submitDialog()
 	case d.act == "theme" && key == "b":
 		m.toggleBackground()

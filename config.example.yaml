@@ -127,9 +127,10 @@
 #   fav_remove: x
 #   fav_up: K
 #   fav_down: J
-#   apply: a
+#   apply: A
+#   readonly: R               # toggle view-only mode
 #   diff: D
-#   kustomize_delete: d
+#   kustomize_delete: ctrl+d
 #   scan: s
 #   kustomize_path: p
 #   open_folder: "."          # Kustomize: open the folder in a new VS Code window

@@ -34,6 +34,7 @@ func (m model) activateNav() (tea.Model, tea.Cmd) {
 		return m, m.content.SetItems(files)
 
 	case "ctx":
+		m.noteNS()
 		if m.kubeconfig == "" {
 			m.status = "select a kubeconfig first"
 			return m, nil
@@ -107,10 +108,14 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		return m, m.showKDir(it.id)
 	case "contexts":
 		m.context = it.title
-		m.stage = "nav"
-		m.status = m.context
 		m.namespace = m.k.NamespaceOf(m.kubeconfig, m.context)
 		m.save()
+		next, cmd := m.resumeNS()
+		nm := next.(model)
+		if nm.kubeconfig != "" && nm.context != "" {
+			return nm, tea.Batch(cmd, fetchResources(nm.k, nm.kubeconfig, nm.context))
+		}
+		return nm, cmd
 	case "projects":
 		name := it.id
 		if name == "" {
@@ -275,7 +280,7 @@ func (m *model) back() tea.Cmd {
 		m.sh.Blur()
 		m.jq.Blur()
 		m.status = m.context
-	case "projects":
+	case "projects", "contexts":
 		if cmd, ok := m.reopenList(); ok {
 			return cmd
 		}

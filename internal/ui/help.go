@@ -151,6 +151,7 @@ func (m model) navSection() helpSection {
 		helpRow{m.prefixed(after(k.NewTab, true), after(k.NextTab, false), after(k.PrevTab, false)), "new / next / prev tab"},
 		helpRow{m.prefixed(after(k.Tab[0], false) + "-" + after(k.Tab[8], false)), "go to tab"},
 		helpRow{keyList(k.LastError, 1), "last error"},
+		helpRow{keyList(k.ReadOnly, 1), "view-only mode"},
 		helpRow{keyList(k.Help, 1) + "/" + keyList(k.Cancel, 1), "close this help"},
 		helpRow{keyList(k.Quit, 1), "quit"},
 	)

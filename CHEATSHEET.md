@@ -25,6 +25,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `Z`, `ctrl+a z` | `keys.fullscreen`, `keys.zoom` | zoom the focused pane / back to the split |
 | `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
 | `?` | `keys.help` | help popup for the current view: navigation first, then the keys of this screen (Kustomize, forwards, logs …); `j/k` `pgup/pgdown` scroll, `?`, `esc` or `q` close. In text inputs `?` is typed as usual; in vim / shell `ctrl+a ?` |
+| `R` | `keys.readonly` | toggle view-only mode for this session: browse, filter, describe, YAML and logs stay available; apply, delete, edit, shell, scale, restart and other cluster changes are blocked |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
 | `q`, `esc`, `H` | `keys.back` | back one screen (or clear a filter) |
@@ -96,7 +97,7 @@ cuts them with `…`).
 | Key | Config | What it does |
 |---|---|---|
 | `C` | `keys.kubeconfig` | pick a kubeconfig (`:kubeconfig`, `:kube`, `:kc`, `:c`) |
-| `c` | `keys.context` | pick a context (`:context`, `:ctx`, `:x`) |
+| `c` | `keys.context` | pick a context (`:context`, `:ctx`, `:x`). Returns to the previous view afterwards, like namespace |
 | `n` | `keys.namespace` | pick a namespace / OpenShift project (`:namespace`, `:ns`, `:project`, `:projects`, `:proj`, `:o`). From a pod list, resource list, pulse, helm or stern, k2 returns to that view afterwards (back does too); from home it returns home |
 | `K` | `keys.kustomize` | kustomize browser (`:kustomize`, `:kust`, `:kustomization`, `:k`) |
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
@@ -334,9 +335,9 @@ the bottom unless `ui.copy_mode_hint: false`.
 |---|---|---|
 | `s` | `keys.scan` | scan the tree for kustomizations |
 | `p` | `keys.kustomize_path` | type a directory to jump to (`tab` completes) |
-| `a` | `keys.apply` | kubectl apply -k on a kustomization, kubectl apply -f on a plain YAML file (popup: path, context, object count) |
+| `A` | `keys.apply` | kubectl apply -k on a kustomization, kubectl apply -f on a plain YAML file (popup: path, context, object count) |
 | `D` | `keys.diff` | kubectl diff -k, or kubectl diff -f on a plain YAML file |
-| `d` | `keys.kustomize_delete` | kubectl delete -k, or kubectl delete -f on a plain YAML file (red popup: path, context, object count) |
+| `ctrl+d` | `keys.kustomize_delete` | kubectl delete -k, or kubectl delete -f on a plain YAML file (red popup: path, context, object count) |
 | `e` | `keys.edit` | open the file / kustomization in vim |
 | `.` | `keys.open_folder` | open the folder in a new VS Code window: `code <dir>` (`editor.open_folder`), detached from k2; the browsed directory, or the selected kustomization after `s` |
 

@@ -370,6 +370,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.openLastErr()
 		case km.Help.Has(key) && !m.cmdOn:
 			return m.openHelp()
+		case km.ReadOnly.Has(key) && !m.cmdOn && !m.inputFocused() && m.dlg == nil:
+			return m.toggleReadOnly()
 		case km.Profile.Has(key) && !m.cmdOn && m.dlg == nil:
 			return m.askSaveProfile()
 		case km.Fullscreen.Has(key):
@@ -431,6 +433,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.stage == "fwds" && !filtering && len(m.forwards) > 0 {
 			switch {
 			case km.PfRestart.Has(key):
+				if next, cmd, blocked := m.readOnlyBlock("restart"); blocked {
+					return next, cmd
+				}
 				return m.restartSelected()
 			case km.PfAuto.Has(key):
 				return m.toggleAuto()
@@ -448,11 +453,19 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			switch {
 			case km.Delete.Has(key) && (m.stage == "workpods" || m.stage == "res" || m.stage == "fwds"):
+				if next, cmd, blocked := m.readOnlyBlock("delete"); blocked {
+					return next, cmd
+				}
 				return m.askDelete()
 			case km.KustomizeDelete.Has(key) && (m.stage == "kdir" || m.stage == "kust"):
-
+				if next, cmd, blocked := m.readOnlyBlock("delete"); blocked {
+					return next, cmd
+				}
 				return m.askKust("delete")
 			case km.PortForward.Has(key) && (m.stage == "workpods" || m.stage == "res"):
+				if next, cmd, blocked := m.readOnlyBlock("port-forward"); blocked {
+					return next, cmd
+				}
 				return m.openPortForward()
 			case km.Describe.Has(key) && (m.stage == "workpods" || m.stage == "res"):
 				return m.describeSelected()
@@ -474,6 +487,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m.editKustomization()
 				}
 				if (m.stage == "workpods" || m.stage == "res") && m.content.SelectedItem() != nil {
+					if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+						return next, cmd
+					}
 					m.status = "opening vim…"
 					return m.editSelected()
 				}
@@ -553,10 +569,16 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case km.Apply.Has(key):
 			if (m.stage == "kust" || m.stage == "kdir") && !filtering {
+				if next, cmd, blocked := m.readOnlyBlock("apply"); blocked {
+					return next, cmd
+				}
 				return m.askKust("apply")
 			}
 		case km.DeleteAll.Has(key) || km.Diff.Has(key):
 			if km.DeleteAll.Has(key) && m.stage == "fwds" && !filtering && len(m.forwards) > 0 {
+				if next, cmd, blocked := m.readOnlyBlock("delete"); blocked {
+					return next, cmd
+				}
 				return m.askStopAll()
 			}
 			if km.Diff.Has(key) && (m.stage == "kust" || m.stage == "kdir") && !filtering {

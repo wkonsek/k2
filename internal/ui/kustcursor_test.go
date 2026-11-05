@@ -56,7 +56,7 @@ func TestKustomizeActionsKeepCursor(t *testing.T) {
 		t.Fatalf("after diff: stage %q selected %q", m.stage, selected(m))
 	}
 
-	m = press(t, m, "a", "y")
+	m = press(t, m, "A", "y")
 	if m.stage != "kout" {
 		t.Fatalf("apply: stage %q", m.stage)
 	}
