@@ -102,6 +102,9 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		m.save()
 	case "kdir":
 		if it.desc == "kust-file" || it.desc == "plain-file" {
+			if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+				return next, cmd
+			}
 			m.status = "opening vim…"
 			return m.editKustomization()
 		}

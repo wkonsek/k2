@@ -483,6 +483,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case km.Edit.Has(key):
 				if (m.stage == "kust" || m.stage == "kdir") && m.content.SelectedItem() != nil {
+					if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+						return next, cmd
+					}
 					m.status = "opening vim…"
 					return m.editKustomization()
 				}
@@ -561,6 +564,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.KustomizePath.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:
 			return m.openKPath()
 		case km.OpenFolder.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:
+			if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+				return next, cmd
+			}
 			return m.openFolder()
 		case km.Scan.Has(key):
 			if m.stage == "kdir" && !filtering {

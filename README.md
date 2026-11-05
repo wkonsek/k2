@@ -497,7 +497,7 @@ it shows:
 
 - deletes and stopping forwards;
 - Kustomize apply / delete;
-- view-only mode (`R` / `keys.readonly`): blocks those mutating actions for the session;
+- view-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. Already-running editors, shells and port-forwards are not revoked;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
 - Helm rollback / uninstall;
@@ -753,9 +753,11 @@ ui:
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
 - The line under `k2` is always `kubectl, elevated`.
-- Resource lists that k2 does not customize still show the cluster's
-  additional printer columns (what `kubectl get` shows), such as Ready on
-  cert-manager certificates.
+- Resource lists that k2 does not customize use the same columns as a normal
+  `kubectl get` (server-printed table via kubectl, including Ready on
+  cert-manager certificates and columns on built-in kinds). Custom k2 tables
+  stay as defined. If that table print is unavailable, CRD
+  `additionalPrinterColumns` are a secondary fallback when readable.
 
 ### Token lifetime
 

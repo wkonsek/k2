@@ -25,7 +25,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `Z`, `ctrl+a z` | `keys.fullscreen`, `keys.zoom` | zoom the focused pane / back to the split |
 | `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
 | `?` | `keys.help` | help popup for the current view: navigation first, then the keys of this screen (Kustomize, forwards, logs …); `j/k` `pgup/pgdown` scroll, `?`, `esc` or `q` close. In text inputs `?` is typed as usual; in vim / shell `ctrl+a ?` |
-| `R` | `keys.readonly` | toggle view-only mode for this session: browse, filter, describe, YAML and logs stay available; apply, delete, edit, shell, scale, restart and other cluster changes are blocked |
+| `R` | `keys.readonly` | toggle view-only mode for this session: browse, filter, describe, YAML, logs and context/namespace stay available; apply, delete, edit (cluster and local Kustomize / folder open), shell, scale, restart, kubectl submit and other changes are blocked. Already-running editors, shells and port-forwards are not killed |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
 | `q`, `esc`, `H` | `keys.back` | back one screen (or clear a filter) |

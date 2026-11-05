@@ -232,6 +232,192 @@ func stringify(v any) string {
 	}
 }
 
+func (c Client) GenericTable(kubeconfig, context, kind, namespace string, objs []Object) Table {
+	showNS := namespace == ""
+	if headers, rows, ok := c.fetchPrintedTable(kubeconfig, context, kind, namespace); ok {
+		return TableFromPrinted(objs, headers, rows)
+	}
+	cols := c.PrinterColumns(kubeconfig, context, kind)
+	return ResourceTableWithColumns(kind, objs, showNS, cols)
+}
+
+func (c Client) fetchPrintedTable(kubeconfig, context, kind, namespace string) ([]string, [][]string, bool) {
+	run := func(all bool) ([]byte, error) {
+		args := []string{"get", kind, "--kubeconfig", kubeconfig, "--context", context}
+		if all {
+			args = append(args, "-A")
+		} else if namespace != "" {
+			args = append(args, "-n", namespace)
+		}
+		return shell.Combined(c.Run, "kubectl", args...)
+	}
+	all := namespace == ""
+	out, err := run(all)
+	if err != nil && all && strings.Contains(strings.ToLower(string(out)), "namespaced") {
+		all = false
+		out, err = run(false)
+	}
+	if err != nil {
+		return nil, nil, false
+	}
+	return ParseKubectlTable(out)
+}
+
+func ParseKubectlTable(out []byte) ([]string, [][]string, bool) {
+	text := string(out)
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		low := strings.ToLower(strings.TrimSpace(line))
+		if strings.HasPrefix(low, "warning:") || strings.HasPrefix(low, "error:") {
+			continue
+		}
+		if strings.HasPrefix(low, "no resources found") {
+			return nil, nil, false
+		}
+		lines = append(lines, line)
+	}
+	if len(lines) == 0 {
+		return nil, nil, false
+	}
+	starts := columnStarts(lines[0])
+	if len(starts) < 2 {
+		return nil, nil, false
+	}
+	headers := splitColumns(lines[0], starts)
+	if len(headers) < 2 {
+		return nil, nil, false
+	}
+	nameOK := false
+	for _, h := range headers {
+		if strings.EqualFold(strings.TrimSpace(h), "name") {
+			nameOK = true
+			break
+		}
+	}
+	if !nameOK {
+		return nil, nil, false
+	}
+	var rows [][]string
+	for _, line := range lines[1:] {
+		cells := splitColumns(line, starts)
+		if len(cells) == 0 || strings.TrimSpace(cells[0]) == "" {
+			continue
+		}
+		for len(cells) < len(headers) {
+			cells = append(cells, "")
+		}
+		if len(cells) > len(headers) {
+			cells = cells[:len(headers)]
+		}
+		rows = append(rows, cells)
+	}
+	return headers, rows, true
+}
+
+func columnStarts(header string) []int {
+	var starts []int
+	in := false
+	for i := 0; i < len(header); i++ {
+		if header[i] != ' ' && header[i] != '\t' {
+			if !in {
+				starts = append(starts, i)
+				in = true
+			}
+		} else {
+			in = false
+		}
+	}
+	return starts
+}
+
+func splitColumns(line string, starts []int) []string {
+	cells := make([]string, len(starts))
+	for i, start := range starts {
+		end := len(line)
+		if i+1 < len(starts) {
+			end = starts[i+1]
+			if end > len(line) {
+				end = len(line)
+			}
+		}
+		if start >= len(line) {
+			cells[i] = ""
+			continue
+		}
+		cells[i] = strings.TrimSpace(line[start:end])
+	}
+	return cells
+}
+
+func TableFromPrinted(objs []Object, headers []string, rows [][]string) Table {
+	heads := make([]string, len(headers))
+	for i, h := range headers {
+		heads[i] = strings.ToUpper(strings.TrimSpace(h))
+	}
+	nameIdx, nsIdx, colorCol := -1, -1, -1
+	for i, h := range heads {
+		switch h {
+		case "NAME":
+			nameIdx = i
+		case "NAMESPACE":
+			nsIdx = i
+		}
+		if colorCol < 0 && (h == "READY" || h == "STATUS" || h == "PHASE" || h == "STATE") {
+			colorCol = i
+		}
+	}
+	byNSName := map[string]Object{}
+	byName := map[string]Object{}
+	for _, o := range objs {
+		byNSName[o.Metadata.Namespace+"/"+o.Metadata.Name] = o
+		byName[o.Metadata.Name] = o
+	}
+	t := Table{Headers: heads, ColorCol: colorCol}
+	for _, row := range rows {
+		cells := make([]string, len(heads))
+		for i := range heads {
+			if i < len(row) {
+				cells[i] = row[i]
+			}
+			if cells[i] == "" {
+				cells[i] = "-"
+			}
+		}
+		name, ns := "", ""
+		if nameIdx >= 0 {
+			name = strings.TrimSuffix(cells[nameIdx], " terminating")
+			if name == "-" {
+				name = ""
+			}
+		}
+		if nsIdx >= 0 && cells[nsIdx] != "-" {
+			ns = cells[nsIdx]
+		}
+		o, ok := byNSName[ns+"/"+name]
+		if !ok {
+			o, ok = byName[name]
+		}
+		if ok {
+			if ns == "" {
+				ns = o.Metadata.Namespace
+			}
+			if o.Metadata.DeletionTimestamp != nil && nameIdx >= 0 {
+				cells[nameIdx] = name + " terminating"
+			}
+			t.Born = append(t.Born, o.Metadata.CreationTimestamp)
+		} else {
+			t.Born = append(t.Born, time.Time{})
+		}
+		t.Rows = append(t.Rows, cells)
+		t.Refs = append(t.Refs, [2]string{ns, name})
+	}
+	return t
+}
+
 func ResourceTableWithColumns(kind string, objs []Object, showNS bool, cols []PrinterColumn) Table {
 	if len(cols) == 0 {
 		return ResourceTable(kind, objs, showNS)

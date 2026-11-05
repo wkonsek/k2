@@ -208,6 +208,9 @@ func shellArgs(kubeconfig, context, ns, pod, container string) []string {
 type shellDoneMsg struct{ err error }
 
 func (m model) openShell(ns, pod, container string) (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("shell"); blocked {
+		return next, cmd
+	}
 	if m.kubeconfig == "" || m.context == "" {
 		m.status = "select kubeconfig and context first"
 		return m, nil

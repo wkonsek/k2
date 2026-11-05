@@ -240,6 +240,9 @@ func (m model) kustTarget(dir string) string {
 }
 
 func (m model) editKustomization() (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+		return next, cmd
+	}
 	sel := m.content.SelectedItem()
 	if sel == nil {
 		return m, nil

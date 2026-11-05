@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"k2/internal/forward"
+
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -85,5 +88,97 @@ func TestReadOnlyBlocksApplyAndDeleteKeys(t *testing.T) {
 	m.readOnly = false
 	if got := press(t, m, "A"); got.asking() == "" {
 		t.Fatal("apply should work again")
+	}
+}
+
+func TestReadOnlyBlocksKustomizeEditAndFolder(t *testing.T) {
+	root := kustTree(t)
+	l := &launches{}
+	m := browseModel(t, root)
+	m.launch = l.fake
+	selectTitle(t, &m, "deploy.yaml")
+	m.readOnly = true
+	if got := press(t, m, "e"); (got.ed != nil && got.ed.live()) || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("edit: status %q live=%v", got.status, got.ed != nil && got.ed.live())
+	}
+	if got := press(t, m, "."); len(l.dirs) != 0 || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("folder: launched %v status %q", l.dirs, got.status)
+	}
+}
+
+func TestReadOnlyBlocksScaleEditExecKubectlAndConfirm(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	m.stage, m.kind = "res", "deployments"
+	m.content.SetItems([]list.Item{item{id: "web", title: "web", cells: []string{"web", "1/1", "1", "1", "1d"}, heads: []string{"NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE"}, extra: map[string]string{"replicas": "1"}}})
+	m.readOnly = true
+
+	if got := press(t, m, "S"); got.dlg != nil || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("scale: dlg=%v status %q", got.dlg != nil, got.status)
+	}
+	if got := press(t, m, "e"); (got.ed != nil && got.ed.live()) || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("edit: status %q", got.status)
+	}
+
+	m.stage, m.kind = "workpods", "pods"
+	m.content.SetItems([]list.Item{item{id: "web-0", title: "web-0", cells: []string{"web-0", "1/1", "Running", "0", "1d"}, heads: []string{"NAME", "READY", "STATUS", "RESTARTS", "AGE"}, extra: map[string]string{"containers": "app"}}})
+	if got := press(t, m, "s"); (got.ed != nil && got.ed.live()) || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("shell: status %q", got.status)
+	}
+
+	m.stage = "kcmd"
+	m.sh.SetValue("get pods")
+	m.sh.Focus()
+	got, _ := m.updateShell(key(t, "enter"))
+	gm := got.(model)
+	if gm.stage == "kout" || !strings.Contains(gm.status, "view-only") {
+		t.Fatalf("kubectl submit: stage %q status %q", gm.stage, gm.status)
+	}
+
+	m = newTestModel(t, testEnv(t), nil)
+	m = m.confirmDialog("↻ rollout restart", "restart?", "deploy", "shop", "web", "restarting…", nil)
+	m.readOnly = true
+	got2 := press(t, m, "y")
+	if !strings.Contains(got2.status, "view-only") {
+		t.Fatalf("confirm yes: status %q ask %q", got2.status, got2.asking())
+	}
+}
+
+func TestReadOnlyBlocksForwardDeleteAndBulk(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m.stage = "fwds"
+	m.forwards = []forward.Forward{forwardFor(1, "8080", "80", "pod", "web")}
+	m.content.SetItems(m.forwardItems())
+	m.readOnly = true
+	if got := press(t, m, "ctrl+d"); got.asking() != "" || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("fwd delete: ask %q status %q", got.asking(), got.status)
+	}
+	if got := press(t, m, "D"); got.asking() != "" || !strings.Contains(got.status, "view-only") {
+		t.Fatalf("fwd delete all: ask %q status %q", got.asking(), got.status)
+	}
+}
+
+func TestReadOnlyKeyIgnoredInFilter(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	_ = m.showKList("/k", []string{"/k/overlays/dev"})
+	m = press(t, m, "/")
+	if !m.listFiltering() {
+		t.Fatal("expected filter")
+	}
+	got := press(t, m, "R")
+	if got.readOnly {
+		t.Fatal("R in filter must type, not toggle view-only")
+	}
+}
+
+func TestReadOnlyAllowsBrowse(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m.readOnly = true
+	got := press(t, m, "c")
+	if strings.Contains(got.status, "view-only") {
+		t.Fatalf("context browse blocked: %q", got.status)
 	}
 }

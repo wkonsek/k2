@@ -455,6 +455,9 @@ func (m model) vimView() tea.Cmd {
 }
 
 func (m model) editSelected() (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+		return next, cmd
+	}
 	sel := m.content.SelectedItem()
 	if sel == nil {
 		return m, nil

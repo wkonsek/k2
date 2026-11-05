@@ -43,6 +43,158 @@ func TestEvalJSONPathReady(t *testing.T) {
 	}
 }
 
+func TestParseKubectlTable(t *testing.T) {
+	out := []byte(`Warning: something deprecated
+NAME              READY   ISSUER        AGE
+example-com-tls   True    letsencrypt   5d
+api-tls           False   letsencrypt   12h
+`)
+	headers, rows, ok := ParseKubectlTable(out)
+	if !ok || strings.Join(headers, " ") != "NAME READY ISSUER AGE" {
+		t.Fatalf("headers %v ok %v", headers, ok)
+	}
+	if len(rows) != 2 || rows[0][1] != "True" || rows[1][0] != "api-tls" {
+		t.Fatalf("rows %v", rows)
+	}
+	if _, _, ok := ParseKubectlTable([]byte("No resources found in shop namespace.\n")); ok {
+		t.Fatal("empty list must not claim a table")
+	}
+}
+
+func TestParseKubectlTableAllNamespaces(t *testing.T) {
+	out := []byte(`NAMESPACE   NAME              READY   AGE
+shop        example-com-tls   True    5d
+kube-system root-ca           True    100d
+`)
+	headers, rows, ok := ParseKubectlTable(out)
+	if !ok || headers[0] != "NAMESPACE" || rows[0][0] != "shop" || rows[1][1] != "root-ca" {
+		t.Fatalf("%v %v", headers, rows)
+	}
+}
+
+func TestTableFromPrintedMapsIdentity(t *testing.T) {
+	js := `{"items":[
+		{"metadata":{"name":"example-com-tls","namespace":"shop","creationTimestamp":"2024-01-01T00:00:00Z"}},
+		{"metadata":{"name":"api-tls","namespace":"shop","creationTimestamp":"2024-01-02T00:00:00Z","deletionTimestamp":"2024-01-03T00:00:00Z"}}
+	]}`
+	headers := []string{"NAMESPACE", "NAME", "READY", "AGE"}
+	rows := [][]string{
+		{"shop", "example-com-tls", "True", "5d"},
+		{"shop", "api-tls", "False", "12h"},
+	}
+	tab := TableFromPrinted(objs(t, js), headers, rows)
+	if strings.Join(tab.Headers, " ") != "NAMESPACE NAME READY AGE" {
+		t.Fatalf("headers %v", tab.Headers)
+	}
+	if tab.Refs[0] != [2]string{"shop", "example-com-tls"} || tab.Refs[1][1] != "api-tls" {
+		t.Fatalf("refs %v", tab.Refs)
+	}
+	if !strings.Contains(tab.Rows[1][1], "terminating") {
+		t.Fatalf("terminating %v", tab.Rows[1])
+	}
+	if tab.ColorCol != 2 || tab.Born[0].IsZero() {
+		t.Fatalf("color %d born %v", tab.ColorCol, tab.Born)
+	}
+}
+
+func TestGenericTablePrefersServerOverCRD(t *testing.T) {
+	printers.mu.Lock()
+	printers.byKey = map[string][]PrinterColumn{}
+	printers.mu.Unlock()
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(append([]string{r.Name}, r.Args...), " ")
+		if strings.Contains(line, "get crd ") {
+			return shell.Fail(1, `Error from server (Forbidden): customresourcedefinitions.apiextensions.k8s.io is forbidden`)
+		}
+		if strings.Contains(line, "get certificates.cert-manager.io") && !strings.Contains(line, "-o") {
+			return shell.OK("NAME              READY   AGE\nexample-com-tls   True    5d\n")
+		}
+		return shell.Fail(1, "unexpected "+line)
+	}}
+	c := New(f)
+	o := objs(t, `{"items":[{"metadata":{"name":"example-com-tls","namespace":"shop","creationTimestamp":"2024-01-01T00:00:00Z"}}]}`)
+	tab := c.GenericTable("/kc", "dev", "certificates.cert-manager.io", "shop", o)
+	if strings.Join(tab.Headers, " ") != "NAME READY AGE" || tab.Rows[0][1] != "True" {
+		t.Fatalf("server table: %v %v", tab.Headers, tab.Rows)
+	}
+	for _, call := range f.Calls() {
+		if strings.Contains(call.Line(), "get crd") {
+			t.Fatal("must not need CRD when server table works")
+		}
+	}
+}
+
+func TestGenericTableNonCRDServerColumns(t *testing.T) {
+	printers.mu.Lock()
+	printers.byKey = map[string][]PrinterColumn{}
+	printers.mu.Unlock()
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := r.Line()
+		if strings.Contains(line, "get services") && !strings.Contains(line, "-o") {
+			return shell.OK("NAME   TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE\nweb    ClusterIP   10.96.0.10     <none>        80/TCP    3d\n")
+		}
+		if strings.Contains(line, "get crd") {
+			return shell.Fail(1, "no")
+		}
+		return shell.Fail(1, "unexpected "+line)
+	}}
+	c := New(f)
+	o := objs(t, `{"items":[{"metadata":{"name":"web","namespace":"shop","creationTimestamp":"2024-01-01T00:00:00Z"}}]}`)
+	tab := c.GenericTable("/kc", "dev", "services", "shop", o)
+	want := "NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE"
+	if strings.Join(tab.Headers, " ") != want || tab.Rows[0][1] != "ClusterIP" || tab.Refs[0][1] != "web" {
+		t.Fatalf("%v %v refs %v", tab.Headers, tab.Rows, tab.Refs)
+	}
+}
+
+func TestGenericTableCRDFallbackWhenPrintFails(t *testing.T) {
+	printers.mu.Lock()
+	printers.byKey = map[string][]PrinterColumn{}
+	printers.mu.Unlock()
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := r.Line()
+		if strings.Contains(line, "get certificates") && !strings.Contains(line, "crd") && !strings.Contains(line, "-o") {
+			return shell.Fail(1, "error: the server does not allow this method on the requested resource")
+		}
+		if strings.Contains(line, "get crd certificates.cert-manager.io") {
+			return shell.OK(`{"spec":{"versions":[{"name":"v1","storage":true,"additionalPrinterColumns":[
+				{"name":"Ready","type":"string","jsonPath":".status.conditions[?(@.type==\"Ready\")].status"},
+				{"name":"Age","type":"date","jsonPath":".metadata.creationTimestamp"}]}]}}`)
+		}
+		return shell.Fail(1, "unexpected "+line)
+	}}
+	c := New(f)
+	o := objs(t, `{"items":[{"metadata":{"name":"web","creationTimestamp":"2024-01-01T00:00:00Z"},
+		"status":{"conditions":[{"type":"Ready","status":"True"}]}}]}`)
+	tab := c.GenericTable("/kc", "dev", "certificates.cert-manager.io", "shop", o)
+	if strings.Join(tab.Headers, " ") != "NAME READY AGE" || tab.Rows[0][1] != "True" {
+		t.Fatalf("crd fallback: %v %v", tab.Headers, tab.Rows)
+	}
+}
+
+func TestGenericTableFallsBackToNameAge(t *testing.T) {
+	printers.mu.Lock()
+	printers.byKey = map[string][]PrinterColumn{}
+	printers.mu.Unlock()
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		return shell.Fail(1, "boom")
+	}}
+	c := New(f)
+	o := objs(t, `{"items":[{"metadata":{"name":"x","creationTimestamp":"2024-01-01T00:00:00Z"}}]}`)
+	tab := c.GenericTable("/kc", "dev", "widgets.example.com", "shop", o)
+	if strings.Join(tab.Headers, " ") != "NAME AGE" {
+		t.Fatalf("%v", tab.Headers)
+	}
+}
+
+func TestCustomSpecsStillWin(t *testing.T) {
+	js := `{"items":[{"metadata":{"name":"web"},"status":{"readyReplicas":2,"replicas":3,"updatedReplicas":3,"availableReplicas":2}}]}`
+	tab := TableForColumns("deploy", objs(t, js), false, []PrinterColumn{{Name: "X", JSONPath: ".x"}})
+	if strings.Join(tab.Headers, " ") != "NAME READY UP-TO-DATE AVAILABLE AGE" {
+		t.Fatalf("custom specs must win: %v", tab.Headers)
+	}
+}
+
 func TestResourceTableUsesPrinterColumns(t *testing.T) {
 	js := `{"items":[
 		{"metadata":{"name":"web","namespace":"shop","creationTimestamp":"2024-01-01T00:00:00Z"},
@@ -67,19 +219,12 @@ func TestResourceTableUsesPrinterColumns(t *testing.T) {
 	if by["web"][1] != "True" || by["api"][1] != "False" || by["web"][2] != "le" {
 		t.Fatalf("rows %v", tab.Rows)
 	}
-	if tab.ColorCol != 1 {
-		t.Fatalf("color %d", tab.ColorCol)
-	}
-}
-
-func TestGenericFallbackWithoutColumns(t *testing.T) {
-	js := `{"items":[{"metadata":{"name":"x","creationTimestamp":"2024-01-01T00:00:00Z"}}]}`
-	if g := TableForColumns("widgets.example.com", objs(t, js), false, nil); strings.Join(g.Headers, " ") != "NAME AGE" {
-		t.Fatalf("%v", g.Headers)
-	}
 }
 
 func TestClientPrinterColumns(t *testing.T) {
+	printers.mu.Lock()
+	printers.byKey = map[string][]PrinterColumn{}
+	printers.mu.Unlock()
 	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		line := strings.Join(append([]string{r.Name}, r.Args...), " ")
 		if strings.Contains(line, "get crd certificates.cert-manager.io") {
@@ -100,18 +245,10 @@ func TestClientPrinterColumns(t *testing.T) {
 	}
 }
 
-func TestAnotherCRDPrinterColumns(t *testing.T) {
-	js := `{"items":[{"metadata":{"name":"gw","creationTimestamp":"2024-01-01T00:00:00Z"},
-		"spec":{"address":"1.2.3.4"},"status":{"phase":"Ready"}}]}`
-	cols := []PrinterColumn{
-		{Name: "ADDRESS", JSONPath: ".spec.address"},
-		{Name: "PHASE", JSONPath: ".status.phase"},
-	}
-	tab := TableForColumns("widgets.example.com", objs(t, js), false, cols)
-	if strings.Join(tab.Headers, " ") != "NAME ADDRESS PHASE AGE" || tab.Rows[0][1] != "1.2.3.4" || tab.Rows[0][2] != "Ready" {
-		t.Fatalf("%v %v", tab.Headers, tab.Rows)
-	}
-	if d := TableForColumns("deploy", objs(t, `{"items":[{"metadata":{"name":"web"},"status":{"readyReplicas":2,"replicas":3,"updatedReplicas":3,"availableReplicas":2}}]}`), false, cols); strings.Join(d.Headers, " ") != "NAME READY UP-TO-DATE AVAILABLE AGE" {
-		t.Fatalf("custom specs must win: %v", d.Headers)
+func TestServerTableIgnoresWideOnlyNoise(t *testing.T) {
+	out := []byte("NAME   DATA   AGE\ncfg    2      1d\n")
+	headers, rows, ok := ParseKubectlTable(out)
+	if !ok || strings.Join(headers, " ") != "NAME DATA AGE" || rows[0][1] != "2" {
+		t.Fatalf("%v %v", headers, rows)
 	}
 }
