@@ -61,9 +61,9 @@ func brandRows(cfg config.UI, inner int, big bool) []string {
 	return rows
 }
 
-var mountain = []string{"    ▄    ", "  ▄███▄  ", "▄███████▄"}
+var mountain = []string{"    ▄█▄    ", "  ▄█████▄  ", "▄█████████▄"}
 
-var mountainMask = []string{"    S    ", "  ASSSA  ", "BAAAAAAAB"}
+var mountainMask = []string{"    SSS    ", "  ASSSSSA  ", "BAAAAAAAAAB"}
 
 func paintMountain(i int) string {
 	r, mk := []rune(mountain[i]), []rune(mountainMask[i])

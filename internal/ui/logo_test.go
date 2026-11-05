@@ -147,7 +147,7 @@ func TestMountainShape(t *testing.T) {
 		t.Fatalf("%d rows, %d masks", len(mountain), len(mountainMask))
 	}
 	w := ansi.StringWidth(mountain[0])
-	if w != 9 {
+	if w != 11 {
 		t.Fatalf("width %d", w)
 	}
 	px := make([][]bool, 2*len(mountain))
@@ -183,7 +183,7 @@ func TestMountainShape(t *testing.T) {
 			widths = append(widths, n)
 		}
 	}
-	if fmt.Sprint(widths) != "[1 3 5 7 9]" {
+	if fmt.Sprint(widths) != "[1 3 5 7 9 11]" {
 		t.Fatalf("pixel rows %v", widths)
 	}
 }
@@ -212,7 +212,7 @@ func TestMountainColors(t *testing.T) {
 }
 
 func TestMountainSidebarIsLeftAligned(t *testing.T) {
-	for _, w := range []int{26, 20, 16, 10} {
+	for _, w := range []int{26, 20, 16, 12} {
 		lines := sidebarPlain(mountainModel(t, "left"), w, 60)
 		for i, row := range mountain {
 			if lines[i] != strings.TrimRight(row, " ") {
