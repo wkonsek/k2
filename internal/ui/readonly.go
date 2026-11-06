@@ -8,7 +8,7 @@ func (m model) readOnlyBlock(what string) (tea.Model, tea.Cmd, bool) {
 	if !m.readOnly {
 		return m, nil, false
 	}
-	msg := "view-only: " + what + " blocked"
+	msg := "read-only: " + what + " blocked"
 	m.status = msg
 	return m, m.notify(toneWarn, msg), true
 }
@@ -19,9 +19,9 @@ func (m model) toggleReadOnly() (tea.Model, tea.Cmd) {
 		if m.dlg != nil && (m.dlg.ask != "" || m.dlg.pending != nil || m.dlg.onYes != nil) {
 			m.dlg = nil
 		}
-		m.status = "view-only on · " + m.cfg.Keys.ReadOnly.Label() + " to leave"
-		return m, m.notify(toneWarn, "view-only on")
+		m.status = "read-only on · " + m.cfg.Keys.ReadOnly.Label() + " to leave"
+		return m, m.notify(toneWarn, "read-only on")
 	}
-	m.status = "view-only off"
-	return m, m.notify(toneOK, "view-only off")
+	m.status = "read-only off"
+	return m, m.notify(toneOK, "read-only off")
 }

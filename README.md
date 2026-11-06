@@ -497,7 +497,7 @@ it shows:
 
 - deletes and stopping forwards;
 - Kustomize apply / delete;
-- view-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. Already-running editors, shells and port-forwards are not revoked;
+- read-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. A lock icon and READ-ONLY appear beside the logo. Already-running editors, shells and port-forwards are not revoked;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
 - Helm rollback / uninstall;

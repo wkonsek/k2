@@ -88,66 +88,83 @@ func paintMountain(i int) string {
 	return b.String()
 }
 
-var padlock = []string{" ▄▄ ", "▐██▌"}
+const lockIcon = ""
 
-func paintPadlock(i int) string {
-	return lipgloss.NewStyle().Foreground(th.Warn).Render(padlock[i])
+func readOnlyMark(full bool) string {
+	if full {
+		return warnStyle.Render(lockIcon + " READ-ONLY")
+	}
+	return warnStyle.Render("READ-ONLY")
 }
 
-func withPadlock(art []string, lock bool, inner int) []string {
-	if !lock || len(art) == 0 {
-		return art
+func decorateReadOnly(rows []string, on bool, inner int) []string {
+	if !on || len(rows) == 0 {
+		return rows
 	}
-	gap := " "
-	out := append([]string(nil), art...)
-	for i := 0; i < len(padlock); i++ {
-		piece := paintPadlock(i)
-		if i < len(out) {
-			cand := out[i] + gap + piece
+	full, short := readOnlyMark(true), readOnlyMark(false)
+	icon := warnStyle.Render(lockIcon)
+	tryAttach := func(mark string) ([]string, bool) {
+		for i := range rows {
+			cand := rows[i] + " " + mark
 			if ansi.StringWidth(ansi.Strip(cand)) <= inner {
+				out := append([]string(nil), rows...)
 				out[i] = cand
+				return out, true
 			}
-			continue
 		}
-		break
+		return nil, false
 	}
-	return out
+	if out, ok := tryAttach(full); ok {
+		return out
+	}
+	if ansi.StringWidth(ansi.Strip(full)) <= inner {
+		return append(append([]string(nil), rows...), full)
+	}
+	if out, ok := tryAttach(short); ok {
+		return out
+	}
+	if ansi.StringWidth(ansi.Strip(short)) <= inner {
+		return append(append([]string(nil), rows...), short)
+	}
+	if out, ok := tryAttach(icon); ok {
+		return out
+	}
+	if ansi.StringWidth(ansi.Strip(icon)) <= inner {
+		return append(append([]string(nil), rows...), icon)
+	}
+	return rows
 }
 
 func mountainRows(cfg config.UI, inner int, lock bool) []string {
-	var art []string
+	var rows []string
 	for i := range mountain {
 		row := paintMountain(i)
 		if cfg.SidebarPosition != "right" {
 			row = strings.TrimRight(row, " ")
 		}
-		art = append(art, row)
+		rows = append(rows, row)
 	}
-	art = withPadlock(art, lock, inner)
-	rows := art
 	rows = append(rows, logoTitle(cfg.LogoTitleColor).Render("k2"))
 	for _, t := range taglineRows(tagline, max(inner, 1)) {
 		rows = append(rows, dimStyle.Render(t))
 	}
-	return rows
+	return decorateReadOnly(rows, lock, inner)
 }
 
 func brandRowsLocked(cfg config.UI, inner int, big, lock bool) []string {
 	style := logoTitle(cfg.LogoTitleColor)
-	var art []string
+	var rows []string
 	if big && ansi.StringWidth(wordmark[0]) <= inner {
 		for _, row := range wordmark {
-			art = append(art, style.Render(row))
+			rows = append(rows, style.Render(row))
 		}
 	} else {
-		art = append(art, style.Render("k2"))
+		rows = append(rows, style.Render("k2"))
 	}
-	art = withPadlock(art, lock, inner)
-	rows := art
 	for _, t := range taglineRows(tagline, max(inner, 1)) {
 		rows = append(rows, dimStyle.Render(t))
 	}
-	return rows
+	return decorateReadOnly(rows, lock, inner)
 }
 
 func logoRows(cfg config.UI, inner, room int, big, lock bool) []string {

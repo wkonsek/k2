@@ -307,11 +307,7 @@ func (m model) legend() string {
 		pair("↑↓", "move"),
 		pair(k.Select.Label(), "select"),
 	}
-	if m.readOnly {
-		parts = append([]string{warnStyle.Render("VIEW-ONLY")}, parts...)
-	}
 	if m.stage == "nav" {
-
 		parts = []string{pair(k.Select.Label(), "pods")}
 	}
 	back, cmd := pair(k.Back.Short(), "back"), pair(k.Command.Short(), "cmd")
@@ -319,6 +315,9 @@ func (m model) legend() string {
 		parts = append(parts, pair(k.Kubeconfig.Short(), "kube"), pair(k.Context.Short(), "ctx"), pair(k.Namespace.Short(), "ns"), pair(k.Kustomize.Short(), "kust"), pair(k.Kubectl.Short(), "kubectl"), pair(k.Forwards.Short(), "forwards"), cmd)
 	} else {
 		parts = append(parts, back, cmd)
+	}
+	if m.readOnly {
+		parts = append([]string{warnStyle.Render(lockIcon + " READ-ONLY")}, parts...)
 	}
 	if m.stage == "workpods" {
 		parts = append(parts, pair(k.Describe.Short(), "describe"), pair(podForwardKey(k), "forward"), pair(k.Scale.Short(), "scale"), pair(k.Shell.Short(), "shell"), pair(k.SetImage.Short(), "image"), pair(k.Edit.Short(), "edit"), pair(k.Delete.Short(), "delete"),
