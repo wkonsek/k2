@@ -465,7 +465,7 @@ it shows:
   directory you browse, or the selected kustomization in the `s` list. k2
   keeps running. `editor.open_folder` sets the command (default `code`); if
   it is not in `PATH` k2 says so.
-- `a` apply, `D` diff, `d` delete act on a green-square row or a plain YAML
+- `A` apply, `D` diff, `ctrl+d` delete act on a green-square row or a plain YAML
   file. Apply and delete ask first, naming the path, context and object
   count.
 - After a delete k2 shows `waiting for N to terminate…`.
@@ -497,6 +497,7 @@ it shows:
 
 - deletes and stopping forwards;
 - Kustomize apply / delete;
+- read-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. A lock icon and READ-ONLY appear beside the logo. Already-running editors, shells and port-forwards are not revoked;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
 - Helm rollback / uninstall;
@@ -701,6 +702,7 @@ ui:
   background: transparent   # transparent (default) | theme
   active_border: thick      # focused pane: thick (default) | normal | double
   dim_inactive: true        # mute the other panes' borders and titles (default false)
+  logo: wordmark            # wordmark (default) | mountain
   logo_title_color: green   # logo color: green | accent
   sidebar_position: left    # left (default) | right | top | bottom
   forward_scroll: true      # scroll long forwards instead of cutting them
@@ -718,13 +720,17 @@ ui:
   to `ui.background` with the theme, `esc` restores both.
 - `active_border: thick` with `dim_inactive: true` makes the focused pane
   stand out best. A production pane stays red with ☠ either way.
-- The sidebar leads with a left-aligned `k2` and `kubectl, elevated`, then
-  the focused context, the kubeconfig path and the namespace, then the
-  actions. Shortcut letters are plain.
+- The sidebar leads with the logo and `kubectl, elevated`, then the
+  focused context, the kubeconfig path and the namespace, then the actions.
+  Shortcut letters are plain.
+  - `ui.logo: wordmark` (default) is the pixel `k2`; `mountain` swaps it for
+    a small pixel mountain with `k2` and the tagline under it, in the
+    sidebar and in the top and bottom strip. Where the mountain does not
+    fit (a short sidebar or strip) the wordmark is shown.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
     background (`ui.cluster_info: false` hides them).
-  - The big `k2` and the cluster info are dropped first when the sidebar is
+  - The big logo and the cluster info are dropped first when the sidebar is
     short.
   - Port-forwards sit at the bottom only when there is one: a `forwards`
     heading, a green square while it is alive and a red square when it is
@@ -747,6 +753,11 @@ ui:
   all/pods`), plus the kubeconfig's short name when it is not
   `~/.kube/config`.
 - The line under `k2` is always `kubectl, elevated`.
+- Resource lists that k2 does not customize use the same columns as a normal
+  `kubectl get` (server-printed table via kubectl, including Ready on
+  cert-manager certificates and columns on built-in kinds). Custom k2 tables
+  stay as defined. If that table print is unavailable, CRD
+  `additionalPrinterColumns` are a secondary fallback when readable.
 
 ### Token lifetime
 

@@ -71,9 +71,9 @@ func TestSidebarIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m.kubeconfig = filepath.Join(home, ".kube", "dppreprod1")
+	m.kubeconfig = filepath.Join(home, ".kube", "preprod1")
 	m.context = "kind-preprod"
-	m.namespace = "dp-preprod3"
+	m.namespace = "shop-preprod3"
 	m.forwards = []forward.Forward{
 		{Namespace: "shop", Pod: "web", Local: "8080", Remote: "80", PID: os.Getpid()},
 		{Namespace: "shop", Pod: "db", Local: "9090", Remote: "90", PID: -1, Reason: "pod gone"},
@@ -86,8 +86,8 @@ func TestSidebarIdentity(t *testing.T) {
 		t.Fatalf("wordmark:\n%s", plain)
 	}
 	ctx := strings.Index(plain, "kind-preprod")
-	path := strings.Index(plain, "~/.kube/dppreprod1")
-	ns := strings.Index(plain, "dp-preprod3")
+	path := strings.Index(plain, "~/.kube/preprod1")
+	ns := strings.Index(plain, "shop-preprod3")
 	menu := strings.Index(plain, "Kubeconfig")
 	ver := strings.Index(plain, "k8s server")
 	head := strings.Index(plain, "\nforwards\n")

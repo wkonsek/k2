@@ -275,6 +275,7 @@ type model struct {
 	resContext  string
 	restored    bool
 	zoom        bool
+	readOnly    bool
 	beat        int
 	rowBusy     map[string]bool
 	cfg         config.Config

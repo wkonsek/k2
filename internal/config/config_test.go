@@ -17,7 +17,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {
 		t.Fatalf("log defaults: %+v", c.Logs)
 	}
-	if c.UI != (UI{LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
+	if c.UI != (UI{Logo: "wordmark", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
 		t.Fatalf("ui defaults: %+v", c.UI)
 	}
 	if c.StateDir != DefaultDir() || len(c.Prod) != 0 || len(c.Aliases) != 0 {
@@ -27,8 +27,8 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	want := map[string]Binding{
 		"kubeconfig": {"C"}, "context": {"c"}, "namespace": {"n"}, "kustomize": {"K"},
 		"kubectl": {"U"}, "forwards": {"f"}, "port_forward": {"ctrl+f", "F"}, "describe": {"d"}, "edit": {"e"},
-		"kustomize_delete": {"d"}, "page_down": {"pgdown", "}"}, "page_up": {"pgup", "{"},
-		"decode": {"x"}, "apply": {"a"}, "diff": {"D"}, "delete_all": {"D"},
+		"kustomize_delete": {"ctrl+d"}, "page_down": {"pgdown", "}"}, "page_up": {"pgup", "{"},
+		"decode": {"x"}, "apply": {"A"}, "diff": {"D"}, "delete_all": {"D"},
 
 		"prefix": {"ctrl+a"},
 
@@ -41,7 +41,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 		"next_tab": {"direct ]", "n", "]"}, "prev_tab": {"direct [", "p", "["},
 		"wrap":  {"w"},
 		"tab_1": {"1"}, "tab_5": {"5"}, "tab_9": {"9"},
-		"fullscreen": {"Z"}, "quit": {"Q", "ctrl+c"}, "back": {"q", "esc", "H"},
+		"fullscreen": {"Z"}, "readonly": {"R"}, "quit": {"Q", "ctrl+c"}, "back": {"q", "esc", "H"},
 		"delete": {"ctrl+d"}, "output": {"ctrl+o"}, "jq": {"ctrl+j"}, "command": {":"},
 		"yes": {"y", "Y"}, "no": {"n", "N", "esc", "q"}, "vim": {"v"}, "complete": {"tab"},
 	}
@@ -302,7 +302,7 @@ func TestUISwitches(t *testing.T) {
 		`config: ui.animations: "maybe" is not true or false (using true)`,
 		`config: ui.toasts: "" is not true or false (using true)`,
 		`config: ui.toast_seconds: 99 is out of range 1..30 (using 3)`,
-		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, forward_scroll, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_position, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
+		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, forward_scroll, logo, logo_title_color, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_position, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, wrap)`,
 	}
 	if strings.Join(w, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("warnings:\n%s", strings.Join(w, "\n"))
@@ -423,7 +423,7 @@ func TestScreenKeyConflicts(t *testing.T) {
 		{"keys: {describe: e}", "keys.describe: e is already used by edit (using d)", func(k Keys) bool { return k.Describe.Has("d") }},
 		{"keys: {port_forward: ctrl+d}", "keys.port_forward: ctrl+d is already used by delete (using ctrl+f, F)", func(k Keys) bool { return k.PortForward.Has("ctrl+f") && k.PortForward.Has("F") }},
 		{"keys: {page_down: ctrl+f}", "keys.page_down: ctrl+f is already used by port_forward (using pgdown, })", func(k Keys) bool { return k.PageDown.Has("pgdown") && !k.PageDown.Has("ctrl+f") }},
-		{"keys: {kustomize_delete: a}", "keys.kustomize_delete: a is already used by apply (using d)", func(k Keys) bool { return k.KustomizeDelete.Has("d") }},
+		{"keys: {kustomize_delete: A}", "keys.kustomize_delete: A is already used by apply (using ctrl+d)", func(k Keys) bool { return k.KustomizeDelete.Has("ctrl+d") }},
 		{"keys: {describe: f}", "keys.describe: f is already used by forwards (using d)", func(k Keys) bool { return k.Describe.Has("d") }},
 
 		{"keys: {shell: d}", "keys.shell: d is already used by describe (using s)", func(k Keys) bool { return k.Shell.Has("s") }},
@@ -491,7 +491,7 @@ func TestConfigExampleIsDefaults(t *testing.T) {
 		t.Fatalf("example differs from defaults:\n%+v\n%+v", c, def)
 	}
 
-	for _, name := range append(KeyNames(), "editor_inline", "background", "tabbar", "sidebar_position", "toast_seconds", "active_border", "dim_inactive", "cluster_info", "pod_metrics", "metrics_every", "clipboard", "wrap", "forward_scroll") {
+	for _, name := range append(KeyNames(), "editor_inline", "background", "tabbar", "sidebar_position", "toast_seconds", "active_border", "dim_inactive", "cluster_info", "pod_metrics", "metrics_every", "clipboard", "wrap", "forward_scroll", "logo") {
 		if !regexp.MustCompile(`(?m)^#\s+` + name + `:`).Match(data) {
 			t.Errorf("config.example.yaml lacks %s", name)
 		}

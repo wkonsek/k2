@@ -76,8 +76,8 @@ func popupCases() []popupCase {
 		}, []string{"ctrl+d"}, "✗ delete configmaps", []string{"delete configmaps/cfg?", "configmaps shop/cfg"}, true},
 		{"stop forward", fwds, []string{"ctrl+d"}, "■ stop port-forward", []string{"localhost:8080 → svc/web:80", "shop · kind-dev"}, true},
 		{"stop all forwards", fwds, []string{"D"}, "■ stop all port-forwards", []string{"stop and remove all 1 forward?", "localhost:8080 → svc/web:80"}, true},
-		{"kustomize delete", kust, []string{"d"}, "✗ kustomize delete", []string{"delete overlays/dev on kind-dev?", "/k/overlays/dev", "resources:"}, true},
-		{"kustomize apply", kust, []string{"a"}, "⇪ kustomize apply", []string{"apply overlays/dev on kind-dev?", "/k/overlays/dev"}, true},
+		{"kustomize delete", kust, []string{"ctrl+d"}, "✗ kustomize delete", []string{"delete overlays/dev on kind-dev?", "/k/overlays/dev", "resources:"}, true},
+		{"kustomize apply", kust, []string{"A"}, "⇪ kustomize apply", []string{"apply overlays/dev on kind-dev?", "/k/overlays/dev"}, true},
 		{"close pane", pods, []string{"ctrl+a", "v", "ctrl+a", "x"}, "✗ close pane", []string{"close pane?"}, false},
 		{"close tab", pods, []string{"ctrl+a", "t", "ctrl+a", "w"}, "✗ close tab", []string{"close tab 2?", "tab 2 · 1 pane"}, false},
 		{"rollout restart", func(t *testing.T, f *shell.Fake, prod bool) model {
@@ -158,7 +158,7 @@ func TestDestructivePopupsYes(t *testing.T) {
 	f = deleteCluster()
 	m = actionModel(t, f)
 	_ = m.showKList("/k", []string{"/k/overlays/dev"})
-	next, cmd := m.Update(key(t, "d"))
+	next, cmd := m.Update(key(t, "ctrl+d"))
 	m = next.(model)
 	if cmd == nil {
 		t.Fatal("no count command")

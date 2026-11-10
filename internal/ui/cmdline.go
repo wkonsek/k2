@@ -118,8 +118,8 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 		return m, m.notify(toneWarn, "not installed: "+q)
 	}
 	if kind == "" {
-		m.status = "unknown: " + q
-		return m, nil
+		m.status = "unknown resource: " + q
+		return m, m.notify(toneWarn, m.status)
 	}
 	if kind == "pods" {
 		return m.openNamed("pods")

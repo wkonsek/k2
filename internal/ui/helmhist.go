@@ -202,6 +202,10 @@ func (m model) histKey(key string) (tea.Model, tea.Cmd, bool) {
 		m.status = m.subject + " · " + km.Search.Short() + " search · " + km.Back.Short() + " back"
 		return m, nil, true
 	case km.HelmRollback.Has(key):
+		if next, cmd, blocked := m.readOnlyBlock("rollback"); blocked {
+			return next, cmd, true
+		}
+
 		if !sel {
 			return m, nil, true
 		}

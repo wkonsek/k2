@@ -43,6 +43,9 @@ func (m model) folderHere() string {
 }
 
 func (m model) openFolder() (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+		return next, cmd
+	}
 	dir := m.folderHere()
 	if dir == "" {
 		return m, nil

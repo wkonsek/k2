@@ -72,6 +72,7 @@
 #   token_crit: 10            # percent, 1..99
 #   wrap: false
 #   copy_mode_hint: true
+#   logo: wordmark            # wordmark (default) | mountain
 #   logo_title_color: green   # logo color: green | accent
 #   clipboard: auto           # auto | wl-copy | xclip | xsel | osc52
 # keys:                       # one key, or a list. "direct " means without the ctrl+a prefix
@@ -126,9 +127,10 @@
 #   fav_remove: x
 #   fav_up: K
 #   fav_down: J
-#   apply: a
+#   apply: A
+#   readonly: R               # toggle view-only mode
 #   diff: D
-#   kustomize_delete: d
+#   kustomize_delete: ctrl+d
 #   scan: s
 #   kustomize_path: p
 #   open_folder: "."          # Kustomize: open the folder in a new VS Code window

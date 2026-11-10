@@ -106,6 +106,30 @@ func apiGroup(apiVersion string) string {
 	return ""
 }
 
+func HasTableSpec(kind string) bool {
+	base := BaseKind(kind)
+	if _, ok := specs[base]; ok {
+		return true
+	}
+	switch base {
+	case "pods", "events", "secrets", "secret":
+		return true
+	}
+	res, _, grp := SplitKind(kind)
+	if res == "" {
+		res = base
+	}
+	for _, s := range groupSpecs {
+		if s.plural == res && (grp == "" || s.group == grp || strings.HasSuffix(kind, "."+s.group) || strings.Contains(kind, s.group)) {
+			return true
+		}
+		if strings.EqualFold(s.kind, res) {
+			return true
+		}
+	}
+	return false
+}
+
 func specFor(kind string, objs []Object) (spec, bool) {
 	if len(objs) > 0 {
 		k, g := objs[0].Str("kind"), apiGroup(objs[0].Str("apiVersion"))

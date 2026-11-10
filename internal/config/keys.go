@@ -111,6 +111,7 @@ type Keys struct {
 	Zoom                                                         Binding
 	LastError                                                    Binding
 	Help                                                         Binding
+	ReadOnly                                                     Binding
 	Quit                                                         Binding
 	Prefix                                                       Binding
 	Back                                                         Binding
@@ -165,7 +166,7 @@ func DefaultKeys() Keys {
 		Kubeconfig: Binding{"C"}, Context: Binding{"c"}, Namespace: Binding{"n"},
 		Kustomize: Binding{"K"}, Kubectl: Binding{"U"}, Forwards: Binding{"f"},
 		PortForward: Binding{"ctrl+f", "F"}, Describe: Binding{"d"}, Watch: Binding{"r"}, Edit: Binding{"e"}, Decode: Binding{"x"},
-		Delete: Binding{"ctrl+d"}, KustomizeDelete: Binding{"d"}, Apply: Binding{"a"}, Diff: Binding{"D"},
+		Delete: Binding{"ctrl+d"}, KustomizeDelete: Binding{"ctrl+d"}, Apply: Binding{"A"}, Diff: Binding{"D"},
 		DeleteAll: Binding{"D"}, PfRestart: Binding{"r"}, PfAuto: Binding{"a"}, Scan: Binding{"s"}, Vim: Binding{"v"}, Wrap: Binding{"w"},
 		CopyMode: Binding{"y"}, LogMark: Binding{"m"}, CopySelect: Binding{"v"}, CopyYank: Binding{"y"}, CopyAll: Binding{"Y"},
 		Shell: Binding{"s"}, Previous: Binding{"p"}, Log30: Binding{"1"}, Log60: Binding{"2"}, Scale: Binding{"S"}, SetImage: Binding{"i"}, Restart: Binding{"r"}, Trigger: Binding{"t"},
@@ -181,7 +182,7 @@ func DefaultKeys() Keys {
 		NewTab: Binding{"t", "c"}, CloseTab: Binding{"w", "&"}, RenameTab: Binding{","},
 		NextTab: Binding{DirectMark + "]", "n", "]"}, PrevTab: Binding{DirectMark + "[", "p", "["},
 		Tab:        [9]Binding{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"7"}, {"8"}, {"9"}},
-		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Help: Binding{"?"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
+		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Help: Binding{"?"}, ReadOnly: Binding{"R"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
 		Back: Binding{"q", "esc", "H"}, Left: Binding{"left", "h"},
 		Select: Binding{"enter", "right", "l"}, Submit: Binding{"enter"},
 		Cancel: Binding{"esc"}, ShellBack: Binding{"esc", "q"},
@@ -284,6 +285,7 @@ var keyFields = []keyField{
 	{"zoom", func(k *Keys) *Binding { return &k.Zoom }},
 	{"last_error", func(k *Keys) *Binding { return &k.LastError }},
 	{"help", func(k *Keys) *Binding { return &k.Help }},
+	{"readonly", func(k *Keys) *Binding { return &k.ReadOnly }},
 	{"quit", func(k *Keys) *Binding { return &k.Quit }},
 	{"prefix", func(k *Keys) *Binding { return &k.Prefix }},
 	{"back", func(k *Keys) *Binding { return &k.Back }},
@@ -392,7 +394,7 @@ var globalKeys = map[string]bool{
 }
 
 var screenKeys = func() map[string][]string {
-	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "command", "back", "left", "select"}
+	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "command", "readonly", "back", "left", "select"}
 	move := []string{"scroll_down", "scroll_up", "page_down", "page_up", "top", "bottom"}
 	with := func(extra ...string) []string {
 		return append(append(append([]string(nil), common...), move...), extra...)

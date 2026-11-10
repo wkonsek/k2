@@ -20,6 +20,19 @@ func TestLogoTitleColorSetting(t *testing.T) {
 	}
 }
 
+func TestLogoSetting(t *testing.T) {
+	if Default().UI.Logo != "wordmark" {
+		t.Fatalf("default %q", Default().UI.Logo)
+	}
+	if c, w := Parse([]byte("ui:\n  logo: Mountain\n")); len(w) != 0 || c.UI.Logo != "mountain" {
+		t.Fatalf("mountain: %q %v", c.UI.Logo, w)
+	}
+	c, w := Parse([]byte("ui: {logo: volcano}"))
+	if c.UI.Logo != "wordmark" || len(w) != 1 || !strings.Contains(w[0], `ui.logo: "volcano" is not one of wordmark, mountain (using wordmark)`) {
+		t.Fatalf("volcano: %q %v", c.UI.Logo, w)
+	}
+}
+
 func TestCustomTheme(t *testing.T) {
 	in := `
 theme: custom

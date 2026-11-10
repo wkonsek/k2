@@ -83,7 +83,7 @@ func TestKustomizeShowsAllFiles(t *testing.T) {
 func TestKustomizeActionsNeedKustomization(t *testing.T) {
 	root := kustTree(t)
 	for _, row := range []string{"README.md", "docs"} {
-		for _, k := range []string{"a", "D", "d"} {
+		for _, k := range []string{"A", "D", "ctrl+d"} {
 			m := browseModel(t, root)
 			selectTitle(t, &m, row)
 			m = press(t, m, k)
@@ -102,19 +102,19 @@ func TestKustomizeActionsNeedKustomization(t *testing.T) {
 	}
 	m = browseModel(t, root)
 	selectTitle(t, &m, "deploy.yaml")
-	if got := press(t, m, "d"); got.asking() != "✗ kubectl delete" {
+	if got := press(t, m, "ctrl+d"); got.asking() != "✗ kubectl delete" {
 		t.Fatalf("d on deploy.yaml: confirm %q toast %q", got.asking(), got.toast.text)
 	}
 	m = browseModel(t, root)
 	selectTitle(t, &m, "deploy.yaml")
-	if got := press(t, m, "a"); got.asking() != "⇪ kubectl apply" {
+	if got := press(t, m, "A"); got.asking() != "⇪ kubectl apply" {
 		t.Fatalf("a on deploy.yaml: confirm %q", got.asking())
 	}
 
 	for _, row := range []string{"kustomization.yaml", "base"} {
 		m := browseModel(t, root)
 		selectTitle(t, &m, row)
-		if got := press(t, m, "a"); got.asking() != "⇪ kustomize apply" {
+		if got := press(t, m, "A"); got.asking() != "⇪ kustomize apply" {
 			t.Fatalf("a on %s: confirm %q", row, got.asking())
 		}
 		if got := press(t, m, "D"); got.stage != "kout" {

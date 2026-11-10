@@ -181,9 +181,16 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.helmHistory(r)
 		return next, cmd, true
 	case km.HelmRollback.Has(key):
+		if next, cmd, blocked := m.readOnlyBlock("rollback"); blocked {
+			return next, cmd, true
+		}
+
 		next, cmd := m.askHelm("rollback", r)
 		return next, cmd, true
 	default:
+		if next, cmd, blocked := m.readOnlyBlock("uninstall"); blocked {
+			return next, cmd, true
+		}
 		next, cmd := m.askHelm("uninstall", r)
 		return next, cmd, true
 	}

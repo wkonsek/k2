@@ -111,6 +111,9 @@ func (m *model) updateShell(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return *m, nil
 	case km.Submit.Has(key):
+		if next, cmd, blocked := m.readOnlyBlock("kubectl"); blocked {
+			return next, cmd
+		}
 		line := strings.TrimSpace(m.sh.Value())
 		if line == "" {
 			return *m, nil

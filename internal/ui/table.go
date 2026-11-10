@@ -626,7 +626,10 @@ func getResourceItems(k kube.Client, kubeconfig, context, namespace, kind string
 		}
 		return "", nil, err
 	}
-	return packKube(kube.TableFor(kind, objs, namespace == ""), width, namespace)
+	if kube.HasTableSpec(kind) {
+		return packKube(kube.TableFor(kind, objs, namespace == ""), width, namespace)
+	}
+	return packKube(k.GenericTable(kubeconfig, context, kind, namespace, objs), width, namespace)
 }
 
 func getPodItems(k kube.Client, kubeconfig, context, namespace, selector string, width int) (string, []list.Item, error) {
