@@ -69,7 +69,7 @@ func (m *model) applyYAML(msg yamlMsg) {
 
 func (m model) viewing() bool {
 	return m.stage == "logs" || m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" ||
-		m.stage == "mlogs" || m.stage == "pulse" || m.stage == "hdiff"
+		m.stage == "mlogs" || m.stage == "pulse" || m.stage == "hdiff" || m.stage == "htpl"
 }
 
 func (m model) textRows() int {
@@ -256,7 +256,7 @@ func (m model) logsBody(innerW int) string {
 		}
 		return b.String()
 	}
-	if m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" || m.stage == "pulse" || m.stage == "hdiff" {
+	if m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" || m.stage == "pulse" || m.stage == "hdiff" || m.stage == "htpl" {
 		mark := m.scrollKeys()
 		if len(lines) > rows {
 			mark = fmt.Sprintf("%s  %d-%d", m.scrollKeys(), top+1, top+len(shown))

@@ -176,6 +176,8 @@ func (b *builder) helmReleases() {
 type helmFlags struct {
 	ns, kubeconfig, ctx string
 	pos                 []string
+	version, values     string
+	createNS            bool
 }
 
 func parseHelm(args []string) helmFlags {
@@ -199,6 +201,14 @@ func parseHelm(args []string) helmFlags {
 			f.kubeconfig = val()
 		case a == "--kube-context" || strings.HasPrefix(a, "--kube-context="):
 			f.ctx = val()
+		case a == "--version" || strings.HasPrefix(a, "--version="):
+			f.version = val()
+		case a == "-f" || a == "--values" || strings.HasPrefix(a, "--values="):
+			f.values = val()
+		case a == "--create-namespace":
+			f.createNS = true
+		case a == "--versions":
+			f.pos = append(f.pos, a)
 		case strings.HasPrefix(a, "-"):
 		default:
 			f.pos = append(f.pos, a)
@@ -229,6 +239,26 @@ func helmMain(args []string) int {
 		}
 		time.Sleep(900 * time.Millisecond)
 		return mutate(func(w *world) int { return helmRollback(newCl(w, f.ctx), f) })
+	case "search":
+		return helmSearch(f)
+	case "show":
+		return helmShow(f)
+	case "template":
+		return helmTemplate(f)
+	case "install":
+		if len(f.pos) < 2 {
+			fmt.Fprintln(os.Stderr, "Error: \"helm install\" requires at least 2 arguments")
+			return 1
+		}
+		time.Sleep(400 * time.Millisecond)
+		return mutate(func(w *world) int { return helmInstall(newCl(w, f.ctx), f, false) })
+	case "upgrade":
+		if len(f.pos) < 1 {
+			fmt.Fprintln(os.Stderr, "Error: \"helm upgrade\" requires at least 1 argument")
+			return 1
+		}
+		time.Sleep(400 * time.Millisecond)
+		return mutate(func(w *world) int { return helmInstall(newCl(w, f.ctx), f, true) })
 	case "uninstall":
 		if len(f.pos) == 0 {
 			fmt.Fprintln(os.Stderr, "Error: \"helm uninstall\" requires at least 1 argument")
@@ -336,4 +366,237 @@ func yamlText(v any) string {
 	enc.SetIndent(2)
 	_ = enc.Encode(v)
 	return b.String()
+}
+
+type repoChart struct {
+	name, version, app, desc string
+	values                   map[string]any
+}
+
+func repoCharts() []repoChart {
+	return []repoChart{
+		{"kafbat-ui/kafka-ui", "1.4.0", "v1.2.0", "A UI for Apache Kafka", map[string]any{"replicaCount": 1, "service": map[string]any{"type": "ClusterIP", "port": 8080}, "image": map[string]any{"repository": "ghcr.io/kafbat/kafka-ui", "tag": "v1.2.0"}}},
+		{"kafbat-ui/kafka-ui", "1.3.1", "v1.1.0", "A UI for Apache Kafka", map[string]any{"replicaCount": 1, "service": map[string]any{"type": "ClusterIP", "port": 8080}, "image": map[string]any{"repository": "ghcr.io/kafbat/kafka-ui", "tag": "v1.1.0"}}},
+		{"bitnami/nginx", "18.2.0", "1.27.0", "nginx", map[string]any{"replicaCount": 1, "image": map[string]any{"registry": "docker.io", "repository": "bitnami/nginx", "tag": "1.27.0"}}},
+		{"bitnami/nginx", "18.1.0", "1.26.0", "nginx", map[string]any{"replicaCount": 1, "image": map[string]any{"registry": "docker.io", "repository": "bitnami/nginx", "tag": "1.26.0"}}},
+	}
+}
+
+func helmSearch(f helmFlags) int {
+	query := ""
+	versions := false
+	for _, a := range f.pos {
+		if a == "repo" {
+			continue
+		}
+		if a == "--versions" {
+			versions = true
+			continue
+		}
+		if query == "" {
+			query = a
+		}
+	}
+	fmt.Println("NAME                   \tCHART VERSION\tAPP VERSION\tDESCRIPTION")
+	seen := map[string]bool{}
+	for _, c := range repoCharts() {
+		if query != "" && !strings.Contains(c.name, query) {
+			continue
+		}
+		if !versions && seen[c.name] {
+			continue
+		}
+		seen[c.name] = true
+		fmt.Printf("%-22s\t%-13s\t%-11s\t%s\n", c.name, c.version, c.app, c.desc)
+	}
+	return 0
+}
+
+func chartBase(name string) string {
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		return name[i+1:]
+	}
+	return name
+}
+
+func chartMatch(c repoChart, name string) bool {
+	return c.name == name || strings.HasSuffix(c.name, "/"+name) || chartBase(c.name) == name
+}
+
+func findChart(name, version string) (repoChart, bool) {
+	var latest repoChart
+	found := false
+	for _, c := range repoCharts() {
+		if !chartMatch(c, name) {
+			continue
+		}
+		if version != "" {
+			if c.version == version {
+				return c, true
+			}
+			continue
+		}
+		if !found {
+			latest, found = c, true
+		}
+	}
+	return latest, found
+}
+
+func helmShow(f helmFlags) int {
+	if len(f.pos) < 2 || f.pos[0] != "values" {
+		fmt.Fprintln(os.Stderr, "Error: helm show values CHART")
+		return 1
+	}
+	c, ok := findChart(f.pos[1], f.version)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: chart %q not found\n", f.pos[1])
+		return 1
+	}
+	fmt.Print(yamlText(c.values))
+	return 0
+}
+
+func loadValuesFile(path string) map[string]any {
+	if path == "" {
+		return nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var v map[string]any
+	if yaml.Unmarshal(b, &v) != nil {
+		return nil
+	}
+	return v
+}
+
+func chartManifest(c repoChart, name, ns string, vals map[string]any) string {
+	img := "app:latest"
+	if im, ok := vals["image"].(map[string]any); ok {
+		repo, _ := im["repository"].(string)
+		tag, _ := im["tag"].(string)
+		if repo != "" {
+			img = repo
+			if tag != "" {
+				img += ":" + tag
+			}
+		}
+	}
+	reps := 1
+	switch n := vals["replicaCount"].(type) {
+	case int:
+		reps = n
+	case int64:
+		reps = int(n)
+	case float64:
+		reps = int(n)
+	}
+	chart := chartBase(c.name) + "-" + c.version
+	var b strings.Builder
+	fmt.Fprintf(&b, "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: %s\n  namespace: %s\n  labels:\n    app.kubernetes.io/name: %s\n    helm.sh/chart: %s\nspec:\n  type: ClusterIP\n  ports:\n    - port: 80\n      targetPort: http\n  selector:\n    app: %s\n", name, ns, name, chart, name)
+	fmt.Fprintf(&b, "---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\n  namespace: %s\n  labels:\n    app.kubernetes.io/name: %s\n    helm.sh/chart: %s\nspec:\n  replicas: %d\n  selector:\n    matchLabels:\n      app: %s\n  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n      containers:\n        - name: app\n          image: %q\n          ports:\n            - name: http\n              containerPort: 8080\n", name, ns, name, chart, reps, name, name, img)
+	return b.String()
+}
+
+func helmTemplate(f helmFlags) int {
+	if len(f.pos) < 2 {
+		fmt.Fprintln(os.Stderr, "Error: \"helm template\" requires at least 2 arguments")
+		return 1
+	}
+	c, ok := findChart(f.pos[1], f.version)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: chart %q not found\n", f.pos[1])
+		return 1
+	}
+	vals := mergeValues(c.values, loadValuesFile(f.values))
+	fmt.Print(chartManifest(c, f.pos[0], f.ns, vals))
+	return 0
+}
+
+func ensureNS(c *cl, ns string) {
+	if c.find("namespaces", "", ns) == nil {
+		c.add(obj{"apiVersion": "v1", "kind": "Namespace",
+			"metadata": obj{"name": ns, "uid": uid(c.ctx, "ns", ns), "creationTimestamp": ts(c.now),
+				"labels": obj{"kubernetes.io/metadata.name": ns}},
+			"spec":   obj{"finalizers": []any{"kubernetes"}},
+			"status": obj{"phase": "Active"}})
+	}
+}
+
+func helmInstall(c *cl, f helmFlags, upgrade bool) int {
+	name := f.pos[0]
+	chart := ""
+	if len(f.pos) > 1 {
+		chart = f.pos[1]
+	}
+	secs := helmSecrets(c, f.ns, name)
+	if !upgrade && len(secs) > 0 {
+		fmt.Fprintln(os.Stderr, "Error: cannot re-use a name that is still in use")
+		return 1
+	}
+	if upgrade && len(secs) == 0 {
+		fmt.Fprintln(os.Stderr, "Error: release: not found")
+		return 1
+	}
+	if upgrade && chart == "" {
+		last := secretRelease(secs[len(secs)-1])
+		chart = str(last, "chart", "metadata", "name")
+	}
+	rc, ok := findChart(chart, f.version)
+	if !ok && !upgrade {
+		fmt.Fprintf(os.Stderr, "Error: chart %q not found\n", chart)
+		return 1
+	}
+	vals := map[string]any{}
+	rev := 1
+	if len(secs) > 0 {
+		prev := secretRelease(secs[len(secs)-1])
+		rev = num(prev, "version") + 1
+		if rc.name == "" {
+			rc = repoChart{name: str(prev, "chart", "metadata", "name"), version: str(prev, "chart", "metadata", "version"), app: str(prev, "chart", "metadata", "appVersion"), values: asMap(asMap(prev["chart"])["values"])}
+		}
+		vals = mergeValues(asMap(prev["config"]), loadValuesFile(f.values))
+	} else {
+		vals = mergeValues(rc.values, loadValuesFile(f.values))
+	}
+	if f.createNS {
+		ensureNS(c, f.ns)
+	}
+	if f.version != "" {
+		rc.version = f.version
+	}
+	man := chartManifest(rc, name, f.ns, vals)
+	status, desc := "deployed", "Install complete"
+	if upgrade {
+		desc = "Upgrade complete"
+		for _, s := range secs {
+			if str(s, "metadata", "labels", "status") == "deployed" {
+				r := secretRelease(s)
+				sub(r, "info")["status"] = "superseded"
+				sub(s, "metadata", "labels")["status"] = "superseded"
+				sub(s, "data")["release"] = b64(encodeRelease(r))
+			}
+		}
+	}
+	base := chartBase(rc.name)
+	rel := map[string]any{
+		"name": name, "namespace": f.ns, "version": rev,
+		"info": map[string]any{"first_deployed": ts(c.now), "last_deployed": ts(c.now), "deleted": "",
+			"description": desc, "status": status, "notes": name + " is deployed.\n\nGet the application URL by running:\n  kubectl -n " + f.ns + " port-forward svc/" + name + " 8080:80\n"},
+		"chart": map[string]any{
+			"metadata": map[string]any{"name": base, "version": rc.version, "appVersion": rc.app, "apiVersion": "v2"},
+			"values":   rc.values,
+		},
+		"config":   vals,
+		"manifest": man,
+	}
+	c.add(releaseSecret(c.ctx, rel, c.now))
+	if upgrade {
+		fmt.Printf("Release %q has been upgraded. Happy Helming!\nNOTES:\n%s is deployed.\n", name, name)
+	} else {
+		fmt.Printf("NAME: %s\nNAMESPACE: %s\nSTATUS: deployed\nNOTES:\n%s is deployed.\n  kubectl -n %s port-forward svc/%s 8080:80\n", name, f.ns, name, f.ns, name)
+	}
+	return 0
 }

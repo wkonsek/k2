@@ -148,6 +148,11 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 		}
 	case "shell":
 		m.status = "shell closed"
+	case "helmvalues":
+		if m.vs.hop != nil {
+			m.reopenHelmForm()
+			m.status = "values " + m.vs.hop.values
+		}
 	}
 	return nil
 }

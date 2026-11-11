@@ -119,6 +119,8 @@
 #   helm_notes: N
 #   helm_history: t
 #   helm_rollback: r
+#   helm_install: A
+#   helm_upgrade: u
 #   helm_mark: space
 #   helm_diff: D
 #   all_namespaces: "0"

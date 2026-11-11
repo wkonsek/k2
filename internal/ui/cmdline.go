@@ -196,6 +196,13 @@ func (m model) runViewCommand(raw string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.runLogsCommand(rest)
 		return next, cmd, true
 	case "helm", "releases", "charts":
+		if op, ok, err := parseHelmCmd(rest); ok {
+			next, cmd := m.openHelmInstall(op)
+			return next, cmd, true
+		} else if err != "" {
+			m.status = err
+			return m, m.notify(toneWarn, err), true
+		}
 		switch strings.ToLower(rest) {
 		case "all", "-a", "--all-namespaces":
 			m.vs.helmAll = true

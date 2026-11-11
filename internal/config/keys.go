@@ -153,6 +153,8 @@ type Keys struct {
 	HelmNotes     Binding
 	HelmHistory   Binding
 	HelmRollback  Binding
+	HelmInstall   Binding
+	HelmUpgrade   Binding
 	AllNamespaces Binding
 	LogFilter     Binding
 	FavAdd        Binding
@@ -200,7 +202,7 @@ func DefaultKeys() Keys {
 		HelmMark: Binding{" "}, HelmDiff: Binding{"D"}, Search: Binding{"/"},
 		XrayExpand: Binding{"+"}, XrayCollapse: Binding{"-"}, XrayFilter: Binding{"/"},
 		HelmValues: Binding{"v"}, HelmComputed: Binding{"V"}, HelmManifest: Binding{"M"}, HelmNotes: Binding{"N"},
-		HelmHistory: Binding{"t"}, HelmRollback: Binding{"r"}, AllNamespaces: Binding{"0"},
+		HelmHistory: Binding{"t"}, HelmRollback: Binding{"r"}, HelmInstall: Binding{"A"}, HelmUpgrade: Binding{"u"}, AllNamespaces: Binding{"0"},
 		LogFilter: Binding{"/"},
 		FavAdd:    Binding{"a"}, FavRemove: Binding{"x"}, FavUp: Binding{"K"}, FavDown: Binding{"J"},
 	}
@@ -326,6 +328,8 @@ var keyFields = []keyField{
 	{"helm_notes", func(k *Keys) *Binding { return &k.HelmNotes }},
 	{"helm_history", func(k *Keys) *Binding { return &k.HelmHistory }},
 	{"helm_rollback", func(k *Keys) *Binding { return &k.HelmRollback }},
+	{"helm_install", func(k *Keys) *Binding { return &k.HelmInstall }},
+	{"helm_upgrade", func(k *Keys) *Binding { return &k.HelmUpgrade }},
 	{"all_namespaces", func(k *Keys) *Binding { return &k.AllNamespaces }},
 	{"log_filter", func(k *Keys) *Binding { return &k.LogFilter }},
 	{"fav_add", func(k *Keys) *Binding { return &k.FavAdd }},
@@ -407,7 +411,7 @@ var screenKeys = func() map[string][]string {
 		"xray": with("describe", "yaml", "xray_toggle", "xray_expand_all", "xray_collapse_all", "xray_filter", "multi_logs", "copy_name", "copy_ref", "all_namespaces"),
 
 		"helm": with("helm_values", "helm_computed", "helm_manifest", "helm_notes", "helm_history", "helm_rollback",
-			"delete", "all_namespaces", "copy_name", "copy_ref", "sort_next", "sort_prev", "sort_reverse"),
+			"helm_install", "helm_upgrade", "delete", "all_namespaces", "copy_name", "copy_ref", "sort_next", "sort_prev", "sort_reverse"),
 
 		"helmhist": with("helm_rollback", "helm_mark", "helm_diff", "helm_values", "helm_computed", "helm_manifest", "helm_notes", "copy_name"),
 

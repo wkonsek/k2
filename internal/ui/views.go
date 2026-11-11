@@ -347,7 +347,7 @@ func (m model) legend() string {
 		parts = append(parts, pair(k.HelmValues.Short(), "values"), pair(k.HelmComputed.Short(), "computed"), pair(k.HelmManifest.Short(), "manifest"),
 			pair(k.HelmNotes.Short(), "notes"), pair(k.HelmHistory.Short(), "history"), pair(k.AllNamespaces.Short(), "all ns"))
 		if m.helmCLI() != "" {
-			parts = append(parts, pair(k.HelmRollback.Short(), "rollback"), pair(k.Delete.Short(), "uninstall"))
+			parts = append(parts, pair(k.HelmInstall.Short(), "install"), pair(k.HelmUpgrade.Short(), "upgrade"), pair(k.HelmRollback.Short(), "rollback"), pair(k.Delete.Short(), "uninstall"))
 		}
 		parts = append(parts, m.tableLegend()...)
 	} else if m.viewing() {
@@ -638,7 +638,7 @@ func (m model) rightBody(innerW int) string {
 			}
 		}
 		return head + "\n" + m.content.View()
-	case "logs", "yaml", "view", "kout", "describe", "mlogs", "pulse", "hdiff":
+	case "logs", "yaml", "view", "kout", "describe", "mlogs", "pulse", "hdiff", "htpl":
 		return m.logsBody(innerW)
 	case "fwds":
 		head := ""

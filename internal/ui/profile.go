@@ -109,7 +109,7 @@ func profilePane(s paneSnap) config.ProfilePane {
 		p.View = s.kind
 	case "pulse":
 		p.View = "pulse"
-	case "helm", "helmhist", "hdiff":
+	case "helm", "helmhist", "hdiff", "htpl":
 		p.View = "helm"
 	case "logs":
 		p.View = "logs"

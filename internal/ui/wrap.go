@@ -129,10 +129,18 @@ func (m model) buildVisual(innerW int) []vline {
 		for i, l := range logical {
 			colored[i] = colorPulse(l)
 		}
-	case "hdiff":
+	case "hdiff", "htpl":
 		colored = make([]string, len(logical))
 		for i, l := range logical {
-			colored[i] = colorHelmDiff(l)
+			if m.stage == "htpl" && !strings.HasPrefix(l, "+") && !strings.HasPrefix(l, "-") && !strings.HasPrefix(l, "=== ") && !strings.HasPrefix(l, "@@") {
+				if strings.HasPrefix(l, "#") {
+					colored[i] = dimStyle.Render(l)
+				} else {
+					colored[i] = colorYAML(l)
+				}
+			} else {
+				colored[i] = colorHelmDiff(l)
+			}
 		}
 	}
 	out := make([]vline, 0, len(logical))

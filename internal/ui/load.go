@@ -319,9 +319,16 @@ func (m *model) applyEditDone(msg editDoneMsg) {
 	}
 	if msg.err != nil {
 		m.status = m.errLine(msg.err)
+		if msg.helmName != "" && m.vs.hop != nil {
+			m.reopenHelmForm()
+		}
 		return
 	}
 	m.status = "done"
+	if msg.helmName != "" {
+		m.applyHelmDone(msg)
+		return
+	}
 	if m.stage == "helm" {
 		m.helmRefreshNow()
 		return

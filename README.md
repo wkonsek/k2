@@ -126,13 +126,13 @@ all its pods at once, stern-style.
 
 ![logs of all pods of a deployment](docs/demo/multi-logs.gif)
 
-**Helm releases without the helm CLI.** `:helm` lists releases, all decoded
-by k2 from Helm's release secrets.
+**Helm releases.** `:helm` lists releases, all decoded by k2 from Helm's
+release secrets (no helm CLI needed to browse).
 
 - See values, computed values, manifest, notes and a revision history.
 - Mark two revisions and diff them per resource.
-- Roll back to any revision (this one step uses the helm CLI, when
-  installed).
+- Install or upgrade a chart, or roll back a revision (these steps use the
+  helm CLI, when installed).
 
 ![Helm history, diff and rollback](docs/demo/helm.gif)
 
@@ -433,10 +433,19 @@ APP VERSION, UPDATED.
   a table (`●` current revision).
 - In the history `space` marks a revision and `D` diffs it with another (or
   the selected one with the current one), per resource plus user values.
+- `A` installs a chart and `u` upgrades the selected release: a form for
+  the release name, chart (tab-completed from `helm search repo`), version,
+  namespace (with create-if-missing) and values file (pick a path, edit it,
+  or start from `helm show values`). Preview with `helm template` (for an
+  upgrade, a per-resource diff against the current manifest). A red popup
+  names the context, release, chart and namespace; on success k2 jumps to
+  the release and shows its notes.
+- `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`
+  and `:helm upgrade …` prefill the same form.
 - `r` rolls back (to the previous revision from the list, to the selected
-  one from the history) and `ctrl+d` uninstalls; both need the helm CLI
-  (`helm.binary`) and ask in a red popup.
-- k2 never installs or upgrades charts.
+  one from the history) and `ctrl+d` uninstalls.
+- Install, upgrade, rollback and uninstall need the helm CLI (`helm.binary`)
+  and ask in a red popup. Read-only mode (`R`) blocks all four.
 
 **Favorites (`b`, `:fav`).**
 
@@ -500,7 +509,7 @@ it shows:
 - read-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. A lock icon and READ-ONLY appear beside the logo. Already-running editors, shells and port-forwards are not revoked;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
-- Helm rollback / uninstall;
+- Helm install / upgrade / rollback / uninstall;
 - on production also scale, label and annotate.
 
 Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
@@ -797,8 +806,7 @@ where the token lives). The token is not printed afterwards.
 
 - Linux, `kubectl` on `PATH`; Go 1.24 or newer to build.
 - Optional: `vim` (viewing and editing), `jq` (the kubectl view's filter),
-  `ss` or `lsof` (finding what holds a local port), `helm` (only for Helm
-  rollback and uninstall), metrics-server (CPU / MEM columns and pulse).
+  `ss` or `lsof` (finding what holds a local port), `helm` (for Helm install, upgrade, rollback and uninstall), metrics-server (CPU / MEM columns and pulse).
 
 ### Development
 

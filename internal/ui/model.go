@@ -70,6 +70,7 @@ type viewState struct {
 	helmAll   bool
 	helm      []kube.HelmRelease
 	hist      *helmHist
+	hop       *helmOp
 	search    string
 	searchAt  int
 	nsPrev    string
@@ -189,6 +190,8 @@ type editDoneMsg struct {
 
 	pane  string
 	token int
+
+	helmNS, helmName, helmNotes string
 }
 
 type tickMsg time.Time

@@ -109,7 +109,7 @@ cuts them with `…`).
 | — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
-| — | — | helm releases (`:helm`, `:helm all` for every namespace) |
+| — | — | helm releases (`:helm`, `:helm all` for every namespace; `:helm install` / `:helm upgrade` prefill the install form) |
 | — | — | namespace pulse: health of the pane's namespace (`:pulse`) |
 | — | — | pods (`:pods`, `:pod`, `:po`, `:r`); the pods list to start a forward from (`:forward`, `:p`) |
 | `tab` | `keys.complete` | complete a `:` command (targets, cluster resources, aliases); again cycles |
@@ -205,9 +205,21 @@ open; tab completes the kind and the name.
 
 ## Helm releases (`:helm`)
 
-Read with kubectl from Helm's release secrets (no helm CLI needed);
-rollback and uninstall run the helm CLI (`helm.binary`) and are offered
-only when it is found.
+Read with kubectl from Helm's release secrets (no helm CLI needed to
+browse). Install, upgrade, rollback and uninstall run the helm CLI
+(`helm.binary`) and are offered only when it is found. Read-only mode
+(`R`) blocks all four.
+
+`A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
+opens a form for the release name, chart (tab-completed from `helm search repo`),
+version, namespace (with a create-if-missing toggle) and values file
+(pick a path, edit it in the editor, or start from `helm show values`).
+Preview with `helm template` shows kinds and a scrollable manifest; a red
+popup names the context, release, chart and namespace. On success k2 jumps
+to the release and shows its notes. `u` (or `:helm upgrade …`) opens the
+same form on the selected release: name, chart and namespace stay fixed,
+version and values can change, and the preview is a per-resource diff
+against the current manifest.
 
 | Key | Config | What it does |
 |---|---|---|
@@ -217,6 +229,8 @@ only when it is found.
 | `N` | `keys.helm_notes` | the chart notes |
 | `t` | `keys.helm_history` | revision history: a table of revisions (see below) |
 | `0` | `keys.all_namespaces` | all namespaces / the pane's namespace (k9s `0`) |
+| `A` | `keys.helm_install` | install a chart (helm CLI; form, preview, red popup) |
+| `u` | `keys.helm_upgrade` | upgrade the selected release (helm CLI; form, diff preview, red popup) |
 | `r` | `keys.helm_rollback` | roll back to the previous revision (helm CLI; red popup) |
 | `ctrl+d` | `keys.delete` | uninstall the release (helm CLI; red popup), also with other panes or tabs open |
 

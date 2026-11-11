@@ -62,6 +62,24 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case helmHistMsg:
 		cmd := m.applyHelmHist(msg)
 		return m, cmd, true
+	case helmSearchMsg:
+		next, cmd := m.applyHelmSearch(msg)
+		return next, cmd, true
+	case helmVersMsg:
+		next, cmd := m.applyHelmVers(msg)
+		return next, cmd, true
+	case helmTplMsg:
+		cmd := m.applyHelmTpl(msg)
+		return m, cmd, true
+	case helmValuesDoneMsg:
+		if m.vs.hop != nil {
+			m.reopenHelmForm()
+			m.status = "values " + m.vs.hop.values
+		}
+		return m, nil, true
+	case helmErrPopupMsg:
+		next, cmd := m.openLastErr()
+		return next, cmd, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
 		return m, cmd, true
@@ -114,6 +132,11 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m.helmKey(key)
 	case m.stage == "helmhist":
 		return m.histKey(key)
+	case m.stage == "htpl":
+		if m.cfg.Keys.Select.Has(key) {
+			next, cmd := m.askHelmApply()
+			return next, cmd, true
+		}
 	case m.viewing() && m.stage != "mlogs" && km.Search.Has(key):
 		next, cmd := m.openSearch()
 		return next, cmd, true
@@ -130,9 +153,14 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.backToXray()
 		return next, cmd, true
 	}
-	if m.vs.vback != "" && (m.stage == "yaml" || m.stage == "view" || m.stage == "describe" || m.stage == "hdiff") {
+	if m.vs.vback != "" && (m.stage == "yaml" || m.stage == "view" || m.stage == "describe" || m.stage == "hdiff" || m.stage == "htpl") {
 		back := m.vs.vback
 		m.vs.vback = ""
+		if back == "helminstall" && m.vs.hop != nil {
+			m.reopenHelmForm()
+			m.status = m.helmFormHint(m.vs.hop.act)
+			return m, nil, true
+		}
 		m.stage = back
 		switch back {
 		case "xray":
