@@ -416,8 +416,8 @@ func (m model) dialogBox(width int) string {
 	case d.msg != "":
 		lines = append(lines, errStyle.Render(d.msg))
 	case d.act == "helminstall" && len(d.hfields) > 0:
-		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" preview  ")+
-			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Complete.Short())+dimStyle.Render(" complete  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" preview  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
 	case len(d.images) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" apply  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

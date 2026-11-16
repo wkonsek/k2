@@ -128,6 +128,19 @@ func fitWidth(s string, n int) string {
 	return string(r[:n-1]) + "…"
 }
 
+func fitMiddle(s string, n int) string {
+	if n < 4 {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	left := (n - 1) / 2
+	right := n - 1 - left
+	return string(r[:left]) + "…" + string(r[len(r)-right:])
+}
+
 func or(s, fallback string) string {
 	if s == "" {
 		return fallback

@@ -98,6 +98,12 @@ func TestHelmInstallFormAndPreview(t *testing.T) {
 			t.Fatalf("form lacks %q:\n%s", want, view)
 		}
 	}
+	if strings.Count(view, "enter preview") != 1 {
+		t.Fatalf("hint should appear once:\n%s", view)
+	}
+	if strings.Contains(view, "enter previews, or opens edit") {
+		t.Fatalf("long hint still shown:\n%s", view)
+	}
 	setHelmField(m.dlg, "name", "kafbat-ui")
 	setHelmField(m.dlg, "chart", "kafbat-ui/kafka-ui")
 	setHelmField(m.dlg, "version", "1.4.0")
@@ -282,4 +288,27 @@ func helmVerbCalls(f *shell.Fake, verb string) []string {
 		}
 	}
 	return out
+}
+
+func TestHelmUpgradeValuesPathEllipsis(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	long := "/tmp/k2-helm-54192100-very-long-directory-name/kafbat-ui-values.yaml"
+	setHelmField(m.dlg, "values", long)
+	view := ansi.Strip(m.View())
+	if strings.Contains(view, long) {
+		t.Fatalf("full path shown:\n%s", view)
+	}
+	if !strings.Contains(view, "…") || !strings.Contains(view, "values.yaml") {
+		t.Fatalf("expected mid ellipsis:\n%s", view)
+	}
+	if strings.Count(view, "enter preview") != 1 {
+		t.Fatalf("hint should appear once:\n%s", view)
+	}
 }

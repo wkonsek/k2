@@ -166,12 +166,11 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 	d.hfields = fields
 	d.hcreate = op.createNS
 	d.idx = focus
-	d.hint = m.helmFormHint(op.act)
 }
 
 func (m model) helmFormHint(act string) string {
 	k := m.cfg.Keys
-	return "tab moves · " + k.Complete.Short() + " completes · enter previews, or opens edit / chart defaults · " + k.Cancel.Short() + " cancel"
+	return "tab moves · " + k.Complete.Short() + " completes · enter previews · " + k.Cancel.Short() + " cancel"
 }
 
 func (m *model) stashHelmForm() {
@@ -855,9 +854,21 @@ func (d *dialog) helmFormRows(inner int) []string {
 			continue
 		}
 		in := f.input
-		in.Width = max(8, inner-nameW-4)
+		avail := max(8, inner-ansi.StringWidth(ansi.Strip(label)))
+		valW := max(1, avail-ansi.StringWidth(in.Prompt))
+		in.Width = valW
+		shown := in.Value()
+		if f.key == "values" && ansi.StringWidth(shown) > valW {
+			shown = fitMiddle(shown, valW)
+		} else if ansi.StringWidth(shown) > avail {
+			shown = fitMiddle(shown, avail)
+		}
 		if f.locked {
-			out = append(out, label+dimStyle.Render(in.Value()))
+			out = append(out, label+dimStyle.Render(shown))
+			continue
+		}
+		if i != d.idx && shown != in.Value() {
+			out = append(out, label+itemStyle.Render(in.Prompt+shown))
 			continue
 		}
 		out = append(out, label+in.View())
@@ -876,11 +887,6 @@ func (d *dialog) helmFormRows(inner int) []string {
 			}
 		}
 		out = append(out, strings.Join(parts, "  "))
-	}
-	if d.hint != "" {
-		for _, l := range strings.Split(ansi.Wordwrap(d.hint, inner, ""), "\n") {
-			out = append(out, dimStyle.Render(l))
-		}
 	}
 	return out
 }
