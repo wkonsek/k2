@@ -151,18 +151,18 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 		{key: "ns", label: "namespace", input: helmFieldInput(op.ns, "default"), locked: locked},
 	}
 	if op.act == "install" {
-		fields = append(fields, helmField{key: "create", label: "create ns", toggle: true})
+		fields = append(fields, helmField{key: "create", label: "create ns", input: helmFieldInput("", ""), toggle: true})
 	}
 	fields = append(fields,
 		helmField{key: "values", label: "values", input: helmFieldInput(op.values, "path to values.yaml")},
-		helmField{key: "editvals", label: "edit values", action: true},
-		helmField{key: "defaults", label: "chart defaults", action: true},
+		helmField{key: "editvals", label: "edit values", input: helmFieldInput("", ""), action: true},
+		helmField{key: "defaults", label: "chart defaults", input: helmFieldInput("", ""), action: true},
 	)
 	focus := 0
 	if locked {
 		focus = 2
 	}
-	fields[focus].input.Focus()
+	helmFocus(&fields[focus])
 	d.hfields = fields
 	d.hcreate = op.createNS
 	d.idx = focus
@@ -286,15 +286,34 @@ func (m model) applyHelmVers(msg helmVersMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (f helmField) typed() bool {
+	return !f.toggle && !f.action && !f.locked
+}
+
+func helmBlur(f *helmField) {
+	if f.typed() {
+		f.input.Blur()
+	}
+}
+
+func helmFocus(f *helmField) {
+	if f.typed() {
+		f.input.Focus()
+	}
+}
+
 func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	km, key := m.cfg.Keys, msg.String()
 	d := m.dlg
-	if len(d.hfields) == 0 {
+	if d == nil || len(d.hfields) == 0 {
 		return m, nil
+	}
+	if d.idx < 0 || d.idx >= len(d.hfields) {
+		d.idx = 0
 	}
 	switch {
 	case key == "tab" || key == "down" || km.ScrollDown.Has(key):
-		if key == "tab" && !d.hfields[d.idx].toggle {
+		if key == "tab" && d.hfields[d.idx].typed() {
 			if next, cmd, done := m.completeHelmField(); done {
 				return next, cmd
 			}
@@ -332,17 +351,23 @@ func (m model) liveHelmVersions() tea.Cmd {
 
 func (m model) moveHelmField(delta int) model {
 	d := m.dlg
-	d.hfields[d.idx].input.Blur()
+	if d == nil || len(d.hfields) == 0 {
+		return m
+	}
 	n := len(d.hfields)
-	for i := 0; i < n; i++ {
-		d.idx = (d.idx + delta + n) % n
-		if !d.hfields[d.idx].locked {
-			break
+	if d.idx < 0 || d.idx >= n {
+		d.idx = 0
+	}
+	helmBlur(&d.hfields[d.idx])
+	if delta != 0 {
+		for i := 0; i < n; i++ {
+			d.idx = (d.idx + delta%n + n) % n
+			if !d.hfields[d.idx].locked {
+				break
+			}
 		}
 	}
-	if !d.hfields[d.idx].toggle {
-		d.hfields[d.idx].input.Focus()
-	}
+	helmFocus(&d.hfields[d.idx])
 	d.cands, d.candBase, d.candAt = nil, "", -1
 	d.msg = ""
 	return m

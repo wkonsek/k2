@@ -312,3 +312,72 @@ func TestHelmUpgradeValuesPathEllipsis(t *testing.T) {
 		t.Fatalf("hint should appear once:\n%s", view)
 	}
 }
+
+func TestHelmFormWalksEveryField(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = open(t, m, "helm")
+	m = pressSettle(t, m, "A")
+	walkHelmFields(t, m, "install")
+
+	m = appModel(t, f)
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	walkHelmFields(t, m, "upgrade")
+}
+
+func walkHelmFields(t *testing.T, m model, kind string) {
+	t.Helper()
+	if m.dlg == nil || m.dlg.act != "helminstall" || len(m.dlg.hfields) == 0 {
+		t.Fatalf("%s: no form %+v", kind, m.dlg)
+	}
+	n := len(m.dlg.hfields)
+	start := m.dlg.idx
+	unlocked := 0
+	for _, f := range m.dlg.hfields {
+		if !f.locked {
+			unlocked++
+		}
+		if f.input.Prompt == "" {
+			t.Fatalf("%s field %s: input not created with textinput.New", kind, f.key)
+		}
+	}
+	if unlocked == 0 {
+		t.Fatalf("%s: no movable fields", kind)
+	}
+	for _, key := range []string{"j", "k", "tab", "shift+tab", "down", "up"} {
+		m.dlg.idx = start
+		m = m.moveHelmField(0)
+		seen := map[int]bool{m.dlg.idx: true}
+		for i := 0; i < n*2+2; i++ {
+			m = pressSettle(t, m, key)
+			if m.dlg == nil {
+				t.Fatalf("%s %s: form closed at step %d", kind, key, i)
+			}
+			if m.dlg.idx < 0 || m.dlg.idx >= n {
+				t.Fatalf("%s %s: idx %d out of %d", kind, key, m.dlg.idx, n)
+			}
+			if m.dlg.hfields[m.dlg.idx].locked {
+				t.Fatalf("%s %s landed on locked %s", kind, key, m.dlg.hfields[m.dlg.idx].key)
+			}
+			seen[m.dlg.idx] = true
+			_ = m.View()
+		}
+		if key == "tab" || key == "shift+tab" {
+			continue
+		}
+		for i, f := range m.dlg.hfields {
+			if f.locked {
+				continue
+			}
+			if !seen[i] {
+				t.Fatalf("%s %s never reached %s", kind, key, f.key)
+			}
+		}
+	}
+	last := m.dlg.hfields[n-1].key
+	if last != "defaults" {
+		t.Fatalf("%s last field %s, want defaults", kind, last)
+	}
+}
