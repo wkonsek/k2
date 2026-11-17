@@ -14,6 +14,9 @@ type clusterInfo struct {
 	v       kube.Versions
 	loading bool
 	done    bool
+	listed  bool
+	at      time.Time
+	tries   int
 }
 
 type clusterInfoMsg struct {
@@ -32,30 +35,59 @@ func (m *model) clusterInfoCmd() tea.Cmd {
 	}
 	key := infoKey(m.kubeconfig, m.context)
 	cur, cached := m.cinfo[key]
-	if cur.loading || (cached && key == m.cinfoKey) {
+	if cur.loading {
+		return nil
+	}
+	retry := cur.done && cur.v.Server == "" && (cur.listed || time.Since(cur.at) >= infoRetry(cur.tries))
+	if cached && key == m.cinfoKey && !retry {
 		return nil
 	}
 	m.cinfoKey = key
-	m.setInfo(key, clusterInfo{v: cur.v, loading: true, done: cur.done})
+	m.setInfo(key, clusterInfo{v: cur.v, loading: true, done: cur.done, listed: cur.listed, at: cur.at, tries: cur.tries})
 	k, kc, ctx := m.k, m.kubeconfig, m.context
 	return func() tea.Msg {
-		ch := make(chan kube.Versions, 1)
-		go func() { ch <- k.ClusterVersions(kc, ctx) }()
-		select {
-		case v := <-ch:
-			return clusterInfoMsg{key: key, v: v}
-		case <-time.After(2*kube.InfoTimeout + infoGrace):
-			return clusterInfoMsg{key: key}
-		}
+		return clusterInfoMsg{key: key, v: k.ClusterVersions(kc, ctx)}
+	}
+}
+
+func infoRetry(tries int) time.Duration {
+	switch {
+	case tries <= 1:
+		return 2 * time.Second
+	case tries == 2:
+		return 8 * time.Second
+	default:
+		return 30 * time.Second
 	}
 }
 
 func (m *model) applyClusterInfo(msg clusterInfoMsg) {
+	prev := m.cinfo[msg.key]
 	v := msg.v
 	if v.Client == "" {
-		v.Client = m.cinfo[msg.key].v.Client
+		v.Client = prev.v.Client
 	}
-	m.setInfo(msg.key, clusterInfo{v: v, done: true})
+	if prev.listed || v.Server != "" {
+		v.Reachable = true
+	}
+	m.setInfo(msg.key, clusterInfo{v: v, done: true, listed: prev.listed, at: time.Now(), tries: prev.tries + 1})
+}
+
+func (m *model) noteClusterListed(kubeconfig, context string) {
+	if kubeconfig == "" && context == "" {
+		return
+	}
+	key := infoKey(kubeconfig, context)
+	ci := m.cinfo[key]
+	if ci.v.Server != "" {
+		return
+	}
+	ci.v.Reachable = true
+	if !ci.listed {
+		ci.listed = true
+		ci.at = time.Time{}
+	}
+	m.setInfo(key, ci)
 }
 
 func (m *model) setInfo(key string, ci clusterInfo) {
@@ -100,7 +132,11 @@ func (m model) infoBlock(inner int) string {
 	row("kubectl", value(fitVersion(ci.v.Client, inner-infoPad)))
 	if m.context != "" {
 		if ci.done && ci.v.Server == "" {
-			row("k8s server", errStyle.Render("unreachable"))
+			if ci.v.Reachable {
+				row("k8s server", dimStyle.Render("unknown"))
+			} else {
+				row("k8s server", errStyle.Render("unreachable"))
+			}
 		} else {
 			row("k8s server", value(fitVersion(ci.v.Server, inner-infoPad)))
 		}

@@ -739,7 +739,9 @@ ui:
     fit (a short sidebar or strip) the wordmark is shown.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
-    background (`ui.cluster_info: false` hides them).
+    background and retried if the first probe fails (`ui.cluster_info:
+    false` hides them). If the API answers but the version cannot be
+    read, `k8s server` shows `unknown` rather than `unreachable`.
   - The big logo and the cluster info are dropped first when the sidebar is
     short.
   - Port-forwards sit at the bottom only when there is one: a `forwards`
