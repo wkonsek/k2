@@ -176,6 +176,16 @@ that shrinks live and turns yellow and red before it expires.
 
 k2 runs on Linux. It needs `kubectl` on `PATH`.
 
+**Install script (linux/amd64).** One line downloads the newest package
+from the releases page, picks `.deb` (apt/dpkg) or `.rpm`
+(dnf/yum/zypper/rpm) for your system and installs it. Run it again to
+update; it does nothing when you already have the latest. Set
+`K2_VERSION=<tag>` to install a specific release.
+
+```zsh
+curl -fsSL https://raw.githubusercontent.com/wkonsek/k2/main/install.sh | bash
+```
+
 **From a package (linux/amd64).** Use a package from the
 [releases page](https://github.com/wkonsek/k2/releases), or build it
 with `make rpm` / `make deb` (`make dist` for both; the files land in
