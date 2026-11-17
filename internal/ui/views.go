@@ -760,12 +760,12 @@ func (m model) paneBlock(i, width, h int) string {
 		foot = m.toastLabel(width - 2)
 	}
 	hot, active := m.paneHot(i), i == m.focus
-	label := m.title(i).render(width-4, borderStyle(active, hot))
+	label, badge := m.paneWatchTitle(i, width, borderStyle(active, hot))
 	g := roundGlyphs
 	if active {
 		g = glyphsFor(m.cfg.UI.ActiveBorder)
 	}
-	return drawBoxWith(g, body, width, h, active, label, foot, hot)
+	return drawBoxWith(g, body, width, h, active, label, foot, hot, badge)
 }
 
 type boxGlyphs struct{ tl, tr, bl, br, h, v string }
@@ -827,10 +827,10 @@ func glow(c lipgloss.Color) lipgloss.Color {
 }
 
 func drawBox(content string, width, height int, active bool, label, foot string, hot bool) string {
-	return drawBoxWith(roundGlyphs, content, width, height, active, label, foot, hot)
+	return drawBoxWith(roundGlyphs, content, width, height, active, label, foot, hot, "")
 }
 
-func drawBoxWith(g boxGlyphs, content string, width, height int, active bool, label, foot string, hot bool) string {
+func drawBoxWith(g boxGlyphs, content string, width, height int, active bool, label, foot string, hot bool, right string) string {
 	if width < 4 {
 		width = 4
 	}
@@ -851,19 +851,7 @@ func drawBoxWith(g boxGlyphs, content string, width, height int, active bool, la
 		lines = strings.Split(padLines(crop(content, textW, innerH), innerH), "\n")
 	}
 	st := borderStyle(active, hot)
-	mark := " " + label + " "
-	if ansi.StringWidth(mark) > innerW {
-		mark = clipLine(mark, innerW)
-	}
-	rest := innerW - ansi.StringWidth(mark)
-	if rest < 0 {
-		rest = 0
-	}
-	top := st.Render(g.tl + mark + strings.Repeat(g.h, rest) + g.tr)
-	if strings.Contains(label, "\x1b[") {
-
-		top = st.Render(g.tl+" ") + clipLine(label, innerW-2) + st.Render(" "+strings.Repeat(g.h, rest)+g.tr)
-	}
+	top := boxTop(g, st, innerW, label, right)
 	bot := st.Render(g.bl + strings.Repeat(g.h, innerW) + g.br)
 	if fw := ansi.StringWidth(foot); foot != "" && fw+3 <= innerW {
 		bot = st.Render(g.bl+strings.Repeat(g.h, innerW-fw-2)) + foot + st.Render(g.h+g.h+g.br)
@@ -879,4 +867,32 @@ func drawBoxWith(g boxGlyphs, content string, width, height int, active bool, la
 	b.WriteString("\n")
 	b.WriteString(bot)
 	return padLines(b.String(), height)
+}
+
+func boxTop(g boxGlyphs, st lipgloss.Style, innerW int, label, right string) string {
+	rightW := 0
+	if right != "" {
+		rightW = ansi.StringWidth(right) + 2
+	}
+	room := innerW - rightW
+	if room < 0 {
+		room = 0
+	}
+	mark := " " + label + " "
+	if ansi.StringWidth(mark) > room {
+		mark = clipLine(mark, room)
+	}
+	rest := room - ansi.StringWidth(mark)
+	if rest < 0 {
+		rest = 0
+	}
+	fill := strings.Repeat(g.h, rest)
+	left := st.Render(g.tl + mark + fill)
+	if strings.Contains(label, "\x1b[") {
+		left = st.Render(g.tl+" ") + clipLine(label, max(0, room-2)) + st.Render(" "+fill)
+	}
+	if right == "" {
+		return left + st.Render(g.tr)
+	}
+	return left + st.Render(" ") + right + st.Render(" "+g.tr)
 }

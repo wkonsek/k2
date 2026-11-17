@@ -1,12 +1,15 @@
 package ui
 
 import (
+	"strconv"
+
 	"k2/internal/kube"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-const watchEvery = 2
 
 type watchMsg struct {
 	id, stage, text string
@@ -35,16 +38,24 @@ func (m model) toggleWatch() (tea.Model, tea.Cmd) {
 	return m, m.issueWatch()
 }
 
+func (m model) watchEvery() int {
+	return max(1, m.cfg.UI.WatchEvery)
+}
+
 func (m model) watchStatus() string {
-	what := m.subject
-	if m.stage == "describe" {
+	return m.watchStatusFor(m.stage, m.subject)
+}
+
+func (m model) watchStatusFor(stage, subject string) string {
+	what := subject
+	if stage == "describe" {
 		what = "describe " + what
 	}
-	return "watching " + what + " · every 2s · " + m.cfg.Keys.Watch.Label() + " stops"
+	return "watching " + what + " · every " + strconv.Itoa(m.watchEvery()) + "s · " + m.cfg.Keys.Watch.Label() + " stops"
 }
 
 func (m *model) watchDue() []tea.Cmd {
-	if m.beat%watchEvery != 0 {
+	if m.beat%m.watchEvery() != 0 {
 		return nil
 	}
 	var cmds []tea.Cmd
@@ -124,12 +135,55 @@ func (m *model) applyWatch(msg watchMsg) {
 		}
 		set(&p.stage, &p.logText, &p.status, &p.vs)
 		if msg.err == nil && p.vs.watchOn && (p.stage == "yaml" || p.stage == "describe") {
-			what := p.subject
-			if p.stage == "describe" {
-				what = "describe " + what
-			}
-			p.status = "watching " + what + " · every 2s · " + m.cfg.Keys.Watch.Label() + " stops"
+			p.status = m.watchStatusFor(p.stage, p.subject)
 		}
 		return
 	}
+}
+
+func (m model) paneWatchOn(i int) bool {
+	vs, stage := m.vs, m.stage
+	if i != m.focus && i < len(m.panes) {
+		vs, stage = m.panes[i].vs, m.panes[i].stage
+	}
+	return vs.watchOn && (stage == "yaml" || stage == "describe")
+}
+
+func (m model) paneWatchTitle(i, width int, frame lipgloss.Style) (label, badge string) {
+	innerW := width - 2
+	if innerW < 1 {
+		innerW = 1
+	}
+	label = m.title(i).render(max(1, innerW-2), frame)
+	if !m.paneWatchOn(i) {
+		return label, ""
+	}
+	badge = pickWatchBadge(innerW, ansi.StringWidth(label), m.watchEvery())
+	if badge == "" {
+		reserve := ansi.StringWidth("⟳") + 2
+		budget := innerW - 2 - reserve
+		if budget < 1 {
+			return label, ""
+		}
+		label = m.title(i).render(budget, frame)
+		badge = "⟳"
+	}
+	style := okStyle
+	if m.title(i).muted {
+		style = dimStyle
+	}
+	return label, style.Render(badge)
+}
+
+func pickWatchBadge(innerW, labelW, every int) string {
+	if every < 1 {
+		every = 1
+	}
+	sec := strconv.Itoa(every) + "s"
+	for _, b := range []string{"⟳ watch " + sec, "⟳ " + sec, "⟳"} {
+		if labelW+2+ansi.StringWidth(b)+2 <= innerW {
+			return b
+		}
+	}
+	return ""
 }

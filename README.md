@@ -494,7 +494,9 @@ it shows:
 - `w` toggles wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom
   (`G` resumes tailing), `v` opens the text in vim.
 - On a resource's YAML (`enter`) or describe (`d`), `r` refreshes it every
-  2 seconds until `r` again, so a status on a CR stays live.
+  `ui.watch_every` seconds (2 by default) until `r` again, so a status on
+  a CR stays live. While it is on, the pane's top-right border shows
+  `⟳ watch 2s` (or a shorter mark if the title is tight).
 - `y` enters copy mode: only the text at full screen, so the terminal's own
   mouse selection copies cleanly (k2 never captures the mouse). There `v`
   selects lines, `y` copies them, `Y` copies everything (`ui.clipboard`).

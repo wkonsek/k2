@@ -298,7 +298,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | Key | Config | What it does |
 |---|---|---|
 | `w` | `keys.wrap` | toggle line wrap in this pane (start state: `ui.wrap`) |
-| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every 2 seconds. `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
+| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every `ui.watch_every` seconds (2 by default). While it is on, `⟳ watch 2s` sits at the pane's top-right (a shorter mark if the title is tight). `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
 | `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is zoomed (`Z`) |
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |
