@@ -146,8 +146,34 @@ func TestAge(t *testing.T) {
 		ago  time.Duration
 		want string
 	}{
-		{0, "0s"}, {59 * time.Second, "59s"}, {time.Minute, "1m"}, {59 * time.Minute, "59m"},
-		{time.Hour, "1h"}, {3*time.Hour + 5*time.Minute, "3h5m"}, {24 * time.Hour, "1d"}, {9*24*time.Hour + 5*time.Hour, "9d"},
+		{0, "0s"},
+		{59 * time.Second, "59s"},
+		{time.Minute, "60s"},
+		{119 * time.Second, "119s"},
+		{2 * time.Minute, "2m"},
+		{2*time.Minute + 3*time.Second, "2m3s"},
+		{9*time.Minute + 59*time.Second, "9m59s"},
+		{10 * time.Minute, "10m"},
+		{10*time.Minute + 5*time.Second, "10m"},
+		{59 * time.Minute, "59m"},
+		{time.Hour, "60m"},
+		{67 * time.Minute, "67m"},
+		{2*time.Hour + 59*time.Minute, "179m"},
+		{3 * time.Hour, "3h"},
+		{3*time.Hour + 5*time.Minute, "3h5m"},
+		{7*time.Hour + 59*time.Minute, "7h59m"},
+		{8 * time.Hour, "8h"},
+		{8*time.Hour + 30*time.Minute, "8h"},
+		{47 * time.Hour, "47h"},
+		{48 * time.Hour, "2d"},
+		{2*24*time.Hour + 3*time.Hour, "2d3h"},
+		{7*24*time.Hour + 23*time.Hour, "7d23h"},
+		{8 * 24 * time.Hour, "8d"},
+		{8*24*time.Hour + 5*time.Hour, "8d"},
+		{400 * 24 * time.Hour, "400d"},
+		{2 * 365 * 24 * time.Hour, "2y"},
+		{2*365*24*time.Hour + 3*24*time.Hour, "2y3d"},
+		{8 * 365 * 24 * time.Hour, "8y"},
 	}
 	for _, c := range cases {
 		if got := AgeAt(now.Add(-c.ago), now); got != c.want {
@@ -156,6 +182,15 @@ func TestAge(t *testing.T) {
 	}
 	if Age(time.Time{}) != "" {
 		t.Fatal("zero time")
+	}
+	if got := AgeAt(now.Add(2*time.Second), now); got != " " {
+		t.Errorf("future 2s = %q", got)
+	}
+	if got := AgeAt(now.Add(time.Second/2), now); got != "0s" {
+		t.Errorf("future subsecond = %q", got)
+	}
+	if got := AgeAt(now.Add(-67*time.Minute), now); got == "1h7m" {
+		t.Fatal("under 3h must stay minutes only")
 	}
 }
 
@@ -318,7 +353,7 @@ func TestPodTableLastRestart(t *testing.T) {
 	for _, r := range PodTable(objs, false).Rows {
 		got[r[0]] = r[3]
 	}
-	if got["web"] != "3 (5m ago)" || got["old"] != "4" || got["zero"] != "0" {
+	if got["web"] != "3 (5m10s ago)" || got["old"] != "4" || got["zero"] != "0" {
 		t.Fatalf("restarts %v", got)
 	}
 }

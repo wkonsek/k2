@@ -358,13 +358,15 @@ func TableFromPrinted(objs []Object, headers []string, rows [][]string) Table {
 	for i, h := range headers {
 		heads[i] = strings.ToUpper(strings.TrimSpace(h))
 	}
-	nameIdx, nsIdx, colorCol := -1, -1, -1
+	nameIdx, nsIdx, ageIdx, colorCol := -1, -1, -1, -1
 	for i, h := range heads {
 		switch h {
 		case "NAME":
 			nameIdx = i
 		case "NAMESPACE":
 			nsIdx = i
+		case "AGE":
+			ageIdx = i
 		}
 		if colorCol < 0 && (h == "READY" || h == "STATUS" || h == "PHASE" || h == "STATE") {
 			colorCol = i
@@ -407,6 +409,9 @@ func TableFromPrinted(objs []Object, headers []string, rows [][]string) Table {
 			}
 			if o.Metadata.DeletionTimestamp != nil && nameIdx >= 0 {
 				cells[nameIdx] = name + " terminating"
+			}
+			if ageIdx >= 0 && !o.Metadata.CreationTimestamp.IsZero() {
+				cells[ageIdx] = Age(o.Metadata.CreationTimestamp)
 			}
 			t.Born = append(t.Born, o.Metadata.CreationTimestamp)
 		} else {

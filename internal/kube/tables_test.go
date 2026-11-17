@@ -94,14 +94,14 @@ func TestJobTables(t *testing.T) {
 	for _, r := range tab.Rows {
 		got[r[0]] = r[1] + " " + r[2] + " " + r[3]
 	}
-	if got["done"] != "Complete 1/1 1m" || !strings.HasPrefix(got["bad"], "Failed 0/1 -") ||
+	if got["done"] != "Complete 1/1 90s" || !strings.HasPrefix(got["bad"], "Failed 0/1 -") ||
 		!strings.HasPrefix(got["run"], "Running 0/1 ") || got["run"] == "Running 0/1 -" || !strings.HasPrefix(got["wait"], "Suspended") {
 		t.Fatalf("job rows %v", got)
 	}
 	cj := TableFor("cj", objs(t, `{"items":[{"metadata":{"name":"nightly"},"spec":{"schedule":"0 2 * * *","suspend":true},
 		"status":{"active":[{"name":"x"}],"lastScheduleTime":"`+time.Now().Add(-90*time.Minute).UTC().Format(time.RFC3339)+`"}}]}`), false)
 	if strings.Join(cj.Headers, " ") != "NAME SCHEDULE SUSPEND ACTIVE LAST SCHEDULE AGE" ||
-		strings.Join(cj.Rows[0][:5], "|") != "nightly|0 2 * * *|Suspended|1|1h30m ago" || cj.ColorCol != 2 {
+		strings.Join(cj.Rows[0][:5], "|") != "nightly|0 2 * * *|Suspended|1|90m ago" || cj.ColorCol != 2 {
 		t.Fatalf("cronjob %v %v", cj.Headers, cj.Rows)
 	}
 }
@@ -111,7 +111,7 @@ func TestEventTable(t *testing.T) {
 	at := func(d time.Duration) string { return now.Add(-d).Format(time.RFC3339) }
 	js := `{"items":[
 	 {"metadata":{"name":"e1","namespace":"shop"},"type":"Warning","reason":"BackOff","message":"Back-off\nrestarting",
-	  "involvedObject":{"kind":"Pod","name":"web-1"},"lastTimestamp":"` + at(time.Minute) + `"},
+	  "involvedObject":{"kind":"Pod","name":"web-1"},"lastTimestamp":"` + at(5*time.Minute) + `"},
 	 {"metadata":{"name":"e0","namespace":"shop"},"type":"Normal","reason":"Pulled","message":"pulled",
 	  "involvedObject":{"kind":"Pod","name":"web-1"},"lastTimestamp":"` + at(time.Hour) + `"},
 	 {"metadata":{"name":"e2","namespace":"shop","creationTimestamp":"` + at(2*time.Hour) + `"},"type":"Normal","reason":"New",
@@ -124,7 +124,7 @@ func TestEventTable(t *testing.T) {
 	if tab.Refs[0][1] != "e0" || tab.Refs[1][1] != "e1" || tab.Refs[2][1] != "e2" {
 		t.Fatalf("order %v", tab.Refs)
 	}
-	if strings.Join(tab.Rows[1][1:], "|") != "Warning|BackOff|pod/web-1|Back-off restarting" || tab.Rows[1][0] != "1m" {
+	if strings.Join(tab.Rows[1][1:], "|") != "Warning|BackOff|pod/web-1|Back-off restarting" || tab.Rows[1][0] != "5m" {
 		t.Fatalf("row %v", tab.Rows[1])
 	}
 	if tab.Rows[2][3] != "node/n1" || tab.Rows[2][4] != "hello" {

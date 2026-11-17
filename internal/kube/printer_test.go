@@ -3,6 +3,7 @@ package kube
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"k2/internal/shell"
 )
@@ -250,5 +251,28 @@ func TestServerTableIgnoresWideOnlyNoise(t *testing.T) {
 	headers, rows, ok := ParseKubectlTable(out)
 	if !ok || strings.Join(headers, " ") != "NAME DATA AGE" || rows[0][1] != "2" {
 		t.Fatalf("%v %v", headers, rows)
+	}
+}
+
+func TestTableFromPrintedOverridesAge(t *testing.T) {
+	born := time.Now().Add(-67 * time.Minute).UTC()
+	js := `{"items":[{"metadata":{"name":"example-com-tls","namespace":"shop","creationTimestamp":"` + born.Format(time.RFC3339) + `"}}]}`
+	o := objs(t, js)
+	printed := TableFromPrinted(o, []string{"NAME", "READY", "AGE"}, [][]string{{"example-com-tls", "True", "1h7m"}})
+	custom := ResourceTable("certificates", o, false)
+	cols := TableForColumns("certificates.cert-manager.io", o, false, []PrinterColumn{
+		{Name: "READY", Type: "string", JSONPath: ".status.conditions[?(@.type==\"Ready\")].status"},
+	})
+	if printed.Rows[0][2] != "67m" {
+		t.Fatalf("server AGE %q, want 67m", printed.Rows[0][2])
+	}
+	if custom.Rows[0][len(custom.Rows[0])-1] != "67m" {
+		t.Fatalf("custom AGE %q, want 67m", custom.Rows[0])
+	}
+	if cols.Rows[0][len(cols.Rows[0])-1] != "67m" {
+		t.Fatalf("printer-column AGE %q, want 67m", cols.Rows[0])
+	}
+	if printed.Rows[0][2] != custom.Rows[0][len(custom.Rows[0])-1] || printed.Rows[0][2] != cols.Rows[0][len(cols.Rows[0])-1] {
+		t.Fatalf("AGE flipped between paths: printed=%q custom=%q cols=%q", printed.Rows[0][2], custom.Rows[0], cols.Rows[0])
 	}
 }
