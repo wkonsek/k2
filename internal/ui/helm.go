@@ -106,7 +106,7 @@ func (m model) helmHint() string {
 	hint := k.HelmValues.Label() + " values, " + k.HelmComputed.Label() + " computed, " + k.HelmManifest.Label() + " manifest, " +
 		k.HelmNotes.Label() + " notes, " + k.HelmHistory.Label() + " history, " + k.AllNamespaces.Label() + " all namespaces"
 	if m.helmCLI() != "" {
-		hint += ", " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
+		hint += ", " + k.HelmInstall.Label() + " install, " + k.HelmUpgrade.Label() + " upgrade, " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
 	}
 	return hint
 }
@@ -140,6 +140,9 @@ func (m model) selectedRelease() (kube.HelmRelease, bool) {
 func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
 	switch {
+	case km.HelmInstall.Has(key):
+		next, cmd := m.openHelmInstall(helmOp{act: "install", ns: m.namespace})
+		return next, cmd, true
 	case km.AllNamespaces.Has(key):
 		m.vs.helmAll = !m.vs.helmAll
 		next, cmd := m.openHelm()
@@ -157,7 +160,7 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m, m.copyCmd(text), true
 	}
 	if !(km.HelmValues.Has(key) || km.Select.Has(key) || km.HelmComputed.Has(key) || km.HelmManifest.Has(key) ||
-		km.HelmNotes.Has(key) || km.HelmHistory.Has(key) || km.HelmRollback.Has(key) || km.Delete.Has(key)) {
+		km.HelmNotes.Has(key) || km.HelmHistory.Has(key) || km.HelmRollback.Has(key) || km.HelmUpgrade.Has(key) || km.Delete.Has(key)) {
 		return m, nil, false
 	}
 	r, ok := m.selectedRelease()
@@ -179,6 +182,9 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m.helmText("view", "notes "+ref, or(r.Notes, "no notes")), nil, true
 	case km.HelmHistory.Has(key):
 		next, cmd := m.helmHistory(r)
+		return next, cmd, true
+	case km.HelmUpgrade.Has(key):
+		next, cmd := m.openHelmUpgrade(r)
 		return next, cmd, true
 	case km.HelmRollback.Has(key):
 		if next, cmd, blocked := m.readOnlyBlock("rollback"); blocked {

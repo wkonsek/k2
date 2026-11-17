@@ -14,7 +14,7 @@ kubeconfig, context and namespace, so a kind cluster, a staging cluster and
 an OpenShift cluster can sit next to each other on one screen.
 
 - Pane and tab keys work like tmux, behind a `ctrl+a` prefix.
-- vim, shells and `kubectl edit` run *inside* a pane while the others keep
+- vim, shells and cluster edits run *inside* a pane while the others keep
   working.
 - Under the hood k2 runs `kubectl` for everything, so it works with any
   resource the cluster serves: built-in kinds, CRDs, OLM objects and
@@ -67,7 +67,7 @@ ones that died.
 
 - `ctrl+a %` splits right, `ctrl+a "` splits down;
 - `ctrl+a c` opens a tab, `ctrl+a z` zooms;
-- `e` (`kubectl edit`), `v` (any text) and `s` (a shell in the pod) open
+- `e` (edit the object), `v` (any text) and `s` (a shell in the pod) open
   inside the pane, and every pane can run its own editor.
 
 ![splits, tabs, zoom and vim in a pane](docs/demo/splits.gif)
@@ -126,13 +126,13 @@ all its pods at once, stern-style.
 
 ![logs of all pods of a deployment](docs/demo/multi-logs.gif)
 
-**Helm releases without the helm CLI.** `:helm` lists releases, all decoded
-by k2 from Helm's release secrets.
+**Helm releases.** `:helm` lists releases, all decoded by k2 from Helm's
+release secrets (no helm CLI needed to browse).
 
 - See values, computed values, manifest, notes and a revision history.
 - Mark two revisions and diff them per resource.
-- Roll back to any revision (this one step uses the helm CLI, when
-  installed).
+- Install or upgrade a chart, or roll back a revision (these steps use the
+  helm CLI, when installed).
 
 ![Helm history, diff and rollback](docs/demo/helm.gif)
 
@@ -433,10 +433,19 @@ APP VERSION, UPDATED.
   a table (`●` current revision).
 - In the history `space` marks a revision and `D` diffs it with another (or
   the selected one with the current one), per resource plus user values.
+- `A` installs a chart and `u` upgrades the selected release: a form for
+  the release name, chart (tab-completed from `helm search repo`), version,
+  namespace (with create-if-missing) and values file (pick a path, edit it,
+  or start from `helm show values`). Preview with `helm template` (for an
+  upgrade, a per-resource diff against the current manifest). A red popup
+  names the context, release, chart and namespace; on success k2 jumps to
+  the release and shows its notes.
+- `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`
+  and `:helm upgrade …` prefill the same form.
 - `r` rolls back (to the previous revision from the list, to the selected
-  one from the history) and `ctrl+d` uninstalls; both need the helm CLI
-  (`helm.binary`) and ask in a red popup.
-- k2 never installs or upgrades charts.
+  one from the history) and `ctrl+d` uninstalls.
+- Install, upgrade, rollback and uninstall need the helm CLI (`helm.binary`)
+  and ask in a red popup. Read-only mode (`R`) blocks all four.
 
 **Favorites (`b`, `:fav`).**
 
@@ -485,7 +494,9 @@ it shows:
 - `w` toggles wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom
   (`G` resumes tailing), `v` opens the text in vim.
 - On a resource's YAML (`enter`) or describe (`d`), `r` refreshes it every
-  2 seconds until `r` again, so a status on a CR stays live.
+  `ui.watch_every` seconds (2 by default) until `r` again, so a status on
+  a CR stays live. While it is on, the pane's top-right border shows
+  `⟳ watch 2s` (or a shorter mark if the title is tight).
 - `y` enters copy mode: only the text at full screen, so the terminal's own
   mouse selection copies cleanly (k2 never captures the mouse). There `v`
   selects lines, `y` copies them, `Y` copies everything (`ui.clipboard`).
@@ -500,7 +511,7 @@ it shows:
 - read-only mode (`R` / `keys.readonly`): blocks mutating actions for the session (cluster changes, Kustomize apply/delete/edit, opening the folder editor, shell, custom kubectl submit). Browse, filter, describe, YAML, logs, diff and context/namespace still work. A lock icon and READ-ONLY appear beside the logo. Already-running editors, shells and port-forwards are not revoked;
 - closing panes and tabs with the prefix;
 - rollout restart, cronjob trigger, OLM approve, set image;
-- Helm rollback / uninstall;
+- Helm install / upgrade / rollback / uninstall;
 - on production also scale, label and annotate.
 
 Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
@@ -510,7 +521,8 @@ Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
 - All keys go to the program except `ctrl+arrows` and the prefix (`Z` or
   `ctrl+a z` zooms the pane, `ctrl+a x` close, `ctrl+a Q` quit …).
 - vim follows splits and resizes.
-- `kubectl edit` uses `KUBE_EDITOR=vim`, and a failed edit leaves its last
+- Cluster edit opens a pretty-printed YAML buffer in vim and applies the
+  object only when it actually changed. A failed edit leaves its last
   screen for you to read.
 - Quitting k2 kills all editors.
 - `ui.editor_inline: false` opens vim fullscreen instead.
@@ -729,7 +741,9 @@ ui:
     fit (a short sidebar or strip) the wordmark is shown.
   - Under that, when it fits, are `k2`, `kubectl`, `k8s server` and (when
     readable) `ocp` versions of the focused context, fetched in the
-    background (`ui.cluster_info: false` hides them).
+    background and retried if the first probe fails (`ui.cluster_info:
+    false` hides them). If the API answers but the version cannot be
+    read, `k8s server` shows `unknown` rather than `unreachable`.
   - The big logo and the cluster info are dropped first when the sidebar is
     short.
   - Port-forwards sit at the bottom only when there is one: a `forwards`
@@ -797,8 +811,7 @@ where the token lives). The token is not printed afterwards.
 
 - Linux, `kubectl` on `PATH`; Go 1.24 or newer to build.
 - Optional: `vim` (viewing and editing), `jq` (the kubectl view's filter),
-  `ss` or `lsof` (finding what holds a local port), `helm` (only for Helm
-  rollback and uninstall), metrics-server (CPU / MEM columns and pulse).
+  `ss` or `lsof` (finding what holds a local port), `helm` (for Helm install, upgrade, rollback and uninstall), metrics-server (CPU / MEM columns and pulse).
 
 ### Development
 

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -69,7 +70,7 @@ func (m *model) applyYAML(msg yamlMsg) {
 
 func (m model) viewing() bool {
 	return m.stage == "logs" || m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" ||
-		m.stage == "mlogs" || m.stage == "pulse" || m.stage == "hdiff"
+		m.stage == "mlogs" || m.stage == "pulse" || m.stage == "hdiff" || m.stage == "htpl"
 }
 
 func (m model) textRows() int {
@@ -256,7 +257,7 @@ func (m model) logsBody(innerW int) string {
 		}
 		return b.String()
 	}
-	if m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" || m.stage == "pulse" || m.stage == "hdiff" {
+	if m.stage == "yaml" || m.stage == "view" || m.stage == "kout" || m.stage == "describe" || m.stage == "pulse" || m.stage == "hdiff" || m.stage == "htpl" {
 		mark := m.scrollKeys()
 		if len(lines) > rows {
 			mark = fmt.Sprintf("%s  %d-%d", m.scrollKeys(), top+1, top+len(shown))
@@ -472,19 +473,72 @@ func (m model) editSelected() (tea.Model, tea.Cmd) {
 			ns = m.namespace
 		}
 	}
-	args := kube.EditArgs(kind, name, m.kubeconfig, m.context, ns)
-	mk := func() *exec.Cmd {
-		cmd := exec.Command("kubectl", args...)
-		env := os.Environ()
-		if _, err := exec.LookPath("vim"); err == nil {
-			env = append(env, "KUBE_EDITOR=vim")
+	pane, kc, ctx := m.logID, m.kubeconfig, m.context
+	k := m.k
+	spin := m.startLoad("loading yaml", false)
+	return m, tea.Batch(spin, func() tea.Msg {
+		text, err := k.YAMLForEdit(kc, ctx, kind, name, ns)
+		if err != nil {
+			return editReadyMsg{pane: pane, kind: kind, name: name, err: err}
 		}
-		cmd.Env = env
-		return cmd
-	}
-	return m.runEditor("edit", "edit "+kind+"/"+name, name, "", mk, func(err error) tea.Msg {
-		return editDoneMsg{what: "edited " + name, err: err}
+		f, err := os.CreateTemp("", "k2-edit-*.yaml")
+		if err != nil {
+			return editReadyMsg{pane: pane, kind: kind, name: name, err: err}
+		}
+		if _, err := f.WriteString(text); err != nil {
+			f.Close()
+			os.Remove(f.Name())
+			return editReadyMsg{pane: pane, kind: kind, name: name, err: err}
+		}
+		f.Close()
+		return editReadyMsg{pane: pane, path: f.Name(), orig: text, kind: kind, name: name}
 	})
+}
+
+func submitClusterEdit(k kube.Client, kc, ctx, path, orig, name string) tea.Msg {
+	after, err := os.ReadFile(path)
+	if err != nil {
+		return editDoneMsg{what: "edited " + name, err: err}
+	}
+	if len(bytes.TrimSpace(after)) == 0 {
+		return editDoneMsg{what: "edit cancelled"}
+	}
+	same, err := kube.YAMLEqual(orig, string(after))
+	if err != nil {
+		return editDoneMsg{what: "edited " + name, err: err}
+	}
+	if same {
+		return editDoneMsg{what: "unchanged " + name}
+	}
+	return editDoneMsg{what: "edited " + name, err: k.ReplaceYAML(kc, ctx, path)}
+}
+
+func (m model) openClusterEdit(msg editReadyMsg) (tea.Model, tea.Cmd) {
+	if m.load.active() {
+		m.load = load{}
+	}
+	if msg.err != nil {
+		m.status = m.errLine(msg.err)
+		return m, m.notify(toneErr, "edit "+msg.name+" failed")
+	}
+	path, orig, kind, name := msg.path, msg.orig, msg.kind, msg.name
+	kc, ctx, k := m.kubeconfig, m.context, m.k
+	next, cmd := m.runEditor("edit", "edit "+kind+"/"+name, name, path,
+		func() *exec.Cmd { return vimCommand(path) },
+		func(err error) tea.Msg {
+			defer os.Remove(path)
+			if err != nil {
+				return editDoneMsg{what: "edited " + name, err: err}
+			}
+			return submitClusterEdit(k, kc, ctx, path, orig, name)
+		})
+	if mm, ok := next.(model); ok && mm.ed != nil {
+		mm.ed.save = func(p string, _ int, _ error) tea.Msg {
+			return submitClusterEdit(k, kc, ctx, p, orig, name)
+		}
+		next = mm
+	}
+	return next, cmd
 }
 
 func (m model) deleteSelectedPod() tea.Cmd {

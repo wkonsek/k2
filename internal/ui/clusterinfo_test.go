@@ -138,3 +138,57 @@ func TestClusterInfoOffAndSmall(t *testing.T) {
 		_ = m.View()
 	}
 }
+
+func TestClusterInfoUnauthorized(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		if len(r.Args) > 0 && r.Args[0] == "version" {
+			res := shell.Fail(1, "")
+			res.Stdout = []byte(`{"clientVersion": {"gitVersion": "v1.31.2"}}`)
+			res.Stderr = []byte("error: You must be logged in to the server (Unauthorized)")
+			return res
+		}
+		return shell.Fail(1, "Error from server (Forbidden): forbidden")
+	}}
+	m := newTestModel(t, testEnv(t), f)
+	m.kubeconfig, m.context = "/kc", "dev"
+	m = tickOnce(t, m)
+	side := sidebarText(m)
+	if !strings.Contains(side, "k8s server  unknown") || strings.Contains(side, "unreachable") || !strings.Contains(side, "kubectl     v1.31.2") {
+		t.Fatalf("unauthorized:\n%s", side)
+	}
+}
+
+func TestClusterInfoListIsReachable(t *testing.T) {
+	var calls int32
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		args := strings.Join(r.Args, " ")
+		if strings.HasPrefix(args, "version -o json") {
+			atomic.AddInt32(&calls, 1)
+			res := shell.Fail(1, "")
+			res.Stdout = []byte(`{"clientVersion": {"gitVersion": "v1.31.2"}}`)
+			res.Stderr = []byte("The connection to the server api.example.com:6443 was refused")
+			return res
+		}
+		if strings.Contains(args, "get --raw /version") {
+			res := shell.Fail(1, "")
+			res.Stderr = []byte("The connection to the server api.example.com:6443 was refused")
+			return res
+		}
+		return shell.Fail(1, "no cluster in tests")
+	}}
+	m := newTestModel(t, testEnv(t), f)
+	m.kubeconfig, m.context = "/kc", "dev"
+	m = tickOnce(t, m)
+	if !strings.Contains(sidebarText(m), "k8s server  unreachable") {
+		t.Fatalf("before list:\n%s", sidebarText(m))
+	}
+	before := atomic.LoadInt32(&calls)
+	m.noteClusterListed("/kc", "dev")
+	if !strings.Contains(sidebarText(m), "k8s server  unknown") || strings.Contains(sidebarText(m), "unreachable") {
+		t.Fatalf("after list:\n%s", sidebarText(m))
+	}
+	m = tickOnce(t, m)
+	if atomic.LoadInt32(&calls) <= before {
+		t.Fatalf("did not retry after list: %d -> %d", before, atomic.LoadInt32(&calls))
+	}
+}

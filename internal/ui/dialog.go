@@ -41,6 +41,8 @@ type dialog struct {
 	cands    []string
 	candBase string
 	candAt   int
+	hfields  []helmField
+	hcreate  bool
 }
 
 func (m model) newDialog(act, title, kind, ns, name string) *dialog {
@@ -126,6 +128,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "cancelled"
 		return m, nil
 	case km.Submit.Has(key):
+		if d.act == "helminstall" && d.ask == "" {
+			return m.submitHelmForm()
+		}
 		if d.act != "theme" && d.act != "help" && d.act != "error" && d.act != "favorites" {
 			if next, cmd, blocked := m.readOnlyBlock("change"); blocked {
 				return next, cmd
@@ -137,6 +142,8 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case d.act == "setimage":
 		return m.setImageKey(msg)
+	case d.act == "helminstall":
+		return m.helmFormKey(msg)
 	case d.act == "kpath":
 		if next, done := m.kpathKey(msg); done {
 			return next, nil
@@ -174,6 +181,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		return m.submitSearch()
 	case "setimage":
 		return m.submitSetImage()
+	case "helminstall":
+		return m.submitHelmForm()
 	case "logs", "prevlogs":
 		m.dlg = nil
 		return m.openLogs(d.ns+"/"+d.name, d.picked(), d.act == "prevlogs")
@@ -371,6 +380,9 @@ func (m model) dialogBox(width int) string {
 	if len(d.images) > 0 && d.ask == "" {
 		lines = append(lines, d.imageRows(inner)...)
 	}
+	if d.act == "helminstall" && d.ask == "" {
+		lines = append(lines, d.helmFormRows(inner)...)
+	}
 	if d.hasIn {
 		if d.hint != "" {
 			for _, l := range strings.Split(ansi.Wordwrap(d.hint, inner, ""), "\n") {
@@ -380,7 +392,7 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, d.input.View())
 		lines = append(lines, d.candLines()...)
 	}
-	if len(d.options) > 0 || d.hasIn || (len(d.images) > 0 && d.ask == "") {
+	if len(d.options) > 0 || d.hasIn || (len(d.images) > 0 && d.ask == "") || (d.act == "helminstall" && d.ask == "") {
 		lines = append(lines, "")
 	}
 	k := m.cfg.Keys
@@ -403,6 +415,9 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, dimStyle.Render(d.msg))
 	case d.msg != "":
 		lines = append(lines, errStyle.Render(d.msg))
+	case d.act == "helminstall" && len(d.hfields) > 0:
+		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Complete.Short())+dimStyle.Render(" complete  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" preview  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
 	case len(d.images) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" apply  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

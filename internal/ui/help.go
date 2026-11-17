@@ -273,7 +273,7 @@ func (m model) viewSection() []helpSection {
 		return []helpSection{{"Resources · " + or(m.kind, "list"), append(rows, m.tableRows()...)}}
 	case "logs", "mlogs":
 		return []helpSection{{"Logs", m.viewerRows()}}
-	case "yaml", "describe", "view", "kout", "hdiff", "pulse":
+	case "yaml", "describe", "view", "kout", "hdiff", "htpl", "pulse":
 		return []helpSection{{"Viewer", m.viewerRows()}}
 	case "kdir", "kust":
 		rows := []helpRow{{keyList(k.Select, 1), "open folder / file"}}
@@ -313,7 +313,7 @@ func (m model) viewSection() []helpSection {
 			r(k.HelmHistory, "history"),
 		}
 		if m.helmCLI() != "" {
-			rows = append(rows, r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
+			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
 		}
 		return []helpSection{{"Helm", append(rows, r(k.AllNamespaces, "all namespaces"), r(k.CopyName, "copy name"))}}
 	case "helmhist":

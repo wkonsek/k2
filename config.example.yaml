@@ -53,6 +53,7 @@
 #   sidebar_narrow_width: 22  # 1..200
 #   sidebar_position: left    # left | right | top | bottom
 #   refresh_every: 3          # seconds, 1..200
+#   watch_every: 2            # yaml/describe watch, seconds, 1..200
 #   forward_dock_rows: 12     # 1..200
 #   forward_scroll: true      # scroll long forwards instead of cutting them
 #   animations: true
@@ -119,6 +120,8 @@
 #   helm_notes: N
 #   helm_history: t
 #   helm_rollback: r
+#   helm_install: A
+#   helm_upgrade: u
 #   helm_mark: space
 #   helm_diff: D
 #   all_namespaces: "0"
@@ -142,7 +145,7 @@
 #   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
 #   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w
-#   watch: r                  # yaml and describe: refresh the object every 2s. r on a workload is still restart
+#   watch: r                  # yaml and describe: refresh the object every ui.watch_every seconds. r on a workload is still restart
 #   copy_mode: y
 #   log_mark: m
 #   search: /

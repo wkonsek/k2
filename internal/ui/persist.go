@@ -54,7 +54,7 @@ func (m *model) save() {
 			if stage == "" || stage == "describe" || stage == "yaml" || stage == "view" || stage == "nav" {
 				stage = "res"
 			}
-		case "hdiff":
+		case "hdiff", "htpl":
 			stage = "helm"
 			if p.vs.hist != nil && p.vs.hist.name != "" {
 				stage = "helmhist"

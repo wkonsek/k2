@@ -287,7 +287,7 @@ func (m model) paneLabel(i int) string {
 				label += fmt.Sprintf(" · ◆ %d", h.mark)
 			}
 		}
-	case "hdiff":
+	case "hdiff", "htpl":
 		label = or(s.subject, "diff")
 	case "pulse":
 		label = scopeLabel(s.namespace, "pulse")
@@ -299,6 +299,8 @@ func (m model) paneLabel(i int) string {
 				label += " · /" + v.filter
 			}
 		}
+	case "view":
+		label = or(s.subject, s.stage)
 	case "yaml":
 		label = or(s.subject, s.kind)
 	case "describe":

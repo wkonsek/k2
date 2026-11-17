@@ -254,6 +254,21 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = os.Remove(path)
 		}
 		return m, cmd
+	case editReadyMsg:
+		var next tea.Model = m
+		var cmd tea.Cmd
+		if !m.withPane(msg.pane, func() {
+			next, cmd = m.openClusterEdit(msg)
+			m = next.(model)
+		}) {
+			if msg.path != "" {
+				_ = os.Remove(msg.path)
+			}
+			if msg.err != nil {
+				m.status = m.errLine(msg.err)
+			}
+		}
+		return next, cmd
 	case paneterm.OutputMsg:
 		return m, m.editorOutput(msg)
 	case paneterm.ExitMsg:
@@ -288,7 +303,12 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.err != nil {
-			return m, m.notify(toneErr, msg.what+" failed")
+			cmd := m.notify(toneErr, msg.what+" failed")
+			if msg.helmName != "" {
+				next, extra := m.openLastErr()
+				return next, tea.Batch(cmd, extra)
+			}
+			return m, cmd
 		}
 		return m, m.notify(toneOK, msg.what)
 	case fwdMsg:

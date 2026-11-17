@@ -335,7 +335,7 @@ func (m model) resumeNS() (tea.Model, tea.Cmd) {
 			return m, m.notify(toneWarn, m.status)
 		}
 		return m.openPulse()
-	case "helm", "helmhist", "hdiff":
+	case "helm", "helmhist", "hdiff", "htpl":
 		return m.openHelm()
 	case "mlogs":
 		if m.vs.ml != nil {

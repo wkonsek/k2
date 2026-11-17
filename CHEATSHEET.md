@@ -109,7 +109,7 @@ cuts them with `…`).
 | — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
-| — | — | helm releases (`:helm`, `:helm all` for every namespace) |
+| — | — | helm releases (`:helm`, `:helm all` for every namespace; `:helm install` / `:helm upgrade` prefill the install form) |
 | — | — | namespace pulse: health of the pane's namespace (`:pulse`) |
 | — | — | pods (`:pods`, `:pod`, `:po`, `:r`); the pods list to start a forward from (`:forward`, `:p`) |
 | `tab` | `keys.complete` | complete a `:` command (targets, cluster resources, aliases); again cycles |
@@ -139,7 +139,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 | `G` | `keys.bottom` | last row |
 | `/` | — | filter (shown in the title; `esc` clears) |
 | `d` | `keys.describe` | kubectl describe the selected object |
-| `e` | `keys.edit` | kubectl edit in vim (inside the pane) |
+| `e` | `keys.edit` | edit the selected object in vim (inside the pane) |
 | `ctrl+d` | `keys.delete` | kubectl delete the selected object (asks in a red popup), also when other panes or tabs are open. On home, `ctrl+d` closes the pane, or the tab when it is the last pane; the only tab quits |
 | `>` | `keys.sort_next` | sort by the next column |
 | `<` | `keys.sort_prev` | sort by the previous column |
@@ -205,9 +205,21 @@ open; tab completes the kind and the name.
 
 ## Helm releases (`:helm`)
 
-Read with kubectl from Helm's release secrets (no helm CLI needed);
-rollback and uninstall run the helm CLI (`helm.binary`) and are offered
-only when it is found.
+Read with kubectl from Helm's release secrets (no helm CLI needed to
+browse). Install, upgrade, rollback and uninstall run the helm CLI
+(`helm.binary`) and are offered only when it is found. Read-only mode
+(`R`) blocks all four.
+
+`A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
+opens a form for the release name, chart (tab-completed from `helm search repo`),
+version, namespace (with a create-if-missing toggle) and values file
+(pick a path, edit it in the editor, or start from `helm show values`).
+Preview with `helm template` shows kinds and a scrollable manifest; a red
+popup names the context, release, chart and namespace. On success k2 jumps
+to the release and shows its notes. `u` (or `:helm upgrade …`) opens the
+same form on the selected release: name, chart and namespace stay fixed,
+version and values can change, and the preview is a per-resource diff
+against the current manifest.
 
 | Key | Config | What it does |
 |---|---|---|
@@ -217,6 +229,8 @@ only when it is found.
 | `N` | `keys.helm_notes` | the chart notes |
 | `t` | `keys.helm_history` | revision history: a table of revisions (see below) |
 | `0` | `keys.all_namespaces` | all namespaces / the pane's namespace (k9s `0`) |
+| `A` | `keys.helm_install` | install a chart (helm CLI; form, preview, red popup) |
+| `u` | `keys.helm_upgrade` | upgrade the selected release (helm CLI; form, diff preview, red popup) |
 | `r` | `keys.helm_rollback` | roll back to the previous revision (helm CLI; red popup) |
 | `ctrl+d` | `keys.delete` | uninstall the release (helm CLI; red popup), also with other panes or tabs open |
 
@@ -284,7 +298,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | Key | Config | What it does |
 |---|---|---|
 | `w` | `keys.wrap` | toggle line wrap in this pane (start state: `ui.wrap`) |
-| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every 2 seconds. `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
+| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every `ui.watch_every` seconds (2 by default). While it is on, `⟳ watch 2s` sits at the pane's top-right (a shorter mark if the title is tight). `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
 | `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is zoomed (`Z`) |
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |

@@ -26,6 +26,7 @@ type editor struct {
 	done   bool
 	code   int
 	screen string
+	save   func(path string, code int, runErr error) tea.Msg
 }
 
 func (e *editor) live() bool { return e != nil && !e.done }
@@ -112,10 +113,33 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 	if ed == nil || ed.t != msg.T || ed.done {
 		return nil
 	}
+	var follow tea.Msg
+	if ed.save != nil && ed.cleanup != "" && msg.Code == 0 && msg.Err == nil {
+		follow = ed.save(ed.cleanup, msg.Code, msg.Err)
+	}
 	if ed.cleanup != "" {
 		_ = os.Remove(ed.cleanup)
+		ed.cleanup = ""
 	}
 	m.prefixOn = false
+	if follow != nil {
+		if done, ok := follow.(editDoneMsg); ok && done.err != nil {
+			ed.done, ed.code, ed.screen = true, 1, done.err.Error()
+			m.status = fmt.Sprintf("edit failed · %s closes", m.cfg.Keys.Back.Label())
+			if focused {
+				return m.notify(toneErr, "edit "+ed.name+" failed")
+			}
+			return nil
+		}
+		m.ed = nil
+		if done, ok := follow.(editDoneMsg); ok {
+			if focused {
+				return func() tea.Msg { return done }
+			}
+			m.status = done.what
+		}
+		return nil
+	}
 	failed := msg.Code != 0 || msg.Err != nil
 	if (ed.kind == "edit" || ed.kind == "shell") && failed {
 		ed.done, ed.code, ed.screen = true, msg.Code, msg.T.Plain()
@@ -148,6 +172,11 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 		}
 	case "shell":
 		m.status = "shell closed"
+	case "helmvalues":
+		if m.vs.hop != nil {
+			m.reopenHelmForm()
+			m.status = "values " + m.vs.hop.values
+		}
 	}
 	return nil
 }

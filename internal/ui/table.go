@@ -739,11 +739,13 @@ func (m *model) applyRows(msg rowsMsg) {
 	}
 	if m.logID == msg.id && (m.stage == "workpods" || m.stage == "res") {
 		apply(&m.content, m.vs, m.kubeconfig, m.context, m.namespace)
+		m.noteClusterListed(m.kubeconfig, m.context)
 		return
 	}
 	for i := range m.panes {
 		if p := &m.panes[i]; p.logID == msg.id && (p.stage == "workpods" || p.stage == "res") {
 			apply(&p.content, p.vs, p.kubeconfig, p.context, p.namespace)
+			m.noteClusterListed(p.kubeconfig, p.context)
 			return
 		}
 	}

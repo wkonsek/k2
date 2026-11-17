@@ -182,6 +182,30 @@ func (c Client) GetJSON(kubeconfig, context string, args ...string) (map[string]
 }
 
 func (c Client) YAML(kubeconfig, context, kind, name, namespace string) (string, error) {
+	text, err := c.yamlGet(kubeconfig, context, kind, name, namespace)
+	if err != nil {
+		return "", err
+	}
+	pretty, err := FormatYAML(text, true)
+	if err != nil {
+		return text, nil
+	}
+	return pretty, nil
+}
+
+func (c Client) YAMLForEdit(kubeconfig, context, kind, name, namespace string) (string, error) {
+	text, err := c.yamlGet(kubeconfig, context, kind, name, namespace)
+	if err != nil {
+		return "", err
+	}
+	pretty, err := FormatYAML(text, false)
+	if err != nil {
+		return text, nil
+	}
+	return pretty, nil
+}
+
+func (c Client) yamlGet(kubeconfig, context, kind, name, namespace string) (string, error) {
 	args := []string{"get", kind, name, "-o", "yaml", "--kubeconfig", kubeconfig, "--context", context}
 	if namespace != "" {
 		args = append(args, "-n", namespace)
@@ -192,6 +216,14 @@ func (c Client) YAML(kubeconfig, context, kind, name, namespace string) (string,
 		return "", fmt.Errorf("%s", shell.FailText(out, err))
 	}
 	return text, nil
+}
+
+func (c Client) ReplaceYAML(kubeconfig, context, path string) error {
+	out, err := shell.Combined(c.Run, "kubectl", "replace", "-f", path, "--kubeconfig", kubeconfig, "--context", context)
+	if err != nil {
+		return fmt.Errorf("%s", shell.FailText(out, err))
+	}
+	return nil
 }
 
 func (c Client) DeletePod(kubeconfig, context, namespace, name string) error {

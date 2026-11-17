@@ -64,6 +64,7 @@ type UI struct {
 	SidebarNarrowWidth int
 	SidebarPosition    string
 	RefreshEvery       int
+	WatchEvery         int
 	ForwardDockRows    int
 	Animations         bool
 	Toasts             bool
@@ -151,7 +152,7 @@ func Default() Config {
 		Helm:          Helm{Binary: "helm"},
 		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
+		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
 		Keys:          DefaultKeys(),
 	}
 }
@@ -528,6 +529,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		"sidebar_width":        &ui.SidebarWidth,
 		"sidebar_narrow_width": &ui.SidebarNarrowWidth,
 		"refresh_every":        &ui.RefreshEvery,
+		"watch_every":          &ui.WatchEvery,
 		"forward_dock_rows":    &ui.ForwardDockRows,
 	}
 	bools := map[string]*bool{"animations": &ui.Animations, "toasts": &ui.Toasts, "editor_inline": &ui.EditorInline, "dim_inactive": &ui.DimInactive, "cluster_info": &ui.ClusterInfo, "pod_metrics": &ui.PodMetrics, "wrap": &ui.Wrap, "metrics_bars": &ui.MetricsBars, "copy_mode_hint": &ui.CopyModeHint, "token_bar": &ui.TokenBar, "forward_scroll": &ui.ForwardScroll}

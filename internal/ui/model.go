@@ -70,6 +70,7 @@ type viewState struct {
 	helmAll   bool
 	helm      []kube.HelmRelease
 	hist      *helmHist
+	hop       *helmOp
 	search    string
 	searchAt  int
 	nsPrev    string
@@ -150,6 +151,11 @@ type vimReadyMsg struct {
 	err  error
 }
 
+type editReadyMsg struct {
+	pane, path, orig, kind, name string
+	err                          error
+}
+
 type lessDoneMsg struct{}
 
 type vimDoneMsg struct{}
@@ -189,6 +195,8 @@ type editDoneMsg struct {
 
 	pane  string
 	token int
+
+	helmNS, helmName, helmNotes string
 }
 
 type tickMsg time.Time
