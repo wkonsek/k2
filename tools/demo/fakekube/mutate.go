@@ -282,6 +282,53 @@ func editCmd(f flags) int {
 	})
 }
 
+func replaceCmd(f flags) int {
+	if f.filename == "" {
+		fmt.Fprintln(os.Stderr, "error: must specify --filename")
+		return 1
+	}
+	after, err := os.ReadFile(f.filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		return 1
+	}
+	var edited obj
+	if err := yaml.Unmarshal(after, &edited); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		return 1
+	}
+	k := kindOf(edited)
+	nm := objName(edited)
+	ns := nsOf(edited)
+	_, ctx, flagNS := f.target()
+	if ns == "" {
+		ns = flagNS
+	}
+	return mutate(func(w *world) int {
+		c := newCl(w, ctx)
+		o := c.find(k.Kind, ns, nm)
+		if o == nil {
+			notFound(resourceRef{k, nm})
+			return 1
+		}
+		e := deepCopy(edited)
+		if s, ok := e["spec"].(obj); ok && k.Kind != "Pod" {
+			o["spec"] = s
+		}
+		for _, field := range []string{"labels", "annotations"} {
+			if v, ok := get(e, "metadata", field).(obj); ok {
+				sub(o, "metadata")[field] = v
+			}
+		}
+		if d, ok := e["data"].(obj); ok {
+			o["data"] = d
+		}
+		c.reconcile()
+		fmt.Printf("%s/%s replaced\n", k.nameRef(), nm)
+		return 0
+	})
+}
+
 func execCmd(f flags) int {
 	if len(f.pos) < 2 {
 		return unknown("kubectl", f.raw)

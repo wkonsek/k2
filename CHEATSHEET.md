@@ -139,7 +139,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 | `G` | `keys.bottom` | last row |
 | `/` | — | filter (shown in the title; `esc` clears) |
 | `d` | `keys.describe` | kubectl describe the selected object |
-| `e` | `keys.edit` | kubectl edit in vim (inside the pane) |
+| `e` | `keys.edit` | edit the selected object in vim (inside the pane) |
 | `ctrl+d` | `keys.delete` | kubectl delete the selected object (asks in a red popup), also when other panes or tabs are open. On home, `ctrl+d` closes the pane, or the tab when it is the last pane; the only tab quits |
 | `>` | `keys.sort_next` | sort by the next column |
 | `<` | `keys.sort_prev` | sort by the previous column |

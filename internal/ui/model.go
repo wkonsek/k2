@@ -151,6 +151,11 @@ type vimReadyMsg struct {
 	err  error
 }
 
+type editReadyMsg struct {
+	pane, path, orig, kind, name string
+	err                          error
+}
+
 type lessDoneMsg struct{}
 
 type vimDoneMsg struct{}

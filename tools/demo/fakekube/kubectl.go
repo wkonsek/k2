@@ -24,6 +24,7 @@ type flags struct {
 	fieldSel     string
 	container    string
 	kustomize    string
+	filename     string
 	values       map[string]string
 	bools        map[string]bool
 }
@@ -31,7 +32,7 @@ type flags struct {
 var valued = map[string]bool{
 	"--kubeconfig": true, "--context": true, "-n": true, "--namespace": true, "-o": true, "--output": true,
 	"-l": true, "--selector": true, "--field-selector": true, "-c": true, "--container": true,
-	"-k": true, "--kustomize": true, "--replicas": true, "--tail": true, "--since": true, "--since-time": true,
+	"-k": true, "--kustomize": true, "-f": true, "--filename": true, "--replicas": true, "--tail": true, "--since": true, "--since-time": true,
 	"--sort-by": true, "--request-timeout": true, "--type": true, "-p": true, "--patch": true, "--from": true,
 }
 
@@ -78,6 +79,8 @@ func parseFlags(args []string) flags {
 			f.container = val
 		case "-k", "--kustomize":
 			f.kustomize = val
+		case "-f", "--filename":
+			f.filename = val
 		default:
 			if hasVal {
 				f.values[key] = val
@@ -151,6 +154,8 @@ func kubectlMain(args []string) int {
 		return setImageCmd(f)
 	case "edit":
 		return editCmd(f)
+	case "replace":
+		return replaceCmd(f)
 	case "exec":
 		return execCmd(f)
 	case "port-forward":

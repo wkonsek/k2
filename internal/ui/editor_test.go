@@ -198,22 +198,29 @@ func TestInlineVimFromViewer(t *testing.T) {
 
 func TestKubectlEditInlineKeepsError(t *testing.T) {
 	needVim(t)
-	bin := t.TempDir()
-	script := "#!/bin/sh\nf=$(mktemp)\necho 'kind: Pod' > \"$f\"\n$KUBE_EDITOR \"$f\"\nrm -f \"$f\"\necho \"edit args: $*\"\necho 'error: pods \"web-1\" is invalid'\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(bin, "kubectl"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
+	f := podCluster()
+	base := f.Handler
+	f.Handler = func(r shell.Request) shell.Result {
+		if len(r.Args) >= 5 && r.Args[0] == "get" && r.Args[3] == "-o" && r.Args[4] == "yaml" {
+			return shell.OK(editPodYAML)
+		}
+		if len(r.Args) > 0 && r.Args[0] == "replace" {
+			return shell.Fail(1, "edit args: "+r.Line()+"\nerror: pods \"web-1\" is invalid")
+		}
+		return base(r)
 	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	m := podsModel(t, podCluster())
+	m := podsModel(t, f)
 	h := newEdHarness(t, m)
 	h.keys("e")
-	h.pump(func() bool { return strings.Contains(h.screen(), "kind: Pod") }, "vim via KUBE_EDITOR")
+	h.pump(func() bool { return strings.Contains(h.screen(), "kind: Pod") }, "vim on cluster yaml")
 	time.Sleep(50 * time.Millisecond)
-	h.typeText(":q")
+	h.typeText(":%s/app: web/app: shop/")
 	h.keys("enter")
-	h.pump(func() bool { return h.m.ed != nil && h.m.ed.done }, "kubectl to fail")
+	h.typeText(":wq")
+	h.keys("enter")
+	h.pump(func() bool { return h.m.ed != nil && h.m.ed.done }, "replace to fail")
 	view := ansi.Strip(h.m.View())
-	for _, want := range []string{`error: pods "web-1" is invalid`, "edit args: edit pod web-1 --kubeconfig /kc --context kind-dev -n shop", "exit 1 · q closes", "edit pod/web-1 · exit 1"} {
+	for _, want := range []string{`error: pods "web-1" is invalid`, "replace -f", "--kubeconfig /kc", "exit 1 · q closes", "edit pod/web-1 · exit 1"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
@@ -387,20 +394,58 @@ func TestKustomizeAndEditSuccessInline(t *testing.T) {
 		t.Fatalf("stage %q", h.m.stage)
 	}
 
-	bin := t.TempDir()
-	script := "#!/bin/sh\nf=$(mktemp)\necho 'kind: Pod' > \"$f\"\n$KUBE_EDITOR \"$f\"\nrm -f \"$f\"\necho 'pod/web-1 edited'\n"
-	if err := os.WriteFile(filepath.Join(bin, "kubectl"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
+	f := podCluster()
+	var replaced int
+	base := f.Handler
+	f.Handler = func(r shell.Request) shell.Result {
+		if len(r.Args) >= 5 && r.Args[0] == "get" && r.Args[3] == "-o" && r.Args[4] == "yaml" {
+			return shell.OK(editPodYAML)
+		}
+		if len(r.Args) > 0 && r.Args[0] == "replace" {
+			replaced++
+			return shell.OK("pod/web-1 replaced")
+		}
+		return base(r)
 	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	h = newEdHarness(t, podsModel(t, podCluster()))
+	h = newEdHarness(t, podsModel(t, f))
 	h.keys("e")
-	h.pump(func() bool { return strings.Contains(h.screen(), "kind: Pod") }, "vim via KUBE_EDITOR")
+	h.pump(func() bool { return strings.Contains(h.screen(), "kind: Pod") }, "vim on cluster yaml")
 	time.Sleep(50 * time.Millisecond)
 	h.typeText(":q")
 	h.keys("enter")
-	h.pump(func() bool { return h.m.ed == nil && h.m.status == "done" }, "edit to finish")
+	h.pump(func() bool { return h.m.ed == nil && h.m.status == "done" }, "unchanged edit to finish")
+	if h.m.toast.text != "unchanged web-1" {
+		t.Fatalf("toast %+v", h.m.toast)
+	}
+	if replaced != 0 {
+		t.Fatalf("replace called %d times on unchanged edit", replaced)
+	}
+
+	h.keys("e")
+	h.pump(func() bool { return strings.Contains(h.screen(), "kind: Pod") }, "vim on cluster yaml again")
+	time.Sleep(50 * time.Millisecond)
+	h.typeText(":%s/app: web/app: shop/")
+	h.keys("enter")
+	h.typeText(":wq")
+	h.keys("enter")
+	h.pump(func() bool { return h.m.ed == nil && h.m.status == "done" }, "changed edit to finish")
 	if h.m.toast.text != "edited web-1" {
 		t.Fatalf("toast %+v", h.m.toast)
 	}
+	if replaced != 1 {
+		t.Fatalf("replace called %d times, want 1", replaced)
+	}
 }
+
+const editPodYAML = `apiVersion: v1
+kind: Pod
+metadata:
+  name: web-1
+  namespace: shop
+  labels:
+    app: web
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.27
+`

@@ -14,7 +14,7 @@ kubeconfig, context and namespace, so a kind cluster, a staging cluster and
 an OpenShift cluster can sit next to each other on one screen.
 
 - Pane and tab keys work like tmux, behind a `ctrl+a` prefix.
-- vim, shells and `kubectl edit` run *inside* a pane while the others keep
+- vim, shells and cluster edits run *inside* a pane while the others keep
   working.
 - Under the hood k2 runs `kubectl` for everything, so it works with any
   resource the cluster serves: built-in kinds, CRDs, OLM objects and
@@ -67,7 +67,7 @@ ones that died.
 
 - `ctrl+a %` splits right, `ctrl+a "` splits down;
 - `ctrl+a c` opens a tab, `ctrl+a z` zooms;
-- `e` (`kubectl edit`), `v` (any text) and `s` (a shell in the pod) open
+- `e` (edit the object), `v` (any text) and `s` (a shell in the pod) open
   inside the pane, and every pane can run its own editor.
 
 ![splits, tabs, zoom and vim in a pane](docs/demo/splits.gif)
@@ -519,7 +519,8 @@ Only `y` runs it; `n`, `esc` or `q` cancel and `enter` does nothing.
 - All keys go to the program except `ctrl+arrows` and the prefix (`Z` or
   `ctrl+a z` zooms the pane, `ctrl+a x` close, `ctrl+a Q` quit …).
 - vim follows splits and resizes.
-- `kubectl edit` uses `KUBE_EDITOR=vim`, and a failed edit leaves its last
+- Cluster edit opens a pretty-printed YAML buffer in vim and applies the
+  object only when it actually changed. A failed edit leaves its last
   screen for you to read.
 - Quitting k2 kills all editors.
 - `ui.editor_inline: false` opens vim fullscreen instead.
