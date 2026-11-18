@@ -83,6 +83,16 @@ func TestThemeCommand(t *testing.T) {
 	}
 }
 
+func boxHasRow(box, name string) bool {
+	for _, line := range strings.Split(box, "\n") {
+		row := strings.Trim(line, "│ ▸\t")
+		if row == name {
+			return true
+		}
+	}
+	return false
+}
+
 func TestThemePopupScrollsInAShortPane(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
 	m.context = "kind-dev"
@@ -90,12 +100,12 @@ func TestThemePopupScrollsInAShortPane(t *testing.T) {
 	m = press(t, m, "ctrl+t")
 	names := theme.Names()
 	box := ansi.Strip(m.dialogBox(40))
-	if strings.Contains(box, "arctic") || strings.Contains(box, names[len(names)-1]) || !strings.Contains(box, names[0]) {
+	if strings.Contains(box, "arctic") || boxHasRow(box, names[len(names)-1]) || !boxHasRow(box, names[0]) {
 		t.Fatalf("box:\n%s", box)
 	}
 	m.dlg.idx = len(names) - 1
 	box = ansi.Strip(m.dialogBox(40))
-	if !strings.Contains(box, names[len(names)-1]) || strings.Contains(box, names[0]) {
+	if !boxHasRow(box, names[len(names)-1]) || boxHasRow(box, names[0]) {
 		t.Fatalf("scrolled box:\n%s", box)
 	}
 }

@@ -7,6 +7,7 @@ func init() {
 		CatppuccinFrappe, CatppuccinMacchiato, RosePineMoon, RosePineDawn, GruvboxLight,
 		TokyoNightStorm, TokyoNightDay, Moonlight, Synthwave84, Palenight,
 		Sonokai, Vesper, EverforestLight, MatrixReloaded,
+		NordDarkContrast, Hacker,
 	)
 	extra := map[string]string{
 		"night-owl":            "Night Owl: blue and gold on deep navy",
@@ -33,6 +34,8 @@ func init() {
 		"vesper":               "Vesper: peach and mint on black",
 		"everforest-light":     "Everforest light medium: blue and green on soft paper (light)",
 		"matrix-reloaded":      "Matrix Reloaded: soft sage green on green-black, a gentler matrix",
+		"nord-dark-contrast":   "Nord Dark Contrast: frost teal and blue on neutral charcoal",
+		"hacker":               "Hacker: sage green and muted violet on near black",
 	}
 	for k, v := range extra {
 		Describe[k] = v
@@ -234,5 +237,23 @@ func MatrixReloaded() Palette {
 		Accent: "#22b455", Accent2: "#b2ccd6", Accent3: "#a7a8af",
 		Danger: "#ff293b", OK: "#22b455", Warn: "#d7b25c", Bright: "#c6e8d0",
 		SelBg: "#0d3a1e", SelFg: "#c6e8d0",
+	}
+}
+
+func NordDarkContrast() Palette {
+	return Palette{
+		Name: "nord-dark-contrast", Bg: "#212121", Muted: "#7b88a1", Text: "#d8dee9",
+		Accent: "#8fbcbb", Accent2: "#88c0d0", Accent3: "#81a1c1",
+		Danger: "#bf616a", OK: "#a3be8c", Warn: "#ebcb8b", Bright: "#eceff4",
+		SelBg: "#184350", SelFg: "#eceff4",
+	}
+}
+
+func Hacker() Palette {
+	return Palette{
+		Name: "hacker", Bg: "#0a0b0a", Muted: "#858585", Text: "#bbbbbb",
+		Accent: "#81b38c", Accent2: "#7574a5", Accent3: "#87a1c5",
+		Danger: "#c05776", OK: "#a7ecb7", Warn: "#d9b36c", Bright: "#e8e8e8",
+		SelBg: "#383838", SelFg: "#e8e8e8",
 	}
 }

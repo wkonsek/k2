@@ -711,6 +711,8 @@ The theme follows the focused pane and switches without a restart.
 | `vesper` | peach and mint on black | dark |
 | `everforest-light` | Light medium: blue and green on soft paper | light |
 | `matrix-reloaded` | soft sage green on green-black, a gentler matrix | dark |
+| `nord-dark-contrast` | frost teal and blue on neutral charcoal | dark |
+| `hacker` | sage green and muted violet on near black | dark |
 | `custom` | your own `colors:` block | either |
 
 ![every theme in the theme popup](docs/demo/themes.gif)
@@ -750,7 +752,10 @@ ui:
   everforest-light lead with iris and blue, whose contrast holds on paper;
   matrix-reloaded takes the green, gray and red of the Zary VS Code theme,
   lifts its pure black to a green-black and blends green with gray for the
-  body text).
+  body text; nord-dark-contrast follows the Nord Dark Contrast VS Code theme
+  with nord's lightened gray and the frost teal as the accent so it stays
+  apart from nord; hacker follows the Hacker VS Code theme and adds a soft
+  amber for warnings, which that theme lacks).
   The selected row has at least 4.5:1 contrast, dimmed text and the accent
   at least 3:1, and the production color is always a red.
 - `background: transparent` keeps the terminal background; `theme` paints
