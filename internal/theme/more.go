@@ -6,7 +6,7 @@ func init() {
 		Oxocarbon, Poimandres, Horizon, Zenburn, CatppuccinLatte,
 		CatppuccinFrappe, CatppuccinMacchiato, RosePineMoon, RosePineDawn, GruvboxLight,
 		TokyoNightStorm, TokyoNightDay, Moonlight, Synthwave84, Palenight,
-		Sonokai, Vesper, EverforestLight,
+		Sonokai, Vesper, EverforestLight, MatrixReloaded,
 	)
 	extra := map[string]string{
 		"night-owl":            "Night Owl: blue and gold on deep navy",
@@ -32,6 +32,7 @@ func init() {
 		"sonokai":              "Sonokai: Monokai pro tones, blue on charcoal",
 		"vesper":               "Vesper: peach and mint on black",
 		"everforest-light":     "Everforest light medium: blue and green on soft paper (light)",
+		"matrix-reloaded":      "Matrix Reloaded: soft sage green on green-black, a gentler matrix",
 	}
 	for k, v := range extra {
 		Describe[k] = v
@@ -224,5 +225,14 @@ func EverforestLight() Palette {
 		Accent: "#3a94c5", Accent2: "#8da101", Accent3: "#df69ba",
 		Danger: "#f85552", OK: "#8da101", Warn: "#dfa000", Bright: "#5c6a72",
 		SelBg: "#eaedc8", SelFg: "#5c6a72",
+	}
+}
+
+func MatrixReloaded() Palette {
+	return Palette{
+		Name: "matrix-reloaded", Bg: "#0a100c", Muted: "#6d6f7c", Text: "#64ae82",
+		Accent: "#22b455", Accent2: "#b2ccd6", Accent3: "#a7a8af",
+		Danger: "#ff293b", OK: "#22b455", Warn: "#d7b25c", Bright: "#c6e8d0",
+		SelBg: "#0d3a1e", SelFg: "#c6e8d0",
 	}
 }

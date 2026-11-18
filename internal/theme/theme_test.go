@@ -19,7 +19,7 @@ var allThemes = []string{"nord", "dracula", "catppuccin", "gruvbox", "tokyo-nigh
 	"kanagawa", "rose-pine", "everforest", "one-dark", "solarized-dark", "material", "matrix", "solarized-light",
 	"night-owl", "ayu", "monokai", "github-dark", "flexoki", "oxocarbon", "poimandres", "horizon", "zenburn", "catppuccin-latte",
 	"catppuccin-frappe", "catppuccin-macchiato", "rose-pine-moon", "rose-pine-dawn", "gruvbox-light",
-	"tokyo-night-storm", "tokyo-night-day", "moonlight", "synthwave84", "palenight", "sonokai", "vesper", "everforest-light"}
+	"tokyo-night-storm", "tokyo-night-day", "moonlight", "synthwave84", "palenight", "sonokai", "vesper", "everforest-light", "matrix-reloaded"}
 
 var lightThemes = map[string]bool{"solarized-light": true, "catppuccin-latte": true, "rose-pine-dawn": true,
 	"gruvbox-light": true, "tokyo-night-day": true, "everforest-light": true}
@@ -110,6 +110,7 @@ func TestSignatureAccents(t *testing.T) {
 		"tokyo-night-day":      {"#2e7de9", "#b15c00"},
 		"synthwave84":          {"#ff7edb", "#36f9f6"},
 		"vesper":               {"#ffc799", "#99ffe4"},
+		"matrix-reloaded":      {"#22b455", "#b2ccd6"},
 	}
 	for n, w := range want {
 		p, _ := Lookup(n)

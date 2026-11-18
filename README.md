@@ -710,6 +710,7 @@ The theme follows the focused pane and switches without a restart.
 | `sonokai` | Monokai pro tones, blue on charcoal | dark |
 | `vesper` | peach and mint on black | dark |
 | `everforest-light` | Light medium: blue and green on soft paper | light |
+| `matrix-reloaded` | soft sage green on green-black, a gentler matrix | dark |
 | `custom` | your own `colors:` block | either |
 
 ![every theme in the theme popup](docs/demo/themes.gif)
@@ -746,7 +747,10 @@ ui:
 
 - Colors are the themes' official ones (nord's dimmed gray is lightened and
   palenight uses its lighter gray for readability; rose-pine-dawn and
-  everforest-light lead with iris and blue, whose contrast holds on paper).
+  everforest-light lead with iris and blue, whose contrast holds on paper;
+  matrix-reloaded takes the green, gray and red of the Zary VS Code theme,
+  lifts its pure black to a green-black and blends green with gray for the
+  body text).
   The selected row has at least 4.5:1 contrast, dimmed text and the accent
   at least 3:1, and the production color is always a red.
 - `background: transparent` keeps the terminal background; `theme` paints
