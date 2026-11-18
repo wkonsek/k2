@@ -186,6 +186,11 @@ update; it does nothing when you already have the latest. Set
 curl -fsSL https://raw.githubusercontent.com/wkonsek/k2/main/install.sh | bash
 ```
 
+**Update from k2.** `k2 --update` (or `k2 -U`) downloads that same script
+and runs it, so the terminal stays attached and a `sudo` prompt works. It
+needs `bash` and `curl` or `wget`, exits with the script's exit code and
+never starts the UI. `K2_VERSION=<tag> k2 --update` picks a release.
+
 **From a package (linux/amd64).** Use a package from the
 [releases page](https://github.com/wkonsek/k2/releases), or build it
 with `make rpm` / `make deb` (`make dist` for both; the files land in
@@ -243,8 +248,8 @@ k2() {
 It evaluates only a clean exit:
 
 - k2 must exit 0 and print exactly one `export KUBECONFIG=...` line;
-- with arguments (`k2 --version`, `k2 --help`, `k2 --init-config`) k2 runs
-  directly;
+- with arguments (`k2 --version`, `k2 --help`, `k2 --init-config`,
+  `k2 --update`) k2 runs directly;
 - if k2 fails, nothing is evaluated;
 - a crash restores the terminal, writes the stack trace to
   `~/.k2/crash.log` and prints one line to standard error.
@@ -844,7 +849,7 @@ make demo        the README GIFs (needs vhs)
 
 ```
 example.go          embeds config.example.yaml (written on first start)
-cmd/k2/             main: runs the UI, prints the export line, --version, --init-config
+cmd/k2/             main: runs the UI, prints the export line, --version, --init-config, --update
 internal/ui/        Bubble Tea model, views and key handling
 internal/config/    ~/.k2/config.yaml, key bindings and key parsing
 internal/theme/     color palettes

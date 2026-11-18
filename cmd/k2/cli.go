@@ -29,6 +29,8 @@ Usage:
   k2                  start the UI
   k2 --fresh          one home pane; the saved tabs and panes are not restored
   k2 --profile NAME   open that profile (panes, contexts, views)
+  k2 --update         install the latest release with the repo's install.sh (also -U);
+                      K2_VERSION=<tag> picks a release; needs bash, curl or wget and sudo
   k2 --version        print the version (also -v, version)
   k2 --help           print this help (also -h)
   k2 --init-config    write the commented example config to ~/.k2/config.yaml if it

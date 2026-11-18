@@ -106,6 +106,7 @@ cuts them with `…`).
 | `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`), previewed as you move, `esc` restores; the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
 | `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
 | `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
+| — | — | update k2 from the shell: `k2 --update` (or `k2 -U`) runs the repo's install.sh (`.deb` or `.rpm`, needs bash and curl or wget; `K2_VERSION=<tag>` picks a release); it never starts the UI |
 | — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |

@@ -43,6 +43,9 @@ func versionString() string {
 }
 
 func main() {
+	if isUpdate(os.Args[1:]) {
+		os.Exit(runUpdate(os.Args[1:]))
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "--check-config" || os.Args[1] == "--check") {
 		out, code := checkConfig()
 		fmt.Print(out)
