@@ -119,6 +119,10 @@ func (m model) buildVisual(innerW int) []vline {
 		for i, l := range logical {
 			colored[i] = colorYAML(l)
 		}
+	case "view":
+		if m.secretMode() == "cert" {
+			colored = colorCert(logical)
+		}
 	case "kout":
 		colored = make([]string, len(logical))
 		for i, l := range logical {

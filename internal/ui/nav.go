@@ -247,6 +247,7 @@ func (m *model) back() tea.Cmd {
 	switch m.stage {
 	case "yaml", "view":
 		m.stage = "res"
+		m.vs.secret = ""
 		m.status = or(m.kind, "resources")
 	case "describe":
 		m.stage = or(m.dback, "res")

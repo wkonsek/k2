@@ -421,10 +421,14 @@ func (b *builder) configs() {
 	cm("payments", "api-config", map[string]string{"DB_HOST": "postgres", "DB_NAME": "payments", "MAX_CONNS": "40"})
 	cm("kafka", "kafka-connect-config", map[string]string{"CONNECT_BOOTSTRAP_SERVERS": "kafka:9092", "CONNECT_GROUP_ID": "connect-cluster", "CONNECT_CONFIG_STORAGE_TOPIC": "_connect-configs"})
 	cm("monitoring", "grafana-dashboards", map[string]string{"shop.json": `{"title":"Shop overview","panels":[]}`, "kafka.json": `{"title":"Kafka lag","panels":[]}`})
-	sec("shop", "web-tls", "kubernetes.io/tls", map[string]string{"tls.crt": "-----BEGIN CERTIFICATE-----\nMIIB…demo…\n-----END CERTIFICATE-----\n", "tls.key": "-----BEGIN PRIVATE KEY-----\n…demo…\n-----END PRIVATE KEY-----\n"})
+	webCrt, webKey := demoChain(b.now, certSpec{cn: "shop.acme.example", org: "Acme", dns: []string{"shop.acme.example", "www.shop.acme.example"}, ips: []string{"10.96.0.20"}, notAfter: b.now.Add(21*24*time.Hour + 5*time.Hour), age: 69 * 24 * time.Hour})
+	sec("shop", "web-tls", "kubernetes.io/tls", map[string]string{"tls.crt": webCrt, "tls.key": webKey})
 	sec("shop", "cart-redis", "Opaque", map[string]string{"REDIS_PASSWORD": "s3cr3t-demo-only"})
 	sec("shop", "checkout-db", "Opaque", map[string]string{"DATABASE_URL": "postgres://checkout:demo@postgres.payments:5432/checkout"})
-	sec("payments", "api-tls", "kubernetes.io/tls", map[string]string{"tls.crt": "-----BEGIN CERTIFICATE-----\n…demo…\n-----END CERTIFICATE-----\n", "tls.key": "…demo…"})
+	apiCrt, apiKey := demoChain(b.now, certSpec{cn: "api.payments.acme.example", org: "Acme Payments", dns: []string{"api.payments.acme.example"}, notAfter: b.now.Add(240 * 24 * time.Hour), age: 125 * 24 * time.Hour})
+	sec("payments", "api-tls", "kubernetes.io/tls", map[string]string{"tls.crt": apiCrt, "tls.key": apiKey})
+	oldCrt, _ := demoChain(b.now, certSpec{cn: "legacy.acme.example", org: "Acme", dns: []string{"legacy.acme.example"}, notAfter: b.now.Add(-9*24*time.Hour - 3*time.Hour), age: 374 * 24 * time.Hour})
+	sec("shop", "legacy-cert", "Opaque", map[string]string{"ca.crt": oldCrt, "NOTE": "rotate this one"})
 	sec("payments", "postgres-credentials", "Opaque", map[string]string{"POSTGRES_USER": "payments", "POSTGRES_PASSWORD": "not-a-real-password"})
 }
 

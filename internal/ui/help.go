@@ -187,8 +187,11 @@ func (m model) viewerRows() []helpRow {
 	default:
 		rows = append(rows, helpRow{keyList(k.Search, 1), "search"})
 	}
-	if m.stage == "yaml" || m.stage == "describe" {
+	if watchable(m.stage, m.vs) {
 		rows = append(rows, helpRow{keyList(k.Watch, 1), "watch for changes"})
+	}
+	if m.secretCycles() {
+		rows = append(rows, helpRow{keyList(k.Decode, 1), "encoded, decoded, certificates"})
 	}
 	if m.stage == "pulse" {
 		rows = append(rows, helpRow{keyList(k.AllNamespaces, 1), "all namespaces"})

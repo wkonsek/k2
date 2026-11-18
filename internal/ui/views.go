@@ -239,7 +239,10 @@ func (m model) paneView() string {
 		return scopeLabel(m.namespace, "pods")
 	case "res", "yaml", "view":
 		label := or(m.subject, or(m.kind, m.stage))
-		if m.stage == "yaml" && m.vs.watchOn {
+		if tag := secretTag(m.stage, m.vs, m.subject, m.kind); tag != "" {
+			label += " · " + tag
+		}
+		if (m.stage == "yaml" || m.stage == "view") && m.vs.watchOn {
 			label += " · watching"
 		}
 		return label
@@ -355,8 +358,11 @@ func (m model) legend() string {
 		if m.stage == "logs" {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 		}
-		if m.stage == "yaml" || m.stage == "describe" {
+		if watchable(m.stage, m.vs) {
 			parts = append(parts, pair(k.Watch.Short(), m.watchLegend()))
+		}
+		if m.secretCycles() {
+			parts = append(parts, pair(k.Decode.Short(), m.secretLegend()))
 		}
 		if m.stage == "mlogs" {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))
@@ -391,8 +397,11 @@ func (m model) legend() string {
 			if m.stage == "logs" {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 			}
-			if m.stage == "yaml" || m.stage == "describe" {
+			if watchable(m.stage, m.vs) {
 				head = append(head, pair(k.Watch.Short(), m.watchLegend()))
+			}
+			if m.secretCycles() {
+				head = append(head, pair(k.Decode.Short(), m.secretLegend()))
 			}
 			if m.stage == "mlogs" {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))

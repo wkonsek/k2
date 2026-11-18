@@ -61,6 +61,10 @@ type viewState struct {
 	kpos map[string]kmark
 
 	vback     string
+	secret    string
+	secretRef string
+	secretAlt string
+	secretHas bool
 	watchOn   bool
 	watchBusy bool
 	watchKind string
@@ -137,6 +141,9 @@ type viewMsg struct {
 	id, text string
 	err      error
 	what     string
+	alt      string
+	certs    bool
+	secret   bool
 }
 
 type rowsMsg struct {

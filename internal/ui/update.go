@@ -461,7 +461,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.toggleAuto()
 			}
 		}
-		if !filtering && km.Watch.Has(key) && (m.stage == "yaml" || m.stage == "describe") {
+		if !filtering && km.Watch.Has(key) && watchable(m.stage, m.vs) {
 			return m.toggleWatch()
 		}
 		if !filtering {
@@ -492,14 +492,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case km.Decode.Has(key):
 				if m.stage == "res" && kube.IsSecretKind(m.kind) && m.content.SelectedItem() != nil {
 					it := m.content.SelectedItem().(item)
-					m.subject = it.id
-					m.logText = ""
-					m.logStick = false
-					m.logAt = 0
-					m.stage = "view"
-					m.vs.vback = ""
-					m.status = "decoded secret"
-					return m, tea.Batch(m.startLoad("decoding secret", false), m.decodeSelected())
+					ns, name := kube.SplitRef(it.id, it.desc)
+					if ns == "" {
+						ns = m.namespace
+					}
+					return m.openSecret(ns, name, false)
+				}
+				if m.secretCycles() {
+					return m.cycleSecret()
 				}
 			case km.Edit.Has(key):
 				if (m.stage == "kust" || m.stage == "kdir") && m.content.SelectedItem() != nil {

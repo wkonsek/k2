@@ -301,8 +301,14 @@ func (m model) paneLabel(i int) string {
 		}
 	case "view":
 		label = or(s.subject, s.stage)
+		if tag := secretTag(s.stage, s.vs, s.subject, s.kind); tag != "" {
+			label += " · " + tag
+		}
 	case "yaml":
 		label = or(s.subject, s.kind)
+		if tag := secretTag(s.stage, s.vs, s.subject, s.kind); tag != "" {
+			label += " · " + tag
+		}
 	case "describe":
 		label = "describe " + s.subject
 	case "fwds":

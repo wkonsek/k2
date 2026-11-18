@@ -13,6 +13,8 @@ import (
 
 type watchMsg struct {
 	id, stage, text string
+	alt             string
+	certs           bool
 	err             error
 }
 
@@ -25,7 +27,7 @@ func (m *model) armWatch(kind, ns, name string) {
 }
 
 func (m model) toggleWatch() (tea.Model, tea.Cmd) {
-	if m.vs.watchName == "" || (m.stage != "yaml" && m.stage != "describe") {
+	if m.vs.watchName == "" || !watchable(m.stage, m.vs) {
 		return m, nil
 	}
 	m.vs.watchOn = !m.vs.watchOn
@@ -82,14 +84,14 @@ func (m *model) issueWatch() tea.Cmd {
 }
 
 func (m *model) canWatch() bool {
-	return m.vs.watchOn && !m.vs.watchBusy && m.vs.watchName != "" && (m.stage == "yaml" || m.stage == "describe")
+	return m.vs.watchOn && !m.vs.watchBusy && m.vs.watchName != "" && watchable(m.stage, m.vs)
 }
 
 func issueSnapWatch(p *paneSnap, k kube.Client) tea.Cmd {
 	if !p.vs.watchOn || p.vs.watchBusy || p.vs.watchName == "" {
 		return nil
 	}
-	if p.stage != "yaml" && p.stage != "describe" {
+	if !watchable(p.stage, p.vs) {
 		return nil
 	}
 	p.vs.watchBusy = true
@@ -98,13 +100,15 @@ func issueSnapWatch(p *paneSnap, k kube.Client) tea.Cmd {
 
 func watchCmd(k kube.Client, pane, stage, kind, ns, name, kc, ctx string) tea.Cmd {
 	return func() tea.Msg {
-		var text string
-		var err error
-		if stage == "describe" {
-			text, err = k.Describe(kc, ctx, kind, name, ns)
-		} else {
-			text, err = k.YAML(kc, ctx, kind, name, ns)
+		switch stage {
+		case "describe":
+			text, err := k.Describe(kc, ctx, kind, name, ns)
+			return watchMsg{id: pane, stage: stage, text: text, err: err}
+		case "view":
+			v, err := k.SecretViews(kc, ctx, ns, name)
+			return watchMsg{id: pane, stage: stage, text: v.Decoded, alt: v.Certs, certs: v.HasCerts, err: err}
 		}
+		text, err := k.YAML(kc, ctx, kind, name, ns)
 		return watchMsg{id: pane, stage: stage, text: text, err: err}
 	}
 }
@@ -112,7 +116,7 @@ func watchCmd(k kube.Client, pane, stage, kind, ns, name, kc, ctx string) tea.Cm
 func (m *model) applyWatch(msg watchMsg) {
 	set := func(stage, text, status *string, vs *viewState) {
 		vs.watchBusy = false
-		if !vs.watchOn || *stage != msg.stage || (*stage != "yaml" && *stage != "describe") {
+		if !vs.watchOn || *stage != msg.stage || !watchable(*stage, *vs) {
 			return
 		}
 		if msg.err != nil {
@@ -120,10 +124,16 @@ func (m *model) applyWatch(msg watchMsg) {
 			return
 		}
 		*text = msg.text
+		if msg.stage == "view" {
+			vs.secretAlt, vs.secretHas = msg.alt, msg.certs
+			if vs.secret == "cert" {
+				*text = msg.alt
+			}
+		}
 	}
 	if m.logID == msg.id {
 		set(&m.stage, &m.logText, &m.status, &m.vs)
-		if msg.err == nil && m.vs.watchOn && (m.stage == "yaml" || m.stage == "describe") {
+		if msg.err == nil && m.vs.watchOn && watchable(m.stage, m.vs) {
 			m.status = m.watchStatus()
 		}
 		return
@@ -134,7 +144,7 @@ func (m *model) applyWatch(msg watchMsg) {
 			continue
 		}
 		set(&p.stage, &p.logText, &p.status, &p.vs)
-		if msg.err == nil && p.vs.watchOn && (p.stage == "yaml" || p.stage == "describe") {
+		if msg.err == nil && p.vs.watchOn && watchable(p.stage, p.vs) {
 			p.status = m.watchStatusFor(p.stage, p.subject)
 		}
 		return
@@ -146,7 +156,11 @@ func (m model) paneWatchOn(i int) bool {
 	if i != m.focus && i < len(m.panes) {
 		vs, stage = m.panes[i].vs, m.panes[i].stage
 	}
-	return vs.watchOn && (stage == "yaml" || stage == "describe")
+	return vs.watchOn && watchable(stage, vs)
+}
+
+func watchable(stage string, vs viewState) bool {
+	return stage == "yaml" || stage == "describe" || (stage == "view" && vs.secret != "")
 }
 
 func (m model) paneWatchTitle(i, width int, frame lipgloss.Style) (label, badge string) {

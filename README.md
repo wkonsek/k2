@@ -506,7 +506,16 @@ it shows:
 - On a resource's YAML (`enter`) or describe (`d`), `r` refreshes it every
   `ui.watch_every` seconds (2 by default) until `r` again, so a status on
   a CR stays live. While it is on, the pane's top-right border shows
-  `⟳ watch 2s` (or a shorter mark if the title is tight).
+  `⟳ watch 2s` (or a shorter mark if the title is tight). The decoded and
+  certificate secret views below refresh the same way.
+- On a secret, `x` cycles encoded (the YAML), decoded and, when a value is
+  an x509 certificate, a certificate view; the pane title names the mode.
+  The certificate view parses PEM values (chains show every certificate)
+  and DER ones: subject, issuer, serial, validity with the days left
+  (expired shows red, under 30 days yellow), alt names, key algorithm and
+  size, signature algorithm, CA flag, key and extended key usage and the
+  SHA-256 fingerprint. Other values stay decoded text and private keys are
+  never expanded. Without a certificate, `x` toggles encoded and decoded.
 - `y` enters copy mode: only the text at full screen, so the terminal's own
   mouse selection copies cleanly (k2 never captures the mouse). There `v`
   selects lines, `y` copies them, `Y` copies everything (`ui.clipboard`).

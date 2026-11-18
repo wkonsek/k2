@@ -148,7 +148,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 | `W` | `keys.copy_ref` | copy `kind/name -n ns` to the clipboard |
 | `L` | `keys.label` | label popup (`key=value` or `key-`) |
 | `A` | `keys.annotate` | annotate popup |
-| `x` | `keys.decode` | secrets: decode the selected secret |
+| `x` | `keys.decode` | secrets: decode the selected secret; in the secret's viewer it cycles encoded (YAML), decoded and, for x509 values, a parsed certificate view (subject, issuer, validity with days left, alt names, key, usages, SHA-256); without a certificate it toggles encoded / decoded; `r` watches any of them |
 | `X` | `keys.xray` | owner tree (xray) of the selected row: deployments, statefulsets, daemonsets, replicasets, jobs, cronjobs, pods, services (k9s xray) |
 | `M` | `keys.multi_logs` | logs of all pods of the selected workload / service (its selector) or of a pod's siblings, stern-like |
 | `ctrl+f`, `F` | `keys.port_forward` | port-forward popup (pods, services, deployments, statefulsets) |
@@ -298,7 +298,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | Key | Config | What it does |
 |---|---|---|
 | `w` | `keys.wrap` | toggle line wrap in this pane (start state: `ui.wrap`) |
-| `r` | `keys.watch` | on YAML (`enter`) and describe (`d`): refresh that object every `ui.watch_every` seconds (2 by default). While it is on, `⟳ watch 2s` sits at the pane's top-right (a shorter mark if the title is tight). `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
+| `r` | `keys.watch` | on YAML (`enter`), describe (`d`) and a secret's decoded / certificate views: refresh that object every `ui.watch_every` seconds (2 by default). While it is on, `⟳ watch 2s` sits at the pane's top-right (a shorter mark if the title is tight). `r` again stops. The same letter is still rollout restart on a workload, and restart of a forward, because those are different screens |
 | `y` | `keys.copy_mode` | copy mode: only the text on the whole screen (see below). The legend says so in the log view too, including when the pane is zoomed (`Z`) |
 | `m` | `keys.log_mark` | pod logs and stern (`M`, `:logs`): draw a rule after the current line (the tail, or the line on screen when paused). New lines keep arriving under it. `m` again on that line removes the rule |
 | `v` | `keys.vim` | open the text in vim |

@@ -553,26 +553,6 @@ func (m model) deleteSelectedPod() tea.Cmd {
 	}
 }
 
-func (m model) decodeSelected() tea.Cmd {
-	sel := m.content.SelectedItem()
-	if sel == nil {
-		return nil
-	}
-	it := sel.(item)
-	ns, name := it.desc, it.id
-	if ns == "" {
-		ns = m.namespace
-	}
-	kc, ctx, pane := m.kubeconfig, m.context, m.logID
-	return func() tea.Msg {
-		text, err := m.k.Secret(kc, ctx, ns, name)
-		if err != nil {
-			return viewMsg{id: pane, err: err}
-		}
-		return viewMsg{id: pane, text: text}
-	}
-}
-
 func (m *model) applyView(msg viewMsg) {
 	text := msg.text
 	if msg.err != nil {
@@ -588,6 +568,7 @@ func (m *model) applyView(msg viewMsg) {
 		m.stage = "view"
 		m.logText = text
 		m.status = "decoded secret"
+		m.vs.takeSecret(msg)
 		return
 	}
 	for i := range m.panes {
@@ -598,6 +579,7 @@ func (m *model) applyView(msg viewMsg) {
 		m.panes[i].stage = "view"
 		m.panes[i].logText = text
 		m.panes[i].status = "decoded secret"
+		m.panes[i].vs.takeSecret(msg)
 		return
 	}
 }

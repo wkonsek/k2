@@ -53,7 +53,7 @@
 #   sidebar_narrow_width: 22  # 1..200
 #   sidebar_position: left    # left | right | top | bottom
 #   refresh_every: 3          # seconds, 1..200
-#   watch_every: 2            # yaml/describe watch, seconds, 1..200
+#   watch_every: 2            # yaml/describe/secret watch, seconds, 1..200
 #   forward_dock_rows: 12     # 1..200
 #   forward_scroll: true      # scroll long forwards instead of cutting them
 #   animations: true
@@ -92,7 +92,7 @@
 #   port_forward: [ctrl+f, F]
 #   describe: d
 #   edit: e
-#   decode: x
+#   decode: x                 # secrets: decode; in the viewer x cycles encoded, decoded and certificates
 #   delete: ctrl+d
 #   shell: s
 #   scale: S
@@ -145,7 +145,7 @@
 #   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
 #   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w
-#   watch: r                  # yaml and describe: refresh the object every ui.watch_every seconds. r on a workload is still restart
+#   watch: r                  # yaml, describe and secret views: refresh the object every ui.watch_every seconds. r on a workload is still restart
 #   copy_mode: y
 #   log_mark: m
 #   search: /
