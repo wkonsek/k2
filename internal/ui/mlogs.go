@@ -63,6 +63,9 @@ func (m model) openMultiLogs(q kube.LogQuery, title, from string) (tea.Model, te
 		m.status = "select kubeconfig and context first"
 		return m, nil
 	}
+	if m.stage != "mlogs" {
+		m.rememberView()
+	}
 	m.vs.ml = &mlogView{q: q, title: title, from: from, cur: kube.LogCursor{}, colors: map[string]color{}}
 	m.logText = ""
 	m.logStick = true

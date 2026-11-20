@@ -17,6 +17,9 @@ import (
 )
 
 func (m *model) showForwards() tea.Cmd {
+	if m.stage != "fwds" {
+		m.rememberView()
+	}
 	keep := m.status
 	m.content.ResetFilter()
 	m.stage = "fwds"

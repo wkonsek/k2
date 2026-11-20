@@ -115,6 +115,7 @@ type Keys struct {
 	Quit                                                         Binding
 	Prefix                                                       Binding
 	Back                                                         Binding
+	Home                                                         Binding
 	Left                                                         Binding
 	Select                                                       Binding
 	Submit                                                       Binding
@@ -191,7 +192,7 @@ func DefaultKeys() Keys {
 		NextTab: Binding{DirectMark + "]", "n", "]"}, PrevTab: Binding{DirectMark + "[", "p", "["},
 		Tab:        [9]Binding{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"7"}, {"8"}, {"9"}},
 		Fullscreen: Binding{"Z"}, Zoom: Binding{"z"}, LastError: Binding{"!"}, Help: Binding{"?"}, ReadOnly: Binding{"R"}, Quit: Binding{"Q", "ctrl+c"}, Prefix: Binding{"ctrl+a"},
-		Back: Binding{"q", "esc", "H"}, Left: Binding{"left", "h"},
+		Back: Binding{"q", "esc", "H"}, Home: Binding{"~"}, Left: Binding{"left", "h"},
 		Select: Binding{"enter", "right", "l"}, Submit: Binding{"enter"},
 		Cancel: Binding{"esc"}, ShellBack: Binding{"esc", "q"},
 		ScrollDown: Binding{"j", "down"}, ScrollUp: Binding{"k", "up"},
@@ -299,6 +300,7 @@ var keyFields = []keyField{
 	{"quit", func(k *Keys) *Binding { return &k.Quit }},
 	{"prefix", func(k *Keys) *Binding { return &k.Prefix }},
 	{"back", func(k *Keys) *Binding { return &k.Back }},
+	{"home", func(k *Keys) *Binding { return &k.Home }},
 	{"left", func(k *Keys) *Binding { return &k.Left }},
 	{"select", func(k *Keys) *Binding { return &k.Select }},
 	{"submit", func(k *Keys) *Binding { return &k.Submit }},
@@ -405,14 +407,14 @@ var OldPaneKeys = map[string]Binding{
 }
 
 var globalKeys = map[string]bool{
-	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "help": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
+	"quit": true, "home": true, "prefix": true, "fullscreen": true, "last_error": true, "help": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
 	"pane_left": true, "pane_right": true, "pane_up": true, "pane_down": true, "prev_pane": true, "next_pane": true, "last_pane": true,
 	"zoom": true, "cmd_save": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true, "profile": true,
 	"tab_1": true, "tab_2": true, "tab_3": true, "tab_4": true, "tab_5": true, "tab_6": true, "tab_7": true, "tab_8": true, "tab_9": true,
 }
 
 var screenKeys = func() map[string][]string {
-	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "cmd_favorites", "command", "readonly", "back", "left", "select"}
+	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "cmd_favorites", "command", "readonly", "back", "home", "left", "select"}
 	move := []string{"scroll_down", "scroll_up", "page_down", "page_up", "top", "bottom"}
 	with := func(extra ...string) []string {
 		return append(append(append([]string(nil), common...), move...), extra...)

@@ -276,7 +276,8 @@ Then:
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
 | `ctrl+arrows` | move between panes |
 | `0` | all namespaces and back |
-| `q` / `esc` | back |
+| `q` / `esc` | back (the previous `: ` view or drill, or home) |
+| `~` | home (clears the view history) |
 | `?` | help: the keys of the current view in a popup |
 | `Q` | quit; your shell switches to the focused pane's cluster |
 | `space` | select rows; `ctrl+d` deletes them, `M` tails those pods |

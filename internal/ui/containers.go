@@ -72,16 +72,22 @@ func (m model) openContainers() (tea.Model, tea.Cmd) {
 	if ns == "" || name == "" {
 		return m, nil
 	}
+	m.rememberView()
+	m.histSkip = true
 	m.vs.podSelBack, m.vs.podTitleBack = m.vs.podSel, m.vs.podTitle
 	m.vs.podSel, m.vs.podTitle = containerSel(ns, name), ""
 	m.vs.sortBack = podSort{col: m.vs.sortCol, desc: m.vs.sortDesc, marks: m.vs.marks}
 	m.vs.sortCol, m.vs.sortDesc, m.vs.marks = "", false, nil
 	m.vs.pick = ""
-	return m.openList("workpods", "pods")
+	next, cmd := m.openList("workpods", "pods")
+	nm := next.(model)
+	nm.histSkip = false
+	return nm, cmd
 }
 
 func (m model) backToPods() (tea.Model, tea.Cmd) {
 	ns, pod, _ := parseContainerSel(m.vs.podSel)
+	m.histSkip = true
 	m.vs.podSel, m.vs.podTitle = m.vs.podSelBack, m.vs.podTitleBack
 	m.vs.podSelBack, m.vs.podTitleBack = "", ""
 	m.vs.sortCol, m.vs.sortDesc, m.vs.marks = m.vs.sortBack.col, m.vs.sortBack.desc, m.vs.sortBack.marks
@@ -90,7 +96,11 @@ func (m model) backToPods() (tea.Model, tea.Cmd) {
 	if m.namespace == "" {
 		m.vs.pick = ns + "/" + pod
 	}
-	return m.openList("workpods", "pods")
+	m.dropHistIfCurrent()
+	next, cmd := m.openList("workpods", "pods")
+	nm := next.(model)
+	nm.histSkip = false
+	return nm, cmd
 }
 
 func (m model) containersHint() string {

@@ -209,6 +209,7 @@ func (m model) jumpFavorite(f config.Favorite) (tea.Model, tea.Cmd) {
 		m.status = "select a kubeconfig first (the favorite names none)"
 		return m, m.notify(toneWarn, m.status)
 	}
+	m.clearHist()
 	m.context = f.Context
 	m.namespace = f.Namespace
 	if m.namespace == "" {

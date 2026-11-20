@@ -625,6 +625,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.Mark.Has(key) && !filtering && (m.stage == "workpods" || m.stage == "res"):
 			m.toggleMark()
 			return m, nil
+		case km.Home.Has(key):
+			if filtering {
+				break
+			}
+			if m.cancelLoad() {
+				return m, nil
+			}
+			return m.goHome()
 		case km.Back.Has(key):
 			if m.cancelLoad() {
 				return m, nil
@@ -644,6 +652,11 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.vs.parent != "" && (m.stage == "workpods" || m.stage == "res") {
 				return m.backToParent()
 			}
+			if histable(m.stage) {
+				if next, cmd, ok := m.popHist(); ok {
+					return next, cmd
+				}
+			}
 			if m.stage != "nav" {
 				return m, m.back()
 			}
@@ -660,6 +673,11 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.vs.parent != "" && (m.stage == "workpods" || m.stage == "res") {
 				return m.backToParent()
+			}
+			if histable(m.stage) {
+				if next, cmd, ok := m.popHist(); ok {
+					return next, cmd
+				}
 			}
 			if m.stage != "nav" {
 				return m, m.back()

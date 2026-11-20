@@ -97,6 +97,7 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		m.kubeconfig = it.title
 		m.context = m.k.CurrentContext(m.kubeconfig)
 		m.namespace = m.k.NamespaceOf(m.kubeconfig, m.context)
+		m.clearHist()
 		m.stage = "nav"
 		m.status = config.HomePath(m.kubeconfig)
 		m.save()
@@ -110,6 +111,9 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		}
 		return m, m.showKDir(it.id)
 	case "contexts":
+		if m.context != it.title {
+			m.clearHist()
+		}
 		m.context = it.title
 		m.namespace = m.k.NamespaceOf(m.kubeconfig, m.context)
 		m.save()
@@ -129,6 +133,9 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 			m.status = m.errLine(err)
 			m.content.Title = m.status
 			return m, nil
+		}
+		if m.context != ctx {
+			m.clearHist()
 		}
 		m.context = ctx
 		m.namespace = ns

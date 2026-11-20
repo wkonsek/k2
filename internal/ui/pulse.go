@@ -30,6 +30,9 @@ func (m model) openPulse() (tea.Model, tea.Cmd) {
 		m.status = "pulse needs a namespace (pick one with " + m.cfg.Keys.Namespace.Label() + ")"
 		return m, m.notify(toneWarn, "pulse needs a namespace")
 	}
+	if m.stage != "pulse" {
+		m.rememberView()
+	}
 	m.vs.vback = ""
 	m.subject = "pulse " + m.namespace
 	m.logText = ""

@@ -68,6 +68,9 @@ func (m model) openXray(kind, name string) (tea.Model, tea.Cmd) {
 		m.status = "no owner tree for " + kind + " (have " + strings.Join(kube.XrayKindNames, ", ") + ")"
 		return m, m.notify(toneWarn, "no owner tree for "+kind)
 	}
+	if m.stage != "xray" {
+		m.rememberView()
+	}
 	spin := m.startLoad("loading tree", true)
 	return m, tea.Batch(spin, xrayCmd(m.k, m.logID, m.load.token, false, m.kubeconfig, m.context, m.namespace, root, name))
 }

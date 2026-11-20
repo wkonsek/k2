@@ -163,6 +163,9 @@ func (m model) openListToggled(stage, kind string) (tea.Model, tea.Cmd) {
 }
 
 func (m model) openListAs(stage, kind string, toggled bool) (tea.Model, tea.Cmd) {
+	if !m.histSkip && (m.stage != stage || m.kind != kind) {
+		m.rememberView()
+	}
 	if m.kubeconfig == "" || m.context == "" {
 		m.status = "select kubeconfig and context first"
 		return m, nil
@@ -297,6 +300,7 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 	header, items := m.withMetrics(msg.header, msg.items, m.kubeconfig, m.context, m.namespace, m.tableWidth())
 	setRows(&m.content, header, items, m.vs, m.vs.pick)
 	m.vs.pick = ""
+	m.applyHistRest()
 	if msg.stage == "workpods" {
 		m.status = m.podsHint()
 		if m.inContainers() {

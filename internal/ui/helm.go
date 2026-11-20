@@ -47,6 +47,9 @@ func (m model) openHelm() (tea.Model, tea.Cmd) {
 		m.status = "select kubeconfig and context first"
 		return m, nil
 	}
+	if m.stage != "helm" {
+		m.rememberView()
+	}
 	spin := m.startLoad("loading helm releases", true)
 	return m, tea.Batch(spin, helmCmd(m.k, m.logID, m.load.token, false, m.vs.helmAll, m.kubeconfig, m.context, m.helmNS()))
 }

@@ -194,6 +194,7 @@
 #   help: "?"
 #   quit: [Q, ctrl+c]
 #   back: [q, esc, H]
+#   home: "~"
 #   left: [left, h]
 #   select: [enter, right, l]
 #   submit: enter

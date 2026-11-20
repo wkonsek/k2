@@ -28,7 +28,8 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `R` | `keys.readonly` | toggle read-only mode for this session: browse, filter, describe, YAML, logs and context/namespace stay available; apply, delete, edit (cluster and local Kustomize / folder open), shell, scale, restart, kubectl submit and other changes are blocked. Lock icon + READ-ONLY shows beside the logo. Already-running editors, shells and port-forwards are not killed |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
-| `q`, `esc`, `H` | `keys.back` | back one screen (or clear a filter) |
+| `q`, `esc`, `H` | `keys.back` | back one screen (the previous `: ` view or drill, or home); or clear a filter |
+| `~` | `keys.home` | go to the home screen and clear the view history |
 | `left`, `h` | `keys.left` | back too, but ignored while filtering |
 | `enter`, `right`, `l` | `keys.select` | open / choose the selected row |
 

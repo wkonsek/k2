@@ -247,16 +247,26 @@ func (m model) openShell(ns, pod, container string) (tea.Model, tea.Cmd) {
 
 func (m model) drill(stage, kind, sel, title string) (tea.Model, tea.Cmd) {
 	it, _ := m.selectedItem()
+	m.rememberView()
+	m.histSkip = true
 	m.vs.parent, m.vs.parentSel = m.kind, it.id
 	m.vs.podSel, m.vs.podTitle = sel, title
-	return m.openList(stage, kind)
+	next, cmd := m.openList(stage, kind)
+	nm := next.(model)
+	nm.histSkip = false
+	return nm, cmd
 }
 
 func (m model) backToParent() (tea.Model, tea.Cmd) {
 	kind, sel := m.vs.parent, m.vs.parentSel
+	m.histSkip = true
 	m.vs.parent, m.vs.parentSel, m.vs.podSel, m.vs.podTitle = "", "", "", ""
 	m.vs.pick = sel
-	return m.openList("res", kind)
+	m.dropHistIfCurrent()
+	next, cmd := m.openList("res", kind)
+	nm := next.(model)
+	nm.histSkip = false
+	return nm, cmd
 }
 
 func (m model) enterRow(it item) (tea.Model, tea.Cmd, bool) {

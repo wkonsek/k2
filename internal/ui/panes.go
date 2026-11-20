@@ -41,6 +41,8 @@ type paneSnap struct {
 	ran         runInfo
 	ed          *editor
 	vs          viewState
+	hist        []viewHist
+	histRest    *viewHist
 }
 
 func (m *model) snap() paneSnap {
@@ -49,7 +51,7 @@ func (m *model) snap() paneSnap {
 		pod: m.pod, localPort: m.localPort, remotePort: m.remotePort,
 		suggestions: m.suggestions, sugIndex: m.sugIndex,
 		logPod: m.logPod, logText: m.logText, logBusy: m.logBusy, logSince: m.logSince, logAt: m.logAt, logStick: m.logStick, logID: m.logID, status: m.status, kind: m.kind, subject: m.subject, dback: m.dback,
-		kubeconfig: m.kubeconfig, context: m.context, namespace: m.namespace, load: m.load, ran: m.ran, ed: m.ed, vs: m.vs,
+		kubeconfig: m.kubeconfig, context: m.context, namespace: m.namespace, load: m.load, ran: m.ran, ed: m.ed, vs: m.vs, hist: m.hist, histRest: m.histRest,
 	}
 }
 
@@ -65,6 +67,7 @@ func (m *model) restore(s paneSnap) {
 	m.dback = s.dback
 	m.ed = s.ed
 	m.vs = s.vs
+	m.hist, m.histRest = s.hist, s.histRest
 }
 
 func freshPane(keys config.Keys) paneSnap {

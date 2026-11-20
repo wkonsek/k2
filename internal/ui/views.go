@@ -320,7 +320,7 @@ func (m model) legend() string {
 	} else if m.stage == "workpods" {
 		parts[1] = pair(k.Select.Label(), "containers")
 	}
-	back, cmd := pair(k.Back.Short(), "back"), pair(k.Command.Short(), "cmd")
+	back, cmd := pair(k.Back.Short(), m.backLegend()), pair(k.Command.Short(), "cmd")
 	if m.stage == "nav" {
 		parts = append(parts, pair(k.Kubeconfig.Short(), "kube"), pair(k.Context.Short(), "ctx"), pair(k.Namespace.Short(), "ns"), pair(k.Kustomize.Short(), "kust"), pair(k.Kubectl.Short(), "kubectl"), pair(k.Forwards.Short(), "forwards"), cmd)
 	} else {

@@ -259,6 +259,9 @@ type model struct {
 	subject     string
 	dback       string
 	vs          viewState
+	hist        []viewHist
+	histSkip    bool
+	histRest    *viewHist
 	dlgSeq      int
 	lastErr     lastErr
 	errLog      []lastErr
