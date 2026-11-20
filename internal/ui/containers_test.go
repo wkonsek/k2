@@ -289,3 +289,40 @@ func TestPodsListLogsKeysStillWork(t *testing.T) {
 		t.Fatalf("right opened %s", m.stage)
 	}
 }
+
+func TestCommandPodsLeavesContainers(t *testing.T) {
+	f := containerCluster()
+	m := containersModel(t, f)
+	if !m.inContainers() {
+		t.Fatal("expected containers")
+	}
+	for _, q := range []string{"pods", "po", "pod"} {
+		if !m.inContainers() {
+			t.Fatalf("setup %s: not in containers", q)
+		}
+		before := len(m.hist)
+		m = open(t, m, q)
+		if m.inContainers() || m.stage != "workpods" || m.kind != "pods" {
+			t.Fatalf(":%s stayed in containers: stage %s kind %s status %q", q, m.stage, m.kind, m.status)
+		}
+		if m.namespace != "shop" {
+			t.Fatalf(":%s ns %q", q, m.namespace)
+		}
+		if it, ok := m.selectedItem(); !ok || it.id != "web-1" {
+			t.Fatalf(":%s selected %+v", q, m.content.SelectedItem())
+		}
+		if len(m.hist) != before+1 {
+			t.Fatalf(":%s hist %d want %d", q, len(m.hist), before+1)
+		}
+		m = pressSettle(t, m, "q")
+		if !m.inContainers() || m.paneLabel(m.focus) != "Containers(shop/web-1)[4]" {
+			t.Fatalf("q after :%s: containers %v label %q", q, m.inContainers(), m.paneLabel(m.focus))
+		}
+	}
+	m = open(t, m, "pods")
+	n := len(m.hist)
+	m = open(t, m, "po")
+	if m.inContainers() || len(m.hist) != n {
+		t.Fatalf("repeat :po hist %d want %d containers %v", len(m.hist), n, m.inContainers())
+	}
+}

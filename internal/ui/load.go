@@ -163,7 +163,18 @@ func (m model) openListToggled(stage, kind string) (tea.Model, tea.Cmd) {
 }
 
 func (m model) openListAs(stage, kind string, toggled bool) (tea.Model, tea.Cmd) {
-	if !m.histSkip && (m.stage != stage || m.kind != kind) {
+	if !m.histSkip && m.inContainers() && stage == "workpods" {
+		m.rememberView()
+		ns, pod, _ := parseContainerSel(m.vs.podSel)
+		m.vs.podSel, m.vs.podTitle = m.vs.podSelBack, m.vs.podTitleBack
+		m.vs.podSelBack, m.vs.podTitleBack = "", ""
+		m.vs.sortCol, m.vs.sortDesc, m.vs.marks = m.vs.sortBack.col, m.vs.sortBack.desc, m.vs.sortBack.marks
+		m.vs.sortBack = podSort{}
+		m.vs.pick = pod
+		if m.namespace == "" {
+			m.vs.pick = ns + "/" + pod
+		}
+	} else if !m.histSkip && (m.stage != stage || m.kind != kind) {
 		m.rememberView()
 	}
 	if m.kubeconfig == "" || m.context == "" {
