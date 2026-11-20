@@ -67,9 +67,30 @@ func (m model) runEditor(kind, label, name, cleanup string, mk func() *exec.Cmd,
 	return m, tea.Batch(t.Next(), m.mouseForShells())
 }
 
-var lessCommand = func(path string) *exec.Cmd {
-	return exec.Command("less", "-R", "+G", path)
+func lessPagerEnv(env []string) []string {
+	out := make([]string, 0, len(env)+3)
+	for _, e := range env {
+		i := strings.IndexByte(e, '=')
+		if i <= 0 {
+			out = append(out, e)
+			continue
+		}
+		switch e[:i] {
+		case "LESS", "LESSOPEN", "LESSCLOSE", "LESSKEY", "LESSKEYIN":
+			continue
+		}
+		out = append(out, e)
+	}
+	return append(out, "LESS=", "LESSOPEN=", "LESSCLOSE=")
 }
+
+func defaultLessCommand(path string) *exec.Cmd {
+	cmd := exec.Command("less", "-R", "-L", "+G", "--", path)
+	cmd.Env = lessPagerEnv(os.Environ())
+	return cmd
+}
+
+var lessCommand = defaultLessCommand
 
 var vimCommand = func(path string) *exec.Cmd {
 	editor := "vim"

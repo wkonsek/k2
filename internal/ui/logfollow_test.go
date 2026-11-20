@@ -514,7 +514,7 @@ func TestStreamSinceWindowDumpsRawLinesWithoutFollowing(t *testing.T) {
 		return exec.Command("true")
 	}
 	t.Cleanup(func() {
-		lessCommand = func(path string) *exec.Cmd { return exec.Command("less", "-R", "+G", path) }
+		lessCommand = defaultLessCommand
 	})
 	m := actionModel(t, fk)
 	m.cfg.Logs.MaxLines = 20000

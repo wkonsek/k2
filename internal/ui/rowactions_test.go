@@ -616,7 +616,7 @@ func TestLogRangeOpensLess(t *testing.T) {
 		return exec.Command("true")
 	}
 	t.Cleanup(func() {
-		lessCommand = func(path string) *exec.Cmd { return exec.Command("less", "-R", "+G", path) }
+		lessCommand = defaultLessCommand
 	})
 
 	f := actionCluster()
