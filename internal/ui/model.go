@@ -56,6 +56,7 @@ type viewState struct {
 	pick         string
 	logCont      string
 	logPrev      bool
+	logPager     bool
 	logMarks     []int
 	wrapFlip     bool
 	logHold      bool

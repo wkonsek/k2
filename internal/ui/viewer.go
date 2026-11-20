@@ -296,17 +296,18 @@ func (m model) fetchLogs() tea.Cmd {
 }
 
 func (m model) openLogRange(hour bool) (tea.Model, tea.Cmd) {
-	span, label := 30*time.Minute, "30m"
+	label := "30m"
 	if hour {
-		span, label = time.Hour, "60m"
+		label = "60m"
 	}
-	since := time.Now().Add(-span)
 	m.status = "loading last " + label + "…"
+	m.vs.logPager = true
 	id := m.logID
 	ns, name := kube.SplitRef(m.logPod, m.namespace)
 	kc, ctx, opt := m.kubeconfig, m.context, m.vs.logOpts()
-	return m, func() tea.Msg {
-		out, err := m.k.SinceLogs(name, ns, kc, ctx, since, opt)
+	spin := m.startLoad("loading last "+label, true)
+	return m, tea.Batch(spin, func() tea.Msg {
+		out, err := m.k.SinceLogs(name, ns, kc, ctx, label, opt)
 		if err != nil {
 			return logRangeMsg{pane: id, err: err}
 		}
@@ -324,7 +325,7 @@ func (m model) openLogRange(hour bool) (tea.Model, tea.Cmd) {
 		}
 		f.Close()
 		return logRangeMsg{pane: id, path: f.Name(), label: label}
-	}
+	})
 }
 
 func (v viewState) logOpts() kube.LogOpts {
@@ -405,7 +406,9 @@ func (m *model) applyLogs(msg logsMsg) {
 		*since = time.Now().Add(-2 * time.Second)
 	}
 	if m.logID == msg.id {
-		m.load = load{}
+		if m.load.what == "loading logs" {
+			m.load = load{}
+		}
 		apply(&m.logText, &m.vs.logMarks, &m.logBusy, &m.logSince, &m.logAt, &m.logStick, &m.vs, logKey(m.logPod, m.vs.logOpts()), m.stage, m.logID)
 		return
 	}
@@ -413,7 +416,9 @@ func (m *model) applyLogs(msg logsMsg) {
 		if m.panes[i].logID != msg.id {
 			continue
 		}
-		m.panes[i].load = load{}
+		if m.panes[i].load.what == "loading logs" {
+			m.panes[i].load = load{}
+		}
 		p := m.panes[i]
 		apply(&m.panes[i].logText, &m.panes[i].vs.logMarks, &m.panes[i].logBusy, &m.panes[i].logSince, &m.panes[i].logAt, &m.panes[i].logStick, &m.panes[i].vs, logKey(p.logPod, p.vs.logOpts()), p.stage, p.logID)
 		return

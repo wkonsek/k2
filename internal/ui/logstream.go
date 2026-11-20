@@ -324,9 +324,16 @@ func (s *logStream) ensurePod(t mlogTarget) {
 	}()
 }
 
+func streamDuring(l load) bool {
+	return !l.active() || l.what == "loading logs" || l.what == "reading logs"
+}
+
 func (m *model) streamWanted() map[string]logWant {
 	want := map[string]logWant{}
-	add := func(id, stage, pod, ns, kc, ctx string, vs viewState, text string) {
+	add := func(id, stage, pod, ns, kc, ctx string, vs viewState, text string, ed *editor, ld load) {
+		if ed.live() || vs.logPager || !streamDuring(ld) {
+			return
+		}
 		switch {
 		case stage == "logs" && pod != "" && !vs.logPrev:
 			want[id] = logWant{
@@ -343,13 +350,13 @@ func (m *model) streamWanted() map[string]logWant {
 			}
 		}
 	}
-	add(m.logID, m.stage, m.logPod, m.namespace, m.kubeconfig, m.context, m.vs, m.logText)
+	add(m.logID, m.stage, m.logPod, m.namespace, m.kubeconfig, m.context, m.vs, m.logText, m.ed, m.load)
 	for i := range m.panes {
 		if i == m.focus {
 			continue
 		}
 		p := m.panes[i]
-		add(p.logID, p.stage, p.logPod, p.namespace, p.kubeconfig, p.context, p.vs, p.logText)
+		add(p.logID, p.stage, p.logPod, p.namespace, p.kubeconfig, p.context, p.vs, p.logText, p.ed, p.load)
 	}
 	return want
 }

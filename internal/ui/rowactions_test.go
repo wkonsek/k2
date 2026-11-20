@@ -217,6 +217,7 @@ func TestShellArgsAndPicker(t *testing.T) {
 
 	cfg := testEnv(t)
 	cfg.UI.EditorInline = false
+	cfg.UI.Animations = false
 	m2 := newTestModel(t, cfg, f)
 	m2.kubeconfig, m2.context, m2.namespace = "/kc", "kind-dev", "shop"
 	n, c := m2.openPods()
@@ -628,7 +629,6 @@ func TestLogRangeOpensLess(t *testing.T) {
 
 	check := func(press string, minutes int) {
 		t.Helper()
-		before := time.Now()
 		next, cmd := m.Update(key(t, press))
 		m = next.(model)
 		if cmd == nil {
@@ -639,20 +639,20 @@ func TestLogRangeOpensLess(t *testing.T) {
 		if cmd == nil || m.ed != nil {
 			t.Fatalf("less did not stay outside the pane: cmd %v ed %v", cmd != nil, m.ed)
 		}
-		last := calls(f, "logs")
-		line := last[len(last)-1]
-		if strings.Contains(line, "--tail=") || !strings.Contains(line, "--since-time=") {
-			t.Fatalf("%s args %s", press, line)
+		want := map[int]string{30: "--since=30m", 60: "--since=60m"}[minutes]
+		var line string
+		for _, c := range calls(f, "logs") {
+			if strings.Contains(c, want) {
+				line = c
+			}
 		}
-		stamp := strings.TrimPrefix(line[strings.Index(line, "--since-time="):], "--since-time=")
-		stamp = strings.Fields(stamp)[0]
-		when, err := time.Parse(time.RFC3339, stamp)
-		if err != nil {
-			t.Fatal(err)
+		if line == "" || strings.Contains(line, "--tail=") || strings.Contains(line, "--timestamps") || strings.Contains(line, "--since-time=") {
+			t.Fatalf("%s args %s in %v", press, line, calls(f, "logs"))
 		}
-		ago := before.Sub(when)
-		if ago < time.Duration(minutes-1)*time.Minute || ago > time.Duration(minutes+1)*time.Minute {
-			t.Fatalf("%s since %s (%s ago)", press, stamp, ago)
+		for _, a := range strings.Fields(line) {
+			if a == "-f" || a == "--follow" {
+				t.Fatalf("%s followed: %s", press, line)
+			}
 		}
 		if !strings.Contains(opened, "line from") {
 			t.Fatalf("file %q", opened)

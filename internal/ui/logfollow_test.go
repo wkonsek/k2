@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -139,7 +141,7 @@ func (d *driver) handle(msg tea.Msg) {
 		for _, c := range msg {
 			d.run(c)
 		}
-	case logWakeMsg, logsMsg, mlogMsg:
+	case logWakeMsg, logsMsg, mlogMsg, openedMsg, logRangeMsg:
 		next, cmd := d.m.Update(msg)
 		d.m = next.(model)
 		d.run(cmd)
@@ -445,4 +447,112 @@ func TestSternStreamsEveryLineAndFreezesWhenPaused(t *testing.T) {
 
 	d.press("esc")
 	d.until("both processes to stop", func() bool { return f.running.Load() == 0 })
+}
+
+const kafkaLine = "[2026-11-20 20:37:02,136] INFO [SocketServer listenerType=BROKER, nodeId=4] Failed authentication with /10.128.2.12 (channelId=abc,def) (SSL handshake failed) (org.apache.kafka.common.network.Selector)"
+
+func TestStreamColonPodsSwitchesToThePodList(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 20000)
+	d.m.resources = []string{"pods", "pods.metrics.k8s.io", "podsecuritypolicies"}
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(4000)
+	d.until("streamed lines", func() bool { return strings.Contains(d.m.logText, "seq-") })
+	d.press(":")
+	for _, r := range "pods" {
+		d.press(string(r))
+	}
+	if d.m.cmd.Value() != "pods" {
+		t.Fatalf("typed %q", d.m.cmd.Value())
+	}
+	d.press("enter")
+	d.until("the pod list", func() bool { return d.m.stage == "workpods" })
+	if d.m.kind != "pods" {
+		t.Fatalf("kind %q stage %s status %q", d.m.kind, d.m.stage, d.m.status)
+	}
+	d.until("the stream stops", func() bool { return f.running.Load() == 0 })
+}
+
+func TestStreamColonUnknownShowsAnError(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 200)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(20)
+	d.until("a line", func() bool { return strings.Contains(d.m.logText, "seq-") })
+	d.press(":")
+	for _, r := range "no-such-kind" {
+		d.press(string(r))
+	}
+	d.press("enter")
+	if d.m.stage != "logs" {
+		t.Fatalf("left logs: %s", d.m.stage)
+	}
+	if !strings.Contains(d.m.status, "unknown resource") {
+		t.Fatalf("silent failure: %q", d.m.status)
+	}
+}
+
+func TestStreamSinceWindowDumpsRawLinesWithoutFollowing(t *testing.T) {
+	body := kafkaLine + "\n" + strings.Replace(kafkaLine, "20:37:02,136", "20:37:03,200", 1) + "\n"
+	inner := actionCluster()
+	orig := inner.Handler
+	inner.Handler = func(r shell.Request) shell.Result {
+		if len(r.Args) > 0 && r.Args[0] == "logs" && !slices.Contains(r.Args, "-f") {
+			return shell.OK(body)
+		}
+		return orig(r)
+	}
+	f := &feed{}
+	fk := f.over(inner)
+	var opened string
+	lessCommand = func(path string) *exec.Cmd {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		opened = string(b)
+		return exec.Command("true")
+	}
+	t.Cleanup(func() {
+		lessCommand = func(path string) *exec.Cmd { return exec.Command("less", "-R", "+G", path) }
+	})
+	m := actionModel(t, fk)
+	m.cfg.Logs.MaxLines = 20000
+	m.cfg.UI.EditorInline = false
+	m.cfg.UI.Animations = false
+	m.height, m.width = 30, 100
+	d := newDriver(t, selectRow(t, m, "db-0"))
+	d.press("l")
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(3000)
+	d.until("streamed lines", func() bool { return strings.Contains(d.m.logText, "seq-") })
+	start := time.Now()
+	d.press("2")
+	d.until("the follow stops", func() bool { return f.running.Load() == 0 })
+	d.until("less opens", func() bool { return opened != "" })
+	if took := time.Since(start); took > 2*time.Second {
+		t.Fatalf("since-window dump took %s", took)
+	}
+	if opened != body {
+		t.Fatalf("pager file was rewritten:\n got %q\nwant %q", opened, body)
+	}
+	var dump string
+	for _, line := range calls(fk, "logs") {
+		if strings.Contains(line, "--since=60m") {
+			dump = line
+		}
+		if strings.Contains(line, "--since=60m") && (strings.Contains(line, "--timestamps") || strings.Contains(line, "--since-time=") || strings.Contains(line, "--tail=")) {
+			t.Fatalf("dump args %s", line)
+		}
+		if strings.Contains(line, "--since=60m") {
+			for _, a := range strings.Fields(line) {
+				if a == "-f" || a == "--follow" {
+					t.Fatalf("dump followed: %s", line)
+				}
+			}
+		}
+	}
+	if dump == "" {
+		t.Fatalf("no --since=60m call in %v", calls(fk, "logs"))
+	}
 }

@@ -179,7 +179,7 @@ func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 			return
 		}
 		first := v.polls == 0
-		if m.load.active() {
+		if m.load.what == "reading logs" {
 			m.load = load{}
 		}
 		next := *v

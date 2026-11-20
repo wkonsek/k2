@@ -44,8 +44,17 @@ func (c Client) Logs(name, namespace, kubeconfig, context string, since time.Tim
 	return text, nil
 }
 
-func (c Client) SinceLogs(name, namespace, kubeconfig, context string, since time.Time, opt LogOpts) ([]byte, error) {
-	args := LogsArgs(name, namespace, kubeconfig, context, since, 0, opt)
+func SinceLogsArgs(name, namespace, kubeconfig, context, window string, opt LogOpts) []string {
+	args := []string{"logs", name, "-n", namespace, "--kubeconfig", kubeconfig, "--context", context}
+	args = append(args, opt.args()...)
+	if window != "" {
+		args = append(args, "--since="+window)
+	}
+	return args
+}
+
+func (c Client) SinceLogs(name, namespace, kubeconfig, context, window string, opt LogOpts) ([]byte, error) {
+	args := SinceLogsArgs(name, namespace, kubeconfig, context, window, opt)
 	out, err := shell.Combined(c.Run, "kubectl", args...)
 	if err != nil && strings.TrimSpace(string(out)) == "" {
 		return nil, fmt.Errorf("%s", shell.FailText(out, err))

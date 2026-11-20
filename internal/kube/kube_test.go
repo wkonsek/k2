@@ -308,6 +308,20 @@ func TestLogsArgs(t *testing.T) {
 	}
 }
 
+func TestSinceLogsArgs(t *testing.T) {
+	got := strings.Join(SinceLogsArgs("web", "shop", "/k", "c", "30m", LogOpts{Container: "broker"}), " ")
+	if got != "logs web -n shop --kubeconfig /k --context c -c broker --since=30m" {
+		t.Fatal(got)
+	}
+	got = strings.Join(SinceLogsArgs("web", "shop", "/k", "c", "60m", LogOpts{}), " ")
+	if strings.Contains(got, "-f") || strings.Contains(got, "--timestamps") || strings.Contains(got, "--since-time") || strings.Contains(got, "--tail") {
+		t.Fatal(got)
+	}
+	if !strings.HasSuffix(got, "--since=60m") {
+		t.Fatal(got)
+	}
+}
+
 func TestAppendAndTrimLogs(t *testing.T) {
 	if got := AppendLogs("a\nb\nc", "b\nc\nd\ne"); got != "a\nb\nc\nd\ne" {
 		t.Fatalf("overlap: %q", got)

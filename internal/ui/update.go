@@ -204,18 +204,22 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyRows(msg)
 		return m, nil
 	case lessDoneMsg:
+		m.vs.logPager = false
 		return m, nil
 	case logRangeMsg:
 		if msg.err != nil {
-			if m.logID == msg.pane {
+			m.withPane(msg.pane, func() {
+				m.load = load{}
+				m.vs.logPager = false
 				m.status = m.errLine(msg.err)
-			}
+			})
 			return m, nil
 		}
 		path, label := msg.path, msg.label
 		var next tea.Model = m
 		var cmd tea.Cmd
 		if !m.withPane(msg.pane, func() {
+			m.load = load{}
 			next, cmd = m.runEditor("less", "less "+label, label, path,
 				func() *exec.Cmd { return lessCommand(path) },
 				func(error) tea.Msg { _ = os.Remove(path); return lessDoneMsg{} })
