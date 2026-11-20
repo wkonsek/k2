@@ -32,7 +32,10 @@ func (m model) updateCmdKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if q == "" {
 			return m, nil
 		}
+		m.rememberCommand(q)
 		return m.runCommand(q)
+	case km.CmdSave.Has(key):
+		return m.saveTypedCommand()
 	case km.Complete.Has(key):
 		if cmd, ok := m.completeArg(); ok {
 			return m, cmd
@@ -225,6 +228,9 @@ func (m model) runViewCommand(raw string) (tea.Model, tea.Cmd, bool) {
 		}
 		next, cmd := m.openFavorites()
 		return next, cmd, true
+	case "cmds", "commands":
+		next, cmd := m.cmdFavsCommand(rest)
+		return next, cmd, true
 	case "theme", "themes":
 		next, cmd := m.openTheme()
 		return next, cmd, true
@@ -307,7 +313,7 @@ func cycleHint(cands []string, at int) string {
 
 func (m model) cmdCandidates(tok string) []string {
 	base := []string{"kubeconfig", "context", "namespace", "pods", "forward", "forwards", "kustomize", "kubectl",
-		"xray", "logs", "helm", "pulse", "fav", "theme", "login", "profile", "fresh"}
+		"xray", "logs", "helm", "pulse", "fav", "cmds", "theme", "login", "profile", "fresh"}
 	seen := map[string]bool{}
 	var out []string
 	add := func(s string) {
@@ -357,4 +363,13 @@ func fetchResources(k kube.Client, kc, ctx string) tea.Cmd {
 		}
 		return resListMsg{ctx: ctx, names: kube.ResourceNames(apis), apis: apis}
 	}
+}
+
+func (m *model) rememberCommand(q string) {
+	word, _, _ := strings.Cut(strings.ToLower(cleanCommand(q)), " ")
+	switch word {
+	case "cmds", "commands":
+		return
+	}
+	m.lastCmd = cleanCommand(q)
 }

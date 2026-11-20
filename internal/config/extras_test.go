@@ -27,7 +27,7 @@ func TestExtraKeyConflicts(t *testing.T) {
 	}
 
 	for _, y := range []string{"keys: {helm_notes: d}", "keys: {yaml: e}", "keys: {fav_add: d}", "keys: {log_filter: x}",
-		"keys: {xray: y}", "keys: {helm_rollback: s}", "keys: {favorites: B}"} {
+		"keys: {xray: y}", "keys: {helm_rollback: s}", "keys: {favorites: B, cmd_favorites: b}"} {
 		if _, w := Parse([]byte(y)); len(w) != 0 {
 			t.Errorf("%s: %v", y, w)
 		}
@@ -90,5 +90,25 @@ favorites:
 	}
 	if c, w := Parse([]byte("favorites: {context: x}")); len(w) != 1 || c.Favorites != nil {
 		t.Fatalf("not a list: %v", w)
+	}
+}
+
+func TestCommandFavoriteKeys(t *testing.T) {
+	k := DefaultKeys()
+	if !k.CmdFavorites.Has("B") || !k.CmdSave.Has("ctrl+s") || !k.CmdEdit.Has("e") || !k.CmdRename.Has("n") {
+		t.Fatalf("defaults %+v", k)
+	}
+	for yaml, warn := range map[string]string{
+		"keys: {cmd_favorites: b}": "keys.cmd_favorites: b is already used by favorites (using B)",
+		"keys: {cmd_save: ctrl+t}": "keys.cmd_save: ctrl+t is already used by theme (using ctrl+s)",
+		"keys: {cmd_edit: x}":      "keys.cmd_edit: x is already used by fav_remove (using e)",
+		"keys: {cmd_rename: a}":    "keys.cmd_rename: a is already used by fav_add (using n)",
+	} {
+		if _, w := Parse([]byte(yaml)); len(w) != 1 || !strings.Contains(w[0], warn) {
+			t.Errorf("%s: %v", yaml, w)
+		}
+	}
+	if c, w := Parse([]byte("favorite_commands: {command: x}")); len(w) != 1 || c.CommandFavs != nil {
+		t.Errorf("not a list: %v %+v", w, c.CommandFavs)
 	}
 }

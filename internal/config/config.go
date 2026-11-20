@@ -57,6 +57,11 @@ type Favorite struct {
 	View       string
 }
 
+type CommandFavorite struct {
+	Name    string
+	Command string
+}
+
 type UI struct {
 	Logo               string
 	LogoTitleColor     string
@@ -135,6 +140,7 @@ type Config struct {
 	Helm          Helm
 	Editor        Editor
 	Favorites     []Favorite
+	CommandFavs   []CommandFavorite
 	PortForward   PortForward
 	UI            UI
 	Keys          Keys
@@ -284,6 +290,8 @@ func Parse(data []byte) (Config, []string) {
 			p.editor(val, &cfg.Editor)
 		case "favorites":
 			cfg.Favorites = p.favorites(val)
+		case "favorite_commands":
+			cfg.CommandFavs = p.commandFavorites(val)
 		case "portforward":
 			p.portForward(val, &cfg.PortForward)
 		case "ui":
@@ -495,6 +503,56 @@ func (p *parser) favorites(n *yaml.Node) []Favorite {
 		}
 		if f.Context == "" {
 			p.warn("favorites: an entry without context was skipped (line %d)", it.Line)
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+func (p *parser) commandFavorites(n *yaml.Node) []CommandFavorite {
+	if n.Tag == "!!null" || (n.Kind == yaml.ScalarNode && strings.TrimSpace(n.Value) == "") {
+		return nil
+	}
+	if n.Kind != yaml.SequenceNode {
+		p.warn("favorite_commands: expected a list like `- {name: app logs, command: \"logs app=web -c main\"}` (line %d, ignored)", n.Line)
+		return nil
+	}
+	var out []CommandFavorite
+	for _, it := range n.Content {
+		if it.Kind == yaml.ScalarNode {
+			if s := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(it.Value), ":")); s != "" {
+				out = append(out, CommandFavorite{Command: s})
+			}
+			continue
+		}
+		if it.Kind != yaml.MappingNode {
+			p.warn("favorite_commands: skipped an entry that is neither a command nor a mapping (line %d)", it.Line)
+			continue
+		}
+		var f CommandFavorite
+		ok := true
+		for i := 0; i+1 < len(it.Content); i += 2 {
+			k, v := it.Content[i].Value, it.Content[i+1]
+			s, good := p.str("favorite_commands."+k, v)
+			if !good {
+				ok = false
+				break
+			}
+			switch k {
+			case "name":
+				f.Name = strings.TrimSpace(s)
+			case "command":
+				f.Command = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), ":"))
+			default:
+				p.warn("favorite_commands: unknown field %q (line %d; have name, command)", k, v.Line)
+			}
+		}
+		if !ok {
+			continue
+		}
+		if f.Command == "" {
+			p.warn("favorite_commands: an entry without command was skipped (line %d)", it.Line)
 			continue
 		}
 		out = append(out, f)

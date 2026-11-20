@@ -544,6 +544,7 @@ func (m model) statusBody(innerW int) string {
 		hint(k.Kubectl.Short(), "kubectl", "run kubectl"),
 		hint(k.Forwards.Short(), "forwards", "port-forwards"),
 		hint(k.Favorites.Short(), "fav", "favorites: pinned context + namespace"),
+		hint(k.CmdFavorites.Short(), "cmds", "favorite commands ("+k.CmdSave.Short()+" in : saves)"),
 		hint(k.Theme.Short(), "theme", "theme for this context, saved to the config"),
 		hint("", "pulse", "health of the namespace"),
 		hint("", "helm", "helm releases"),

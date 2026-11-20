@@ -38,6 +38,9 @@
 # favorites:              # name, context, namespace, kubeconfig, view
 #     - {name: shop dev, context: kind-dev, namespace: shop, view: deploy}
 #     - {context: prod-eu-1, namespace: payments, kubeconfig: ~/.kube/prod, view: pulse}
+# favorite_commands:      # name (optional), command: run as if typed after :
+#     - {name: web logs, command: "logs app=web -c main --since=15m"}
+#     - {command: "xray deploy web"}
 # portforward:
 #   auto_restart: false
 #   restart_backoff: 1    # seconds, 1..30
@@ -85,6 +88,8 @@
 #   kubectl: U
 #   forwards: f
 #   favorites: b
+#   cmd_favorites: B          # favorite commands: a popup of saved : commands (:cmds)
+#   cmd_save: ctrl+s          # in the : line: save the typed command as a favorite without running it
 #   theme: ctrl+t             # popup of themes for this context; saved to ui.context_themes
 #   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login)
 #   mark: space               # select rows in a list; delete and M use the selection
@@ -131,6 +136,8 @@
 #   fav_remove: x
 #   fav_up: K
 #   fav_down: J
+#   cmd_edit: e               # favorite commands popup: edit the command text
+#   cmd_rename: n             # favorite commands popup: set or clear the label
 #   apply: A
 #   readonly: R               # toggle view-only mode
 #   diff: D

@@ -106,6 +106,9 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 	case km.Favorites.Has(key):
 		next, cmd := m.openFavorites()
 		return next, cmd, true
+	case km.CmdFavorites.Has(key):
+		next, cmd := m.openCmdFavorites()
+		return next, cmd, true
 	case km.AllNamespaces.Has(key) && (table || m.stage == "xray" || m.stage == "mlogs" || m.stage == "pulse"):
 		next, cmd := m.toggleAllNS()
 		return next, cmd, true

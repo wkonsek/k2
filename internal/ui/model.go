@@ -318,6 +318,8 @@ type model struct {
 	cfgNote     bool
 	notice      string
 	favs        []state.Favorite
+	cmdFavs     []state.CommandFavorite
+	lastCmd     string
 	run         shell.Runner
 	k           kube.Client
 	launch      launcher
@@ -485,6 +487,7 @@ func initialModel(opts Options) model {
 		kroot:       st.KustomRoot,
 		forwards:    st.Forwards,
 		favs:        st.Favorites,
+		cmdFavs:     st.CommandFavorites,
 		resuming:    resumeAny(cfg, st.Forwards),
 		logID:       newPaneID(),
 		vis:         map[string]*visCache{},

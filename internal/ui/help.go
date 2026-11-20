@@ -241,6 +241,9 @@ func (m model) viewSection() []helpSection {
 		return []helpSection{{"Home", []helpRow{
 			r(k.Select, "list pods"),
 			r(k.Theme, "theme for this context"),
+			r(k.Favorites, "favorite contexts"),
+			r(k.CmdFavorites, "favorite commands"),
+			{k.Command.Label() + " " + k.CmdSave.Label(), "save the typed command"},
 			r(k.Login, "paste a token"),
 			r(k.Profile, "save the layout"),
 			r(k.Delete, "close pane / tab / quit"),
@@ -353,6 +356,7 @@ func (m model) viewSection() []helpSection {
 			r(k.Select, "choose"),
 			{"/", "filter"},
 			r(k.Favorites, "favorites"),
+			r(k.CmdFavorites, "favorite commands"),
 			r(k.Back, "back"),
 		}}}
 	}

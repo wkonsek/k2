@@ -161,6 +161,10 @@ type Keys struct {
 	FavRemove     Binding
 	FavUp         Binding
 	FavDown       Binding
+	CmdFavorites  Binding
+	CmdSave       Binding
+	CmdEdit       Binding
+	CmdRename     Binding
 }
 
 func DefaultKeys() Keys {
@@ -205,6 +209,7 @@ func DefaultKeys() Keys {
 		HelmHistory: Binding{"t"}, HelmRollback: Binding{"r"}, HelmInstall: Binding{"A"}, HelmUpgrade: Binding{"u"}, AllNamespaces: Binding{"0"},
 		LogFilter: Binding{"/"},
 		FavAdd:    Binding{"a"}, FavRemove: Binding{"x"}, FavUp: Binding{"K"}, FavDown: Binding{"J"},
+		CmdFavorites: Binding{"B"}, CmdSave: Binding{"ctrl+s"}, CmdEdit: Binding{"e"}, CmdRename: Binding{"n"},
 	}
 }
 
@@ -336,6 +341,10 @@ var keyFields = []keyField{
 	{"fav_remove", func(k *Keys) *Binding { return &k.FavRemove }},
 	{"fav_up", func(k *Keys) *Binding { return &k.FavUp }},
 	{"fav_down", func(k *Keys) *Binding { return &k.FavDown }},
+	{"cmd_favorites", func(k *Keys) *Binding { return &k.CmdFavorites }},
+	{"cmd_save", func(k *Keys) *Binding { return &k.CmdSave }},
+	{"cmd_edit", func(k *Keys) *Binding { return &k.CmdEdit }},
+	{"cmd_rename", func(k *Keys) *Binding { return &k.CmdRename }},
 }
 
 var keyAliases = map[string]string{"new_pane": "split_down", "forward": "port_forward", "editor_prefix": "prefix"}
@@ -393,12 +402,12 @@ var OldPaneKeys = map[string]Binding{
 var globalKeys = map[string]bool{
 	"quit": true, "prefix": true, "fullscreen": true, "last_error": true, "help": true, "theme": true, "split_down": true, "split_right": true, "close_pane": true,
 	"pane_left": true, "pane_right": true, "pane_up": true, "pane_down": true, "prev_pane": true, "next_pane": true, "last_pane": true,
-	"zoom": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true, "profile": true,
+	"zoom": true, "cmd_save": true, "rename_tab": true, "new_tab": true, "close_tab": true, "next_tab": true, "prev_tab": true, "profile": true,
 	"tab_1": true, "tab_2": true, "tab_3": true, "tab_4": true, "tab_5": true, "tab_6": true, "tab_7": true, "tab_8": true, "tab_9": true,
 }
 
 var screenKeys = func() map[string][]string {
-	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "command", "readonly", "back", "left", "select"}
+	common := []string{"kubeconfig", "context", "namespace", "kustomize", "kubectl", "forwards", "favorites", "cmd_favorites", "command", "readonly", "back", "left", "select"}
 	move := []string{"scroll_down", "scroll_up", "page_down", "page_up", "top", "bottom"}
 	with := func(extra ...string) []string {
 		return append(append(append([]string(nil), common...), move...), extra...)
@@ -417,7 +426,7 @@ var screenKeys = func() map[string][]string {
 
 		"mlogs": with("vim", "wrap", "copy_mode", "log_filter", "all_namespaces"),
 
-		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down"},
+		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down", "cmd_edit", "cmd_rename"},
 		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path", "open_folder"),
 		"forwards":  with("delete", "delete_all", "pf_restart", "pf_auto"),
 

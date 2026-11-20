@@ -25,6 +25,13 @@ type State struct {
 	KustomRoot string            `json:"kustomRoot"`
 
 	Favorites []Favorite `json:"favorites,omitempty"`
+
+	CommandFavorites []CommandFavorite `json:"commandFavorites,omitempty"`
+}
+
+type CommandFavorite struct {
+	Name    string `json:"name,omitempty"`
+	Command string `json:"command"`
 }
 
 type Favorite struct {

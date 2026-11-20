@@ -103,6 +103,8 @@ cuts them with `…`).
 | `U` | `keys.kubectl` | kubectl view (`:kubectl`, `:shell`, `:sh`) |
 | `f` | `keys.forwards` | running port-forwards (`:forwards`, `:pf`, `:fwd`, `:fwds`, `:f`) |
 | `b` | `keys.favorites` | favorites picker: pinned context + namespace (+ view) (`:fav`, `:favorites`); every screen, not in text inputs |
+| `B` | `keys.cmd_favorites` | favorite commands popup (`:cmds`, `:commands`): saved `:` commands such as `logs app=web -c main`, run with one key; every screen, not in text inputs |
+| `ctrl+s` | `keys.cmd_save` | in the `:` line: save the typed command as a favorite without running it (`:cmds add <command>` does the same) |
 | `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`), previewed as you move, `esc` restores; the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
 | `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
 | `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
@@ -275,6 +277,21 @@ log does. Back from a restored view goes home.
 | `enter`, `1`-`9` | `keys.submit` | jump the focused pane there (and open its view) |
 | `a` | `keys.fav_add` | pin the focused pane's kubeconfig, context, namespace and view |
 | `x` | `keys.fav_remove` | unpin the selected favorite (not the ones from config.yaml) |
+| `K` / `J` | `keys.fav_up` / `keys.fav_down` | move the selected favorite up / down |
+| `j`, `k` | `keys.scroll_down` / `keys.scroll_up` | move the cursor |
+| `esc` | `keys.cancel` | close |
+
+## Favorite commands (`B`, `:cmds`)
+
+Saved `:` commands, shared by every context. `:cmds <label, number or part of the command>` runs one without opening the popup.
+
+| Key | Config | What it does |
+|---|---|---|
+| `enter`, `1`-`9` | `keys.submit` | run the command as if typed after `:` (read-only mode blocks the same ones it blocks when typed) |
+| `a` | `keys.fav_add` | save the last command run from the `:` line |
+| `e` | `keys.cmd_edit` | edit the selected command text, `enter` saves, `esc` keeps it (not the ones from config.yaml) |
+| `n` | `keys.cmd_rename` | set or clear the label of the selected command |
+| `x` | `keys.fav_remove` | remove the selected favorite (not the ones from config.yaml) |
 | `K` / `J` | `keys.fav_up` / `keys.fav_down` | move the selected favorite up / down |
 | `j`, `k` | `keys.scroll_down` / `keys.scroll_up` | move the cursor |
 | `esc` | `keys.cancel` | close |

@@ -55,7 +55,7 @@ everything comes back as you left it:
 - your tabs (with their names) and split layouts;
 - each pane's kubeconfig, context and namespace;
 - the list or logs each pane showed, including a stern view;
-- your favorites and the last Kustomize directory.
+- your favorites, favorite commands and the last Kustomize directory.
 
 Port-forwards are detached `kubectl` processes that keep running after k2
 exits. On the next start k2 picks up the ones still alive and restarts the
@@ -469,6 +469,26 @@ APP VERSION, UPDATED.
 - `K` / `J` reorder.
 - `favorites:` in the config adds fixed entries on top.
 
+**Favorite commands (`B`, `:cmds`).**
+
+- Type a command in the `:` line and press `ctrl+s` to save it without
+  running it, e.g. `logs app=web -c main --since=15m`. `:cmds add <command>`
+  does the same.
+- `B` opens the list, which is shared by every context. `enter` or `1`-`9`
+  runs the command as if you typed it after `:`, so read-only mode (`R`)
+  blocks the same commands it blocks when typed.
+- `a` saves the last command you ran, `e` edits the text, `n` sets a
+  label, `x` removes, `K` / `J` reorder.
+- `:cmds <label, number or part of the command>` runs one directly, and
+  `tab` completes the names.
+- `favorite_commands:` in the config adds fixed entries on top:
+
+```yaml
+favorite_commands:
+  - {name: web logs, command: "logs app=web -c main --since=15m"}
+  - {command: "xray deploy web"}
+```
+
 **Namespace pulse (`:pulse`).** Refreshed every `ui.refresh_every` seconds,
 it shows:
 
@@ -601,7 +621,7 @@ and restores it on the next start:
   kept as they are. A dead one is restarted only when its own auto-restart
   is on, or when it has no override and `portforward.auto_restart` is true;
   otherwise it stays on the list as dead until `r`;
-- the favorites you pinned and the last Kustomize directory.
+- the favorites you pinned, your favorite commands and the last Kustomize directory.
 
 A missing or broken state file never stops k2; it just starts fresh.
 `k2 --fresh`, or `:fresh` inside a session, does that on purpose:

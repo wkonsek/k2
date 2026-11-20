@@ -36,6 +36,8 @@ func (m *model) save() {
 		Tab:        m.tab,
 		Forwards:   m.forwards,
 		Favorites:  m.favs,
+
+		CommandFavorites: m.cmdFavs,
 	}
 	index := map[string]int{}
 	for i, p := range m.panes {

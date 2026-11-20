@@ -149,6 +149,12 @@ func (m *model) argCandidates(val string) argCompletion {
 			names = append(names, favName(e.fav))
 		}
 		return argCompletion{base: word + " ", toks: ranked(names, strings.TrimSpace(rest), nil), ok: true}
+	case "cmds", "commands":
+		var names []string
+		for _, e := range m.cmdFavEntries() {
+			names = append(names, or(e.fav.Name, e.fav.Command))
+		}
+		return argCompletion{base: word + " ", toks: ranked(names, strings.TrimSpace(rest), nil), ok: true}
 	case "profile":
 		names := m.profileNames()
 		if cur == 0 || (cur == 1 && strings.EqualFold(args[0], "save")) {

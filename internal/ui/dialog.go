@@ -99,6 +99,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.act == "favorites" {
 		return m.favoritesKey(msg)
 	}
+	if d.act == "cmdfavs" {
+		return m.cmdFavoritesKey(msg)
+	}
 	if d.ask != "" {
 		switch {
 		case km.Yes.Has(key):
@@ -131,7 +134,7 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if d.act == "helminstall" && d.ask == "" {
 			return m.submitHelmForm()
 		}
-		if d.act != "theme" && d.act != "help" && d.act != "error" && d.act != "favorites" {
+		if d.act != "theme" && d.act != "help" && d.act != "error" && d.act != "favorites" && d.act != "cmdfavs" {
 			if next, cmd, blocked := m.readOnlyBlock("change"); blocked {
 				return next, cmd
 			}
@@ -426,6 +429,11 @@ func (m model) dialogBox(width int) string {
 			keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 				keyStyle.Render("b")+dimStyle.Render(" background  ")+
 				keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+	case d.act == "cmdfavs" && d.hasIn:
+		lines = append(lines, keyStyle.Render(k.Submit.Short())+dimStyle.Render(" save  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" back"))
+	case d.act == "cmdfavs":
+		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" run  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" close"))
 	case len(d.options) > 0:
 		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
