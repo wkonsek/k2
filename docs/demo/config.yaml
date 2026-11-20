@@ -1,4 +1,3 @@
-theme: monokai
 prod: [prod-eu-1]
 ui:
   active_border: thick

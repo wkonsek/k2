@@ -169,8 +169,31 @@ that shrinks live and turns yellow and red before it expires.
 - Pod lists have live CPU and MEM bars against limits.
 - `i` sets images, `S` scales, `r` restarts a rollout.
 - OLM Subscriptions, CSVs and InstallPlans get their own views.
+- `R` switches the session to read-only so mutating keys are ignored.
 
 ![pulse, favorites, all namespaces and set image](docs/demo/pulse-favorites.gif)
+
+**Favorite commands.** Type a command with `:`, then `ctrl+s` to keep it. `B`
+opens the list as a popup, `:cmds` opens it as a view. Clone an entry with
+`c`, then edit or rename it. Built-in commands live in a shared profile;
+yours stay in your config.
+
+![favorite commands](docs/demo/cmd-favorites.gif)
+
+**Containers, then back.** `enter` on a pod opens its containers — image,
+ports, probes, restarts, and CPU and memory per container. `l` still opens
+logs from that list. Jumps like `:secrets` and `:pods` remember where you
+were, so `q` walks back through them like a browser. `~` returns to the
+resource list and clears that history.
+
+![containers](docs/demo/containers.gif)
+
+![back through previous views](docs/demo/back-nav.gif)
+
+**Logs that stay still when you say so.** Followed logs stream live. Leave
+the viewport or start a search and the stream keeps running underneath —
+the header shows `paused +N new` — and `end` or `G` catches you up. `1`
+and `2` dump the last 30 or 60 minutes into less.
 
 ## Install
 
@@ -267,7 +290,7 @@ Then:
 |---|---|
 | `c` / `C` / `n` | pick a context / kubeconfig / namespace |
 | `:` | command line: `:pods`, `:dp`, `:helm`, `:xray deploy`, `:logs app=web`, `:pulse` … (`tab` completes) |
-| `enter`, `d`, `e` | open (logs, YAML), describe, edit |
+| `enter`, `d`, `e` | open (containers of a pod, YAML of most objects), describe, edit |
 | `ctrl+f`, `F`, `f` | port-forward the selected row (`F` on a pod too), list forwards |
 | `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
@@ -710,7 +733,8 @@ The theme follows the focused pane and switches without a restart.
 
 | theme | style | |
 |---|---|---|
-| `nord` (default) | arctic blue-gray with frost cyan accents | dark |
+| `matrix-reloaded` (default) | soft sage green on green-black, a gentler matrix | dark |
+| `nord` | arctic blue-gray with frost cyan accents | dark |
 | `dracula` | purple and pink on dark gray | dark |
 | `catppuccin` | Mocha: pastel mauve on deep blue-gray | dark |
 | `gruvbox` | retro yellow, orange warnings, on brown-gray | dark |
@@ -746,7 +770,6 @@ The theme follows the focused pane and switches without a restart.
 | `sonokai` | Monokai pro tones, blue on charcoal | dark |
 | `vesper` | peach and mint on black | dark |
 | `everforest-light` | Light medium: blue and green on soft paper | light |
-| `matrix-reloaded` | soft sage green on green-black, a gentler matrix | dark |
 | `nord-dark-contrast` | frost teal and blue on neutral charcoal | dark |
 | `hacker` | sage green and muted violet on near black | dark |
 | `custom` | your own `colors:` block | either |

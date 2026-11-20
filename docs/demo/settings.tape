@@ -1,15 +1,11 @@
-
 Set Shell "bash"
-Set FontFamily "SauceCodePro Nerd Font"
+Set FontFamily "Geist Mono"
 Set FontSize 16
 Set LineHeight 1.15
 Set Width 1400
-Set Height 800
-Set Padding 18
-Set WindowBar Colorful
-Set WindowBarSize 36
-Set BorderRadius 10
+Set Height 772
+Set Padding 8
 Set TypingSpeed 70ms
-Set Framerate 24
+Set Framerate 16
 Set CursorBlink false
-Set Theme { "name": "k2 Monokai", "black": "#090909", "red": "#f92672", "green": "#a6e22e", "yellow": "#e6db74", "blue": "#66d9ef", "magenta": "#ae81ff", "cyan": "#a1efe4", "white": "#f8f8f2", "brightBlack": "#75715e", "brightRed": "#f92672", "brightGreen": "#a6e22e", "brightYellow": "#e6db74", "brightBlue": "#66d9ef", "brightMagenta": "#ae81ff", "brightCyan": "#a1efe4", "brightWhite": "#ffffff", "background": "#090909", "foreground": "#f8f8f2", "selection": "#49483e", "cursor": "#f8f8f2" }
+Set Theme { "name": "k2 Matrix Reloaded", "black": "#0a100c", "red": "#ff293b", "green": "#22b455", "yellow": "#d7b25c", "blue": "#b2ccd6", "magenta": "#a7a8af", "cyan": "#64ae82", "white": "#c6e8d0", "brightBlack": "#6d6f7c", "brightRed": "#ff293b", "brightGreen": "#22b455", "brightYellow": "#d7b25c", "brightBlue": "#b2ccd6", "brightMagenta": "#a7a8af", "brightCyan": "#c6e8d0", "brightWhite": "#c6e8d0", "background": "#0a100c", "foreground": "#64ae82", "selection": "#0d3a1e", "cursor": "#c6e8d0" }
