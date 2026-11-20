@@ -171,6 +171,8 @@ type resListMsg struct {
 	ctx   string
 	names []string
 	apis  []kube.APIResource
+	fail  kube.Failure
+	text  string
 }
 
 type yamlMsg struct {
@@ -288,6 +290,8 @@ type model struct {
 	apis        []kube.APIResource
 	kindAlts    []string
 	resContext  string
+	resFail     kube.Failure
+	resText     string
 	restored    bool
 	zoom        bool
 	readOnly    bool

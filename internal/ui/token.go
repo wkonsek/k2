@@ -242,5 +242,6 @@ func (m model) submitLogin() (tea.Model, tea.Cmd) {
 	}
 	m.tok = tokenState{}
 	m.status = "token updated · " + m.context
-	return m, m.tokenCmd()
+	m.resFail = kube.FailNone
+	return m, tea.Batch(m.tokenCmd(), fetchResources(m.k, m.kubeconfig, m.context))
 }

@@ -820,6 +820,13 @@ A token that is present in the kubeconfig but that the API rejects, and
 that has no expiry of its own (a random string pasted into `:login`), says
 `invalid` with the same hint.
 
+When the login is the problem, k2 says so instead of guessing. A resource
+command such as `:certs` or a list that fails with a 401 shows
+`not logged in: token expired, press ^l or :login` in red, and an unreachable
+cluster shows `cannot reach cluster: connection refused` (or `timed out`,
+`no such host`). `unknown resource: <name>` appears only when the cluster
+answered and has no such resource.
+
 `ctrl+l` or `:login` opens a box: paste the new token and it replaces that
 user's `token` in the kubeconfig (or rewrites `tokenFile`, when that is
 where the token lives). The token is not printed afterwards.

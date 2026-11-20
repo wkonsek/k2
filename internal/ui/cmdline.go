@@ -118,6 +118,10 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 		return m, m.notify(toneWarn, "not installed: "+q)
 	}
 	if kind == "" {
+		if msg := m.discoveryProblem(); msg != "" {
+			m.status = msg
+			return m, m.notify(toneErr, msg)
+		}
 		m.status = "unknown resource: " + q
 		return m, m.notify(toneWarn, m.status)
 	}
@@ -348,7 +352,8 @@ func fetchResources(k kube.Client, kc, ctx string) tea.Cmd {
 	return func() tea.Msg {
 		apis, err := k.APIList(kc, ctx)
 		if err != nil {
-			return resListMsg{ctx: ctx}
+			text := err.Error()
+			return resListMsg{ctx: ctx, fail: kube.ClassifyFailure(text), text: text}
 		}
 		return resListMsg{ctx: ctx, names: kube.ResourceNames(apis), apis: apis}
 	}

@@ -125,9 +125,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.notify(toneNormal, msg.note)
 	case resListMsg:
 		if msg.ctx == m.context {
-			m.resources = msg.names
-			m.apis = msg.apis
-			m.resContext = msg.ctx
+			m.setDiscovery(msg)
 			m.setGhost()
 			if m.cmdOn && m.cmdHint == "kubeconfig  context  namespace  pods  forward  forwards" {
 				m.cmdHint = m.cfg.Keys.Complete.Label() + " completes cluster resources"
@@ -420,7 +418,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cmdCycleAt = -1
 			m.cmdHint = "kubeconfig  context  namespace  pods  forward  forwards"
 			var cmd tea.Cmd
-			if m.kubeconfig != "" && m.context != "" && m.resContext != m.context {
+			if m.kubeconfig != "" && m.context != "" && (m.resContext != m.context || m.resFail != kube.FailNone) {
 				cmd = fetchResources(m.k, m.kubeconfig, m.context)
 			}
 			return m, cmd

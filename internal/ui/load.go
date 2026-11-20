@@ -250,6 +250,10 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 	}
 	if msg.err != nil {
 		m.status = m.errLine(msg.err)
+		if text, ok := m.listFailure(msg.err.Error()); ok {
+			m.status = text
+			return m.notify(toneErr, text)
+		}
 		return m.notify(toneErr, "could not list "+msg.kind)
 	}
 	if len(msg.items) == 0 {

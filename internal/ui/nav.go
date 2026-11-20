@@ -187,6 +187,9 @@ func (m model) openResource(kind string) (tea.Model, tea.Cmd) { return m.openLis
 func (m *model) showProjects(projects []string, err error) tea.Cmd {
 	if err != nil {
 		m.status = m.errLine(err)
+		if text, ok := m.listFailure(err.Error()); ok {
+			m.status = text
+		}
 	}
 	allTitle := "all namespaces"
 	if m.namespace == "" {

@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"errors"
 	"sort"
 	"strings"
 
@@ -43,10 +44,14 @@ func (a APIResource) matches(q string) bool {
 }
 
 func (c Client) APIList(kubeconfig, context string) ([]APIResource, error) {
-	out, err := shell.Output(c.Run, "kubectl", "api-resources", "--no-headers", "--verbs=get", "--kubeconfig", kubeconfig, "--context", context)
-	list := ParseAPIList(string(out))
-	if err != nil && len(list) == 0 {
-		return nil, err
+	res := c.Run.Run(shell.Request{Name: "kubectl", Args: []string{"api-resources", "--no-headers", "--verbs=get", "--kubeconfig", kubeconfig, "--context", context}})
+	list := ParseAPIList(string(res.Stdout))
+	if res.Err != nil && len(list) == 0 {
+		text := strings.TrimSpace(string(res.Stderr))
+		if text == "" {
+			text = shell.FailText(res.Stdout, res.Err)
+		}
+		return nil, errors.New(text)
 	}
 	return list, nil
 }
