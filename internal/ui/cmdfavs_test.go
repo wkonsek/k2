@@ -253,3 +253,64 @@ func TestCommandLineUsesThePaneWidth(t *testing.T) {
 		}
 	}
 }
+
+func TestCmdFavoritesClone(t *testing.T) {
+	cfg := testEnv(t)
+	cfg.CommandFavs = []config.CommandFavorite{{Name: "fixed", Command: "pulse"}}
+	m := newTestModel(t, cfg, appCluster(t))
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	m.cmdFavs = []state.CommandFavorite{{Name: "web", Command: "logs app=web"}, {Command: "helm"}}
+	m = pressSettle(t, m, "B", "c")
+	if len(m.cmdFavs) != 3 || m.cmdFavs[2] != (state.CommandFavorite{Name: "fixed copy", Command: "pulse"}) || m.dlg.idx != 3 {
+		t.Fatalf("clone of a config entry: %+v idx %d", m.cmdFavs, m.dlg.idx)
+	}
+	m.dlg.idx = 2
+	m = pressSettle(t, m, "c")
+	if len(m.cmdFavs) != 4 || m.cmdFavs[3] != (state.CommandFavorite{Command: "helm"}) || m.dlg.idx != 4 {
+		t.Fatalf("clone without a label: %+v idx %d", m.cmdFavs, m.dlg.idx)
+	}
+	m.dlg.idx = 1
+	m = pressSettle(t, m, "c")
+	if m.cmdFavs[4].Name != "web copy" || m.cmdFavs[4].Command != "logs app=web" || m.dlg.idx != 5 {
+		t.Fatalf("clone with a label: %+v idx %d", m.cmdFavs, m.dlg.idx)
+	}
+
+	m = pressSettle(t, m, "e")
+	if !m.dlg.hasIn || m.dlg.input.Value() != "logs app=web" {
+		t.Fatalf("the copy should edit at once: %+v", m.dlg)
+	}
+	m = typeText(t, m, " -c main")
+	m = pressSettle(t, m, "enter")
+	if m.cmdFavs[4].Command != "logs app=web -c main" || m.cmdFavs[0].Command != "logs app=web" {
+		t.Fatalf("edit changed the wrong entry: %+v", m.cmdFavs)
+	}
+	if st := state.Load(cfg.StateDir); len(st.CommandFavorites) != 5 {
+		t.Fatalf("persisted %+v", st.CommandFavorites)
+	}
+}
+
+func TestCmdFavoritesPopupFitsLongCommands(t *testing.T) {
+	long := "logs app=blabla -c container_name --since=15m"
+	m := appModel(t, appCluster(t))
+	m.cmdFavs = []state.CommandFavorite{{Name: "blabla logs", Command: long}}
+	m = pressSettle(t, m, "B")
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "1 blabla logs  :"+long) {
+		t.Fatalf("a long command is cut:\n%s", view)
+	}
+
+	huge := "logs app=blabla -c container_name --since=15m --tail=1000 --timestamps --prefix --max-log-requests=50 --selector=tier=frontend,env=prod,team=payments"
+	m.cmdFavs = []state.CommandFavorite{{Command: huge}}
+	m = pressSettle(t, m, "esc", "B")
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "…") || strings.Contains(view, "team=payments") {
+		t.Fatalf("a command that cannot fit should end in an ellipsis:\n%s", view)
+	}
+	for _, w := range []int{120, 80, 50} {
+		next, _ := m.Update(tea.WindowSizeMsg{Width: w, Height: 30})
+		for i, l := range strings.Split(ansi.Strip(next.(model).View()), "\n") {
+			if ansi.StringWidth(l) > w {
+				t.Fatalf("width %d: line %d is %d wide", w, i, ansi.StringWidth(l))
+			}
+		}
+	}
+}

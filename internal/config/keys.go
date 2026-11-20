@@ -165,6 +165,7 @@ type Keys struct {
 	CmdSave       Binding
 	CmdEdit       Binding
 	CmdRename     Binding
+	CmdClone      Binding
 }
 
 func DefaultKeys() Keys {
@@ -209,7 +210,7 @@ func DefaultKeys() Keys {
 		HelmHistory: Binding{"t"}, HelmRollback: Binding{"r"}, HelmInstall: Binding{"A"}, HelmUpgrade: Binding{"u"}, AllNamespaces: Binding{"0"},
 		LogFilter: Binding{"/"},
 		FavAdd:    Binding{"a"}, FavRemove: Binding{"x"}, FavUp: Binding{"K"}, FavDown: Binding{"J"},
-		CmdFavorites: Binding{"B"}, CmdSave: Binding{"ctrl+s"}, CmdEdit: Binding{"e"}, CmdRename: Binding{"n"},
+		CmdFavorites: Binding{"B"}, CmdSave: Binding{"ctrl+s"}, CmdEdit: Binding{"e"}, CmdRename: Binding{"n"}, CmdClone: Binding{"c"},
 	}
 }
 
@@ -345,6 +346,7 @@ var keyFields = []keyField{
 	{"cmd_save", func(k *Keys) *Binding { return &k.CmdSave }},
 	{"cmd_edit", func(k *Keys) *Binding { return &k.CmdEdit }},
 	{"cmd_rename", func(k *Keys) *Binding { return &k.CmdRename }},
+	{"cmd_clone", func(k *Keys) *Binding { return &k.CmdClone }},
 }
 
 var keyAliases = map[string]string{"new_pane": "split_down", "forward": "port_forward", "editor_prefix": "prefix"}
@@ -426,7 +428,7 @@ var screenKeys = func() map[string][]string {
 
 		"mlogs": with("vim", "wrap", "copy_mode", "log_filter", "all_namespaces"),
 
-		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down", "cmd_edit", "cmd_rename"},
+		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down", "cmd_edit", "cmd_rename", "cmd_clone"},
 		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path", "open_folder"),
 		"forwards":  with("delete", "delete_all", "pf_restart", "pf_auto"),
 

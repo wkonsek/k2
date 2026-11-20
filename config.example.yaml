@@ -138,6 +138,7 @@
 #   fav_down: J
 #   cmd_edit: e               # favorite commands popup: edit the command text
 #   cmd_rename: n             # favorite commands popup: set or clear the label
+#   cmd_clone: c              # favorite commands popup: duplicate the selected one, then edit the copy
 #   apply: A
 #   readonly: R               # toggle view-only mode
 #   diff: D

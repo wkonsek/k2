@@ -75,7 +75,7 @@ func (m *model) fillCmdFavs(idx int) {
 	} else {
 		d.msg = ""
 	}
-	d.details = []string{"enter/1-9 run · " + k.FavAdd.Label() + " add last · " + k.CmdEdit.Label() + " edit · " + k.CmdRename.Label() + " rename · " +
+	d.details = []string{"enter/1-9 run · " + k.FavAdd.Label() + " add last · " + k.CmdEdit.Label() + " edit · " + k.CmdRename.Label() + " rename · " + k.CmdClone.Label() + " clone · " +
 		k.FavRemove.Label() + " remove · " + k.FavUp.Label() + "/" + k.FavDown.Label() + " move"}
 	d.idx = max(0, min(idx, len(d.options)-1))
 	m.dlg = &d
@@ -221,6 +221,19 @@ func (m model) cmdFavoritesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.save()
 		m.fillCmdFavs(d.idx)
 		return m, m.notify(toneOK, "removed")
+	case km.CmdClone.Has(key):
+		if d.idx >= len(entries) {
+			return m, nil
+		}
+		src := entries[d.idx].fav
+		name := src.Name
+		if name != "" {
+			name += " copy"
+		}
+		m.cmdFavs = append(append([]state.CommandFavorite(nil), m.cmdFavs...), state.CommandFavorite{Name: name, Command: src.Command})
+		m.save()
+		m.fillCmdFavs(len(entries))
+		return m, m.notify(toneOK, "cloned: "+cmdFavTitle(src))
 	case km.CmdEdit.Has(key), km.CmdRename.Has(key):
 		if d.idx >= len(entries) {
 			return m, nil
@@ -302,4 +315,8 @@ func (m model) cmdFavEditKey(msg tea.KeyMsg, entries []cmdFavEntry) (tea.Model, 
 	d.input, cmd = d.input.Update(msg)
 	d.msg = ""
 	return m, cmd
+}
+
+func cmdFavTitle(f config.CommandFavorite) string {
+	return fitWidth(or(f.Name, f.Command), 60)
 }

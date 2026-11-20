@@ -291,6 +291,7 @@ Saved `:` commands, shared by every context. `:cmds <label, number or part of th
 | `a` | `keys.fav_add` | save the last command run from the `:` line |
 | `e` | `keys.cmd_edit` | edit the selected command text, `enter` saves, `esc` keeps it (not the ones from config.yaml) |
 | `n` | `keys.cmd_rename` | set or clear the label of the selected command |
+| `c` | `keys.cmd_clone` | duplicate the selected favorite (a config.yaml one too) as the last entry, with ` copy` added to its label, and select it so `e` edits it |
 | `x` | `keys.fav_remove` | remove the selected favorite (not the ones from config.yaml) |
 | `K` / `J` | `keys.fav_up` / `keys.fav_down` | move the selected favorite up / down |
 | `j`, `k` | `keys.scroll_down` / `keys.scroll_up` | move the cursor |

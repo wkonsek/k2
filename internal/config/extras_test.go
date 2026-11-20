@@ -95,7 +95,7 @@ favorites:
 
 func TestCommandFavoriteKeys(t *testing.T) {
 	k := DefaultKeys()
-	if !k.CmdFavorites.Has("B") || !k.CmdSave.Has("ctrl+s") || !k.CmdEdit.Has("e") || !k.CmdRename.Has("n") {
+	if !k.CmdFavorites.Has("B") || !k.CmdSave.Has("ctrl+s") || !k.CmdEdit.Has("e") || !k.CmdRename.Has("n") || !k.CmdClone.Has("c") {
 		t.Fatalf("defaults %+v", k)
 	}
 	for yaml, warn := range map[string]string{
@@ -103,6 +103,8 @@ func TestCommandFavoriteKeys(t *testing.T) {
 		"keys: {cmd_save: ctrl+t}": "keys.cmd_save: ctrl+t is already used by theme (using ctrl+s)",
 		"keys: {cmd_edit: x}":      "keys.cmd_edit: x is already used by fav_remove (using e)",
 		"keys: {cmd_rename: a}":    "keys.cmd_rename: a is already used by fav_add (using n)",
+		"keys: {cmd_clone: x}":     "keys.cmd_clone: x is already used by fav_remove (using c)",
+		"keys: {cmd_clone: e}":     "keys.cmd_clone: e is already used by cmd_edit (using c)",
 	} {
 		if _, w := Parse([]byte(yaml)); len(w) != 1 || !strings.Contains(w[0], warn) {
 			t.Errorf("%s: %v", yaml, w)

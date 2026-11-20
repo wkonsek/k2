@@ -235,6 +235,9 @@ func (m model) popupRect() (x, y, w int) {
 		}
 	}
 	w = min(max(36, r.W*2/3), max(r.W-2, 20), 64)
+	if m.dlg != nil && m.dlg.act == "cmdfavs" {
+		w = min(max(56, r.W*5/6), max(r.W-2, 20), 110)
+	}
 	if m.dlg != nil && m.dlg.act == "error" {
 		w = max(r.W-2, 20)
 	}

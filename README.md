@@ -478,7 +478,10 @@ APP VERSION, UPDATED.
   runs the command as if you typed it after `:`, so read-only mode (`R`)
   blocks the same commands it blocks when typed.
 - `a` saves the last command you ran, `e` edits the text, `n` sets a
-  label, `x` removes, `K` / `J` reorder.
+  label, `c` clones the selected entry (a config one too) as an editable
+  copy at the end, `x` removes, `K` / `J` reorder.
+- The popup grows with the terminal, so long commands fit; what still does
+  not fit ends in `…`.
 - `:cmds <label, number or part of the command>` runs one directly, and
   `tab` completes the names.
 - `favorite_commands:` in the config adds fixed entries on top:
