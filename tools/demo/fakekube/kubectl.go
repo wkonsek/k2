@@ -38,6 +38,7 @@ var valued = map[string]bool{
 
 func parseFlags(args []string) flags {
 	f := flags{raw: args, values: map[string]string{}, bools: map[string]bool{}}
+	isLogs := len(args) > 0 && args[0] == "logs"
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--" {
@@ -50,6 +51,10 @@ func parseFlags(args []string) flags {
 		}
 		key, val, hasVal := strings.Cut(a, "=")
 
+		if isLogs && key == "-f" {
+			f.bools["--follow"] = true
+			continue
+		}
 		if !hasVal && len(a) > 2 && a[1] != '-' && valued[a[:2]] {
 			key, val, hasVal = a[:2], a[2:], true
 		}

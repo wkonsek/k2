@@ -25,10 +25,10 @@
 #   ip: installplans.operators.coreos.com
 #   rt: routes.route.openshift.io
 # logs:
-#   tail: 80              # 1..100000
+#   tail: 80              # lines shown when a log opens, then it streams (1..100000)
 #   max_lines: 400        # one container, 1..100000
 #   multi_max_lines: 5000 # stern buffer (the N in the header), 100..200000
-#   multi_every: 2        # seconds, 1..60
+#   multi_every: 2        # seconds between looks for new pods, 1..60
 #   multi_max_pods: 20    # 1..200
 #   multi_all_containers: true
 # helm:

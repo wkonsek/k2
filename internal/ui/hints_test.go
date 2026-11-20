@@ -51,6 +51,7 @@ func TestHintsFollowRemappedKeys(t *testing.T) {
 	m.content.SetItems([]list.Item{item{id: "web", title: "web"}})
 	next, cmd := m.openLogs("web", "", false)
 	m = settle(t, next.(model), cmd)
+	m.applyLogs(logsMsg{id: m.logID, pod: logKey(m.logPod, m.vs.logOpts()), text: "a line", partial: true, stream: true})
 	if m.status != "↓↑ scroll    y copy    m mark    V vim    p previous" {
 		t.Fatalf("logs status %q", m.status)
 	}

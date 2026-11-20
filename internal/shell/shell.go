@@ -2,12 +2,14 @@ package shell
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 )
@@ -28,6 +30,10 @@ type Request struct {
 	TTY bool
 
 	OnLine func(line string)
+
+	Ctx context.Context
+
+	Stream bool
 }
 
 type Result struct {
@@ -50,6 +56,10 @@ type Exec struct{}
 
 func (Exec) Run(req Request) Result {
 	cmd := exec.Command(req.Name, req.Args...)
+	if req.Ctx != nil {
+		cmd = exec.CommandContext(req.Ctx, req.Name, req.Args...)
+		cmd.WaitDelay = time.Second
+	}
 	if len(req.Env) > 0 || req.TTY {
 		cmd.Env = append(os.Environ(), req.Env...)
 		if req.TTY {
@@ -63,6 +73,9 @@ func (Exec) Run(req Request) Result {
 		if res, ok := runTTY(cmd, req); ok {
 			return res
 		}
+	}
+	if req.Stream && req.OnLine != nil {
+		return runStream(cmd, req)
 	}
 	var stdout, stderr bytes.Buffer
 	var out io.Writer = &stdout
@@ -196,4 +209,24 @@ func FailText(out []byte, err error) string {
 		return text[:max] + "\n… truncated"
 	}
 	return text
+}
+
+func runStream(cmd *exec.Cmd, req Request) Result {
+	var mu sync.Mutex
+	out := &lineWriter{fn: req.OnLine, mu: &mu}
+	errs := &lineWriter{fn: req.OnLine, mu: &mu}
+	cmd.Stdout, cmd.Stderr = out, errs
+	err := cmd.Run()
+	out.flush()
+	errs.flush()
+	res := Result{Err: err}
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			res.Code = ee.ExitCode()
+		} else {
+			res.Code = -1
+		}
+	}
+	return res
 }

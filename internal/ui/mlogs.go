@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 
 	"k2/internal/kube"
 
@@ -34,13 +33,21 @@ type mlogView struct {
 
 type color = lipgloss.Color
 
+type mlogTarget struct {
+	ns, name string
+	live     bool
+}
+
 type mlogMsg struct {
-	pane  string
-	key   string
-	pods  []string
-	lines []kube.LogLine
-	note  string
-	err   error
+	pane    string
+	key     string
+	pods    []string
+	targets []mlogTarget
+	lines   []kube.LogLine
+	note    string
+	err     error
+	stream  bool
+	lost    int
 }
 
 func podsRegex(pods []string) *regexp.Regexp {
@@ -148,50 +155,14 @@ func mlogCmd(k kube.Client, pane string, q kube.LogQuery, cur kube.LogCursor, kc
 			note = fmt.Sprintf("%d pods match, reading the newest %d (logs.multi_max_pods)", len(pods), maxPods)
 			pods = pods[:maxPods]
 		}
-		if q.Tail > 0 {
-			tail = q.Tail
-		}
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		var lines []kube.LogLine
-		var failed []string
-		slots := make(chan struct{}, 6)
 		names := make([]string, len(pods))
+		targets := make([]mlogTarget, len(pods))
 		for i, p := range pods {
 			names[i] = p.Metadata.Name
-			wg.Add(1)
-			go func(p kube.Object) {
-				defer wg.Done()
-				slots <- struct{}{}
-				defer func() { <-slots }()
-
-				src := p.Metadata.Name
-				if ns == "" && p.Metadata.Namespace != "" {
-					src = p.Metadata.Namespace + "/" + src
-				}
-				got, err := k.MultiLogs(p.Metadata.Name, or(p.Metadata.Namespace, ns), kc, ctx, q, cur.Since(src), tail)
-				if ns == "" {
-					for i := range got {
-						got[i].Namespace = p.Metadata.Namespace
-					}
-				}
-				mu.Lock()
-				defer mu.Unlock()
-				if err != nil {
-					failed = append(failed, p.Metadata.Name)
-					return
-				}
-				lines = append(lines, got...)
-			}(p)
+			targets[i] = mlogTarget{ns: or(p.Metadata.Namespace, ns), name: p.Metadata.Name, live: p.Status.Phase != "Succeeded" && p.Status.Phase != "Failed"}
 		}
-		wg.Wait()
-		if len(failed) > 0 {
-			sort.Strings(failed)
-			note = strings.TrimPrefix(note+" · could not read "+strings.Join(failed, ", "), " · ")
-		}
-		kube.SortLines(lines)
 		sort.Strings(names)
-		return mlogMsg{pane: pane, key: key, pods: names, lines: lines, note: note}
+		return mlogMsg{pane: pane, key: key, pods: names, targets: targets, note: note}
 	}
 }
 
@@ -200,7 +171,9 @@ func mlogKey(ns string, q kube.LogQuery) string { return ns + "|" + q.String() }
 func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.withPane(msg.pane, func() {
-		delete(m.rowBusy, "ml"+msg.pane)
+		if !msg.stream {
+			delete(m.rowBusy, "ml"+msg.pane)
+		}
 		v := m.vs.ml
 		if m.stage != "mlogs" || v == nil || mlogKey(m.namespace, v.q) != msg.key {
 			return
@@ -220,8 +193,19 @@ func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 			}
 			return
 		}
-		fresh, cur := v.cur.Fresh(msg.lines)
-		next.cur, next.pods, next.note = cur, msg.pods, msg.note
+		var fresh []kube.LogLine
+		if msg.stream {
+			fresh = msg.lines
+			kube.SortLines(fresh)
+			next.cur, next.pods, next.note = v.cur, v.pods, v.note
+		} else {
+			var cur kube.LogCursor
+			fresh, cur = v.cur.Fresh(msg.lines)
+			next.cur, next.pods, next.note = cur, msg.pods, msg.note
+		}
+		if len(msg.targets) > 0 && !msg.stream {
+			cmd = tea.Batch(cmd, m.followTargets(msg, v))
+		}
 
 		next.lines = append(v.lines[:len(v.lines):len(v.lines)], v.pend...)
 		next.lines = append(next.lines, fresh...)
@@ -235,7 +219,7 @@ func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 			all := next.lines
 			next.lines = append([]kube.LogLine(nil), all[:hard]...)
 			next.pend = append([]kube.LogLine(nil), all[hard:][max(0, len(all)-hard-limit):]...)
-			next.fresh = v.fresh + len(fresh)
+			next.fresh = v.fresh + len(fresh) + msg.lost
 			over = 0
 		}
 		if over > 0 {
@@ -620,4 +604,19 @@ func (m model) mlogTitle() string {
 		return "logs"
 	}
 	return "logs · " + m.vs.ml.title
+}
+
+func (m *model) followTargets(msg mlogMsg, v *mlogView) tea.Cmd {
+	want := logWant{
+		key:    msg.key,
+		stern:  &sternSpec{ns: m.namespace, kc: m.kubeconfig, ctx: m.context, q: v.q, tail: sternTail(v.q, m.cfg.Logs.Tail)},
+		capBuf: 4 * m.cfg.Logs.MultiMaxLines,
+	}
+	cmds := m.streams.ensure(m.k, msg.pane, want)
+	if s := m.streams.get(msg.pane); s != nil && s.key == msg.key {
+		for _, t := range msg.targets {
+			s.ensurePod(t)
+		}
+	}
+	return tea.Batch(cmds...)
 }

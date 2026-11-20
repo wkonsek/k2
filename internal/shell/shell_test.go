@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -117,5 +118,36 @@ func TestFakeReplaysStderr(t *testing.T) {
 	f.Run(Request{Name: "kubectl", OnLine: func(l string) { got = append(got, l) }})
 	if strings.Join(got, "|") != "x|e" {
 		t.Fatalf("lines %q", got)
+	}
+}
+
+func TestExecStreamStopsWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	first := make(chan string, 1)
+	done := make(chan Result, 1)
+	go func() {
+		done <- Exec{}.Run(Request{Name: "sh", Args: []string{"-c", "echo hello; exec sleep 30"}, Ctx: ctx, Stream: true, OnLine: func(l string) {
+			select {
+			case first <- l:
+			default:
+			}
+		}})
+	}()
+	select {
+	case l := <-first:
+		if l != "hello" {
+			t.Fatalf("line %q", l)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no output")
+	}
+	cancel()
+	select {
+	case res := <-done:
+		if res.Err == nil || len(res.Stdout) != 0 {
+			t.Fatalf("result %+v", res)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("process kept running after cancel")
 	}
 }

@@ -86,6 +86,7 @@ func run(stdout, stderr *os.File) int {
 	p := tea.NewProgram(model, opts...)
 	crash.Attach(p)
 	final, err := p.Run()
+	ui.Shutdown(final)
 	if crash.Crashed() {
 		reportCrash(stderr, crash.Summary(), crash.Stack)
 		return 2

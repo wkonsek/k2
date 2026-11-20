@@ -383,7 +383,10 @@ cluster info, token lifetime and forwards.
   `p` its previous logs, `s` opens a shell in it, `F` forwards one of its
   ports, `d` describes the pod and `esc` returns to the pods with the same
   pod selected.
-- `l` on the pods list follows the logs of the pod: `p` switches to the previous container's log,
+- `l` on the pods list follows the logs of the pod. The log is a live
+  stream (`kubectl logs -f`, `logs.tail` lines to start with), so a very
+  busy container loses no lines; it reconnects by itself when the stream
+  ends and stops the moment you leave. `p` switches to the previous container's log,
   `m` draws a separator under the current line, `1` and `2` open the last
   30 and 60 minutes in `less` with no line cap (not in stern).
 - `s` opens a shell in the pane (bash, else sh).
@@ -443,7 +446,9 @@ job, cronjob, pod, svc.
   `:logs ^web- --since=10m -c app --tail=50`.
 - `:logs sts kafka` is not a StatefulSet: without `=` it is a pod-name
   pattern.
-- Polled every `logs.multi_every` seconds (2), bounded by a ring buffer of
+- Streamed (`kubectl logs -f` per pod, lines batched about ten times a
+  second), so a busy pod loses no lines. New pods are looked for every
+  `logs.multi_every` seconds (2). Bounded by a ring buffer of
   `logs.multi_max_lines` (5000).
 - `/` filters (text or regex); `m` marks the current line.
 - Across namespaces lines are prefixed `namespace/pod/container`.

@@ -1,0 +1,448 @@
+package ui
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"k2/internal/shell"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
+)
+
+var feedBase = time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+
+type feed struct {
+	mu       sync.Mutex
+	produced int
+	drop     bool
+	args     []string
+	running  atomic.Int32
+}
+
+func (f *feed) produce(n int) {
+	f.mu.Lock()
+	f.produced += n
+	f.mu.Unlock()
+}
+
+func (f *feed) total() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.produced
+}
+
+func (f *feed) dropConnection() {
+	f.mu.Lock()
+	f.drop = true
+	f.mu.Unlock()
+}
+
+func (f *feed) calls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.args...)
+}
+
+func feedLine(i int) string {
+	at := feedBase.Add(time.Duration(i) * 100 * time.Microsecond)
+	return fmt.Sprintf("%s seq-%06d", at.Format(time.RFC3339Nano), i)
+}
+
+func (f *feed) fake() *shell.Fake { return f.over(containerCluster()) }
+
+func (f *feed) over(inner *shell.Fake) *shell.Fake {
+	return &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(r.Args, " ")
+		if len(r.Args) == 0 || r.Args[0] != "logs" || !slices.Contains(r.Args, "-f") {
+			return inner.Handler(r)
+		}
+		prefix := ""
+		if slices.Contains(r.Args, "--prefix") {
+			prefix = "[pod/" + r.Args[1] + "/app] "
+		}
+		f.mu.Lock()
+		f.args = append(f.args, line)
+		from := 0
+		for _, a := range r.Args {
+			if v, ok := strings.CutPrefix(a, "--since-time="); ok {
+				at, _ := time.Parse(time.RFC3339, v)
+				from = int(at.Sub(feedBase) / (100 * time.Microsecond))
+			}
+			if v, ok := strings.CutPrefix(a, "--tail="); ok {
+				var n int
+				fmt.Sscan(v, &n)
+				from = max(0, f.produced-n)
+			}
+		}
+		f.drop = false
+		f.mu.Unlock()
+		f.running.Add(1)
+		defer f.running.Add(-1)
+		sent := from
+		for {
+			f.mu.Lock()
+			upto, drop := f.produced, f.drop
+			f.mu.Unlock()
+			for ; sent < upto; sent++ {
+				r.OnLine(prefix + feedLine(sent))
+			}
+			if drop {
+				return shell.Fail(1, "connection reset")
+			}
+			select {
+			case <-r.Ctx.Done():
+				return shell.Fail(137, "killed")
+			case <-time.After(time.Millisecond):
+			}
+		}
+	}}
+}
+
+type driver struct {
+	t    *testing.T
+	m    model
+	msgs chan tea.Msg
+	stop chan struct{}
+}
+
+func newDriver(t *testing.T, m model) *driver {
+	d := &driver{t: t, m: m, msgs: make(chan tea.Msg, 4096), stop: make(chan struct{})}
+	t.Cleanup(func() { close(d.stop) })
+	return d
+}
+
+func (d *driver) run(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	go func() {
+		msg := cmd()
+		if msg == nil {
+			return
+		}
+		select {
+		case d.msgs <- msg:
+		case <-d.stop:
+		}
+	}()
+}
+
+func (d *driver) handle(msg tea.Msg) {
+	switch msg := msg.(type) {
+	case tea.BatchMsg:
+		for _, c := range msg {
+			d.run(c)
+		}
+	case logWakeMsg, logsMsg, mlogMsg:
+		next, cmd := d.m.Update(msg)
+		d.m = next.(model)
+		d.run(cmd)
+	default:
+	}
+}
+
+func (d *driver) press(keys ...string) {
+	d.t.Helper()
+	for _, k := range keys {
+		next, cmd := d.m.Update(key(d.t, k))
+		d.m = next.(model)
+		d.run(cmd)
+	}
+}
+
+func (d *driver) until(what string, cond func() bool) {
+	d.t.Helper()
+	deadline := time.After(20 * time.Second)
+	for !cond() {
+		select {
+		case msg := <-d.msgs:
+			d.handle(msg)
+		case <-time.After(5 * time.Millisecond):
+		case <-deadline:
+			d.t.Fatalf("timed out waiting for %s\nstage %s stick %v lines %d\n%s", what, d.m.stage, d.m.logStick, strings.Count(d.m.logText, "\n")+1, d.m.status)
+		}
+	}
+}
+
+func (d *driver) idle(ms int) {
+	end := time.After(time.Duration(ms) * time.Millisecond)
+	for {
+		select {
+		case msg := <-d.msgs:
+			d.handle(msg)
+		case <-end:
+			return
+		}
+	}
+}
+
+func seqs(t *testing.T, text string) []int {
+	t.Helper()
+	var out []int
+	for _, l := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
+		var n int
+		if _, err := fmt.Sscanf(l, "seq-%d", &n); err != nil {
+			t.Fatalf("not a sequence line %q", l)
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+func contiguous(t *testing.T, text string) []int {
+	t.Helper()
+	got := seqs(t, text)
+	for i := 1; i < len(got); i++ {
+		if got[i] != got[i-1]+1 {
+			t.Fatalf("gap or duplicate after %d: next is %d (position %d of %d)", got[i-1], got[i], i, len(got))
+		}
+	}
+	return got
+}
+
+func streamModel(t *testing.T, f *feed, maxLines int) *driver {
+	t.Helper()
+	m := selectRow(t, actionModel(t, f.fake()), "db-0")
+	m.cfg.Logs.MaxLines = maxLines
+	m.height, m.width = 30, 100
+	d := newDriver(t, m)
+	d.press("l")
+	if d.m.stage != "logs" {
+		t.Fatalf("stage %s", d.m.stage)
+	}
+	return d
+}
+
+func TestStreamDeliversEveryLineOfAHighRateLog(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 20000)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	const total = 12000
+	for sent := 0; sent < total; sent += 1500 {
+		f.produce(1500)
+		d.idle(15)
+	}
+	d.until("every line", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", total-1))
+	})
+	got := contiguous(t, d.m.logText)
+	if got[0] != 0 || len(got) != total {
+		t.Fatalf("first %d, %d lines, want 0 and %d", got[0], len(got), total)
+	}
+	if calls := f.calls(); len(calls) != 1 || !strings.Contains(calls[0], "logs web-1") && !strings.Contains(calls[0], "logs db-0") {
+		t.Fatalf("calls %v", calls)
+	}
+	if head := strings.SplitN(ansi.Strip(d.m.logsBody(90)), "\n", 2)[0]; !strings.HasPrefix(head, "follow ") {
+		t.Fatalf("header %q", head)
+	}
+}
+
+func TestStreamKeepsTheBufferCapped(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 200)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	for i := 0; i < 20; i++ {
+		f.produce(2500)
+		d.idle(10)
+	}
+	d.until("the newest line", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", f.total()-1))
+	})
+	got := contiguous(t, d.m.logText)
+	if len(got) > 200 {
+		t.Fatalf("buffer holds %d lines", len(got))
+	}
+}
+
+func TestStreamPauseFreezesTheViewAndCatchesUp(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 100)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(150)
+	d.until("the first lines", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), "seq-000149")
+	})
+	d.press("g")
+	if d.m.logStick {
+		t.Fatal("g did not pause")
+	}
+	before := bodyRows(ansi.Strip(d.m.logsBody(90)))
+	frozen := d.m.logText
+	for i := 0; i < 30; i++ {
+		f.produce(200)
+		d.idle(10)
+		if got := bodyRows(ansi.Strip(d.m.logsBody(90))); got != before {
+			t.Fatalf("paused view moved after %d lines\nbefore:\n%s\nafter:\n%s", f.total(), before, got)
+		}
+	}
+	d.until("the pending count", func() bool {
+		return strings.Contains(strings.SplitN(ansi.Strip(d.m.logsBody(90)), "\n", 2)[0], "paused +")
+	})
+	d.idle(200)
+	if n := strings.Count(d.m.logText, "\n") + 1; n > 200 {
+		t.Fatalf("paused buffer grew to %d lines", n)
+	}
+	if !strings.HasPrefix(d.m.logText, frozen[:len(frozen)/2]) {
+		t.Fatal("paused text was rewritten")
+	}
+
+	d.press("G")
+	if !d.m.logStick {
+		t.Fatal("G did not resume")
+	}
+	f.produce(10)
+	d.until("catch up", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", f.total()-1))
+	})
+	got := contiguous(t, d.m.logText)
+	if len(got) > 100 || d.m.vs.logPend != "" {
+		t.Fatalf("after catch up: %d lines pending %d bytes", len(got), len(d.m.vs.logPend))
+	}
+}
+
+func TestStreamReconnectsWithoutGapsOrDuplicates(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 20000)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(3000)
+	d.until("first batch", func() bool { return strings.Contains(d.m.logText, "seq-002999") })
+	for round := 0; round < 3; round++ {
+		f.dropConnection()
+		f.produce(2000)
+		d.until("a new connection", func() bool { return len(f.calls()) > round+1 && f.running.Load() == 1 })
+		f.produce(1000)
+	}
+	d.until("the last line", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", f.total()-1))
+	})
+	got := contiguous(t, d.m.logText)
+	if got[0] != 0 || len(got) != f.total() {
+		t.Fatalf("%d lines from %d, produced %d", len(got), got[0], f.total())
+	}
+	for _, c := range f.calls()[1:] {
+		if !strings.Contains(c, "--since-time=") || strings.Contains(c, "--tail") {
+			t.Fatalf("reconnect args %s", c)
+		}
+	}
+}
+
+func TestStreamProcessIsCancelledWhenTheViewCloses(t *testing.T) {
+	f := &feed{}
+	d := streamModel(t, f, 400)
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(50)
+	d.until("lines", func() bool { return strings.Contains(d.m.logText, "seq-000049") })
+
+	d.press("esc")
+	if d.m.stage == "logs" {
+		t.Fatal("still in logs")
+	}
+	d.until("the process to stop", func() bool { return f.running.Load() == 0 })
+
+	d.press("l")
+	d.until("the process again", func() bool { return f.running.Load() == 1 })
+	d.press("p")
+	if !d.m.vs.logPrev {
+		t.Fatal("p did not switch to previous logs")
+	}
+	d.until("the live process to stop", func() bool { return f.running.Load() == 0 })
+	for _, c := range f.calls() {
+		if strings.Contains(c, "--previous") {
+			t.Fatalf("previous logs were followed: %s", c)
+		}
+	}
+
+	d.press("p")
+	d.until("following again", func() bool { return f.running.Load() == 1 })
+	Shutdown(d.m)
+	d.until("quit to stop it", func() bool { return f.running.Load() == 0 })
+}
+
+func TestStreamSwitchesContainerCleanly(t *testing.T) {
+	f := &feed{}
+	m := selectRow(t, actionModel(t, f.fake()), "web-1")
+	d := newDriver(t, m)
+	next, cmd := d.m.openLogs("shop/web-1", "app", false)
+	d.m = next.(model)
+	d.run(cmd)
+	d.press("tab")
+	d.until("the first container", func() bool { return f.running.Load() == 1 })
+	next, cmd = d.m.openLogs("shop/web-1", "side", false)
+	d.m = next.(model)
+	d.run(cmd)
+	d.press("tab")
+	d.until("the second container", func() bool { return len(f.calls()) >= 2 })
+	d.until("one process", func() bool { return f.running.Load() == 1 })
+	last := f.calls()[len(f.calls())-1]
+	if !strings.Contains(last, "-c side") {
+		t.Fatalf("args %s", last)
+	}
+}
+
+func sternText(t *testing.T, m model) map[string][]int {
+	t.Helper()
+	out := map[string][]int{}
+	for _, l := range strings.Split(strings.TrimRight(m.logText, "\n"), "\n") {
+		var pod string
+		var n int
+		if _, err := fmt.Sscanf(strings.Replace(l, "/app ", " ", 1), "%s seq-%d", &pod, &n); err != nil {
+			t.Fatalf("bad stern line %q", l)
+		}
+		out[pod] = append(out[pod], n)
+	}
+	return out
+}
+
+func TestSternStreamsEveryLineAndFreezesWhenPaused(t *testing.T) {
+	f := &feed{}
+	m := appModel(t, f.over(appCluster(t)))
+	m.cfg.Logs.MultiMaxLines = 100
+	m.height, m.width = 30, 120
+	d := newDriver(t, m)
+	next, cmd := d.m.runCommand("logs app=web")
+	d.m = next.(model)
+	d.run(cmd)
+	if d.m.stage != "mlogs" {
+		t.Fatalf("stage %s", d.m.stage)
+	}
+	d.until("two processes", func() bool { return f.running.Load() == 2 })
+	f.produce(120)
+	d.until("the first lines", func() bool { return strings.Count(d.m.logText, "seq-000119") == 2 })
+
+	d.press("g")
+	if d.m.logStick {
+		t.Fatal("g did not pause")
+	}
+	before := bodyRows(ansi.Strip(d.m.logsBody(110)))
+	for i := 0; i < 20; i++ {
+		f.produce(300)
+		d.idle(10)
+		if got := bodyRows(ansi.Strip(d.m.logsBody(110))); got != before {
+			t.Fatalf("paused stern view moved\nbefore:\n%s\nafter:\n%s", before, got)
+		}
+	}
+	d.until("the pending count", func() bool {
+		return strings.Contains(strings.SplitN(ansi.Strip(d.m.logsBody(110)), "\n", 2)[0], "paused +")
+	})
+	d.press("G")
+	d.until("catch up", func() bool { return strings.Count(d.m.logText, fmt.Sprintf("seq-%06d", f.total()-1)) == 2 })
+	for pod, got := range sternText(t, d.m) {
+		for i := 1; i < len(got); i++ {
+			if got[i] != got[i-1]+1 {
+				t.Fatalf("%s: gap after %d: %d", pod, got[i-1], got[i])
+			}
+		}
+	}
+	if len(d.m.vs.ml.lines) > 100 || len(d.m.vs.ml.pend) != 0 {
+		t.Fatalf("buffer %d pending %d", len(d.m.vs.ml.lines), len(d.m.vs.ml.pend))
+	}
+
+	d.press("esc")
+	d.until("both processes to stop", func() bool { return f.running.Load() == 0 })
+}

@@ -288,7 +288,8 @@ the history, back again to the releases.
 
 A text viewer (all viewer keys work: `w` wrap, `y` copy mode, `v` vim, `G`
 follow). Every line starts with its colored `pod/container`; new pods are
-picked up on each poll (`logs.multi_every`); the newest
+picked up every `logs.multi_every` seconds; each pod is streamed, not polled;
+the newest
 `logs.multi_max_lines` lines are kept. Closing k2 and opening it again
 returns to this view and follows the same query from scratch, as a pod
 log does. Back from a restored view goes home.

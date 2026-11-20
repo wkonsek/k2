@@ -18,6 +18,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	if mm, ok := next.(model); ok {
 		mm.syncTheme()
+		if more := mm.syncLogStreams(); len(more) > 0 {
+			cmd = tea.Batch(cmd, tea.Batch(more...))
+		}
 		return mm, cmd
 	}
 	return next, cmd
@@ -55,20 +58,6 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.autoRestarts()...)
 		cmds = append(cmds, m.metricsCmds()...)
 
-		if m.stage == "logs" && m.logPod != "" && !m.logBusy && !m.vs.logPrev {
-			m.logBusy = true
-			cmds = append(cmds, fetchLogs(m.k, m.cfg.Logs.Tail, m.logID, m.logPod, m.namespace, m.kubeconfig, m.context, m.logSince, m.vs.logOpts()))
-		}
-		for i := range m.panes {
-			if i == m.focus {
-				continue
-			}
-			p := &m.panes[i]
-			if p.stage == "logs" && p.logPod != "" && !p.logBusy && !p.vs.logPrev {
-				p.logBusy = true
-				cmds = append(cmds, fetchLogs(m.k, m.cfg.Logs.Tail, p.logID, p.logPod, p.namespace, p.kubeconfig, p.context, p.logSince, p.vs.logOpts()))
-			}
-		}
 		if m.beat%max(1, m.cfg.UI.RefreshEvery) == 0 {
 			cmds = append(cmds, m.refreshVisible()...)
 		}
@@ -271,11 +260,12 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.editorOutput(msg)
 	case paneterm.ExitMsg:
 		return m.editorExited(msg)
+	case logWakeMsg:
+		return m, m.applyStreamWake(msg)
 	case vimDoneMsg:
 		if m.stage == "logs" {
 			m.logStick = true
-			m.logBusy = true
-			return m, m.fetchLogs()
+			m.flushPending()
 		}
 		return m, nil
 	case shellDoneMsg:

@@ -62,6 +62,7 @@ type viewState struct {
 	logLine      int
 	logSub       int
 	logPend      string
+	logErr       bool
 	logNew       int
 
 	kpos map[string]kmark
@@ -131,6 +132,9 @@ type logsMsg struct {
 	id, pod, text string
 	err           error
 	partial       bool
+	stream        bool
+	dedupe        bool
+	lost          int
 }
 
 type logRangeMsg struct {
@@ -236,6 +240,7 @@ type model struct {
 	logPod      string
 	logText     string
 	logBusy     bool
+	streams     *logStreams
 	logSince    time.Time
 	logAt       int
 	logStick    bool
@@ -350,6 +355,18 @@ func New(opts Options) tea.Model { return initialModel(opts) }
 
 type Session struct {
 	Kubeconfig, Context, Namespace string
+}
+
+func Shutdown(final tea.Model) {
+	if g, ok := final.(guarded); ok {
+		final = g.inner
+	}
+	switch v := final.(type) {
+	case model:
+		v.streams.stopAll()
+	case *model:
+		v.streams.stopAll()
+	}
 }
 
 func Finish(final tea.Model) Session {
@@ -477,6 +494,7 @@ func initialModel(opts Options) model {
 		}
 	}
 	m := model{
+		streams:     newLogStreams(),
 		nav:         nav,
 		content:     content,
 		portInput:   ti,

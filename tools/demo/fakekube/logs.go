@@ -14,6 +14,9 @@ type logLine struct {
 }
 
 func period(pod, ctr string) time.Duration {
+	if d, err := time.ParseDuration(os.Getenv("FAKEKUBE_LOG_PERIOD")); err == nil && d > 0 {
+		return d
+	}
 	return time.Duration(700+hashN(1800, pod, ctr)) * time.Millisecond
 }
 
@@ -168,9 +171,9 @@ func logsCmd(f flags) int {
 	if from.IsZero() && tail < 0 {
 		tail = 400
 	}
-	var b strings.Builder
-	for _, c := range cs {
-		for _, l := range containerLines(p, c, from, now, tail) {
+	emit := func(c any, lines []logLine) {
+		var b strings.Builder
+		for _, l := range lines {
 			if f.bools["--prefix"] {
 				fmt.Fprintf(&b, "[pod/%s/%s] ", target, str(c, "name"))
 			}
@@ -179,7 +182,50 @@ func logsCmd(f flags) int {
 			}
 			b.WriteString(l.text + "\n")
 		}
+		os.Stdout.WriteString(b.String())
 	}
-	os.Stdout.WriteString(b.String())
+	sent := map[string]time.Time{}
+	for _, c := range cs {
+		lines := containerLines(p, c, from, now, tail)
+		emit(c, lines)
+		sent[str(c, "name")] = now
+		if n := len(lines); n > 0 {
+			sent[str(c, "name")] = lines[n-1].at
+		}
+	}
+	if !f.bools["--follow"] || str(p, "status", "phase") == "Succeeded" {
+		return 0
+	}
+	return followLogs(p, cs, ctx, ns, target, sent, emit)
+}
+
+func followLogs(p obj, cs []any, ctx, ns, target string, sent map[string]time.Time, emit func(any, []logLine)) int {
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	check := time.Now()
+	for range tick.C {
+		now := time.Now()
+		for _, c := range cs {
+			name := str(c, "name")
+			lines := containerLines(p, c, sent[name], now, -1)
+			if len(lines) == 0 {
+				continue
+			}
+			emit(c, lines)
+			sent[name] = lines[len(lines)-1].at
+		}
+		if now.Sub(check) > time.Second {
+			check = now
+			alive := false
+			for _, o := range snapshot(ctx) {
+				if str(o, "kind") == "Pod" && nsOf(o) == ns && objName(o) == target {
+					alive = true
+				}
+			}
+			if !alive {
+				return 0
+			}
+		}
+	}
 	return 0
 }

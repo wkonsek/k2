@@ -29,6 +29,7 @@ func newTestModel(t *testing.T, cfg config.Config, f *shell.Fake, warnings ...st
 		f = &shell.Fake{Handler: func(shell.Request) shell.Result { return shell.Fail(1, "no cluster in tests") }}
 	}
 	m := initialModel(Options{Runner: f, Config: &cfg, Warnings: warnings})
+	t.Cleanup(m.streams.stopAll)
 	m.width, m.height = 120, 40
 	return m
 }

@@ -357,15 +357,26 @@ func (m *model) applyLogs(msg logsMsg) {
 		if msg.err != nil {
 			if !msg.partial || *text == "" {
 				*text = m.errLine(msg.err)
+				vs.logErr = msg.stream
 			}
 			return
 		}
 		if msg.partial {
+			if vs.logErr && msg.text != "" {
+				*text, vs.logErr = "", false
+			}
 			base := joinLogs(*text, vs.logPend)
 			merged := kube.AppendLogs(base, msg.text)
+			if msg.stream && !msg.dedupe {
+				merged = joinLogs(base, msg.text)
+			}
+			if msg.stream && msg.text == "" {
+				vs.logNew += msg.lost
+				return
+			}
 			lines := strings.Split(merged, "\n")
 			if hard := m.cfg.Logs.MaxLines * 2; !*stick && m.cfg.Logs.MaxLines > 0 && len(lines) > hard {
-				vs.logNew += len(lines) - splitCount(base)
+				vs.logNew += len(lines) - splitCount(base) + msg.lost
 				vs.logPend = strings.Join(lines[hard:][max(0, len(lines)-hard-m.cfg.Logs.MaxLines):], "\n")
 				*text = strings.Join(lines[:hard], "\n")
 				*since = time.Now().Add(-2 * time.Second)
