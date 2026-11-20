@@ -11,7 +11,7 @@ import (
 
 func TestDefaultsMatchOriginal(t *testing.T) {
 	c := Default()
-	if c.Theme != "nord" || c.MaxPanes != 4 || c.KubectlOutput != "default" {
+	if c.Theme != "matrix-reloaded" || c.MaxPanes != 4 || c.KubectlOutput != "default" {
 		t.Fatalf("unexpected defaults: %+v", c)
 	}
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {

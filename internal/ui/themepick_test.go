@@ -20,7 +20,7 @@ func TestThemePopupSavesContext(t *testing.T) {
 	if m.dlg == nil || m.dlg.act != "theme" || len(m.dlg.options) != len(theme.Names()) {
 		t.Fatalf("dialog %+v", m.dlg)
 	}
-	if m.dlg.picked() != "nord" || len(m.dlg.notes) != 0 {
+	if m.dlg.picked() != "matrix-reloaded" || len(m.dlg.notes) != 0 {
 		t.Fatalf("cursor %q notes %v", m.dlg.picked(), m.dlg.notes)
 	}
 	if strings.Contains(ansi.Strip(m.View()), "arctic") {
@@ -65,11 +65,11 @@ func TestThemePopupPreviews(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
 	m.kubeconfig, m.context = "/kc", "kind-dev"
 	m = pressSettle(t, m, "ctrl+t", "down")
-	if m.themeName != "dracula" || th.Name != "dracula" {
+	if m.themeName != "nord-dark-contrast" || th.Name != "nord-dark-contrast" {
 		t.Fatalf("no preview: %s %s", m.themeName, th.Name)
 	}
 	m = pressSettle(t, m, "esc")
-	if m.dlg != nil || m.themeName != "nord" || th.Name != "nord" || len(m.cfg.ContextThemes) != 0 {
+	if m.dlg != nil || m.themeName != "matrix-reloaded" || th.Name != "matrix-reloaded" || len(m.cfg.ContextThemes) != 0 {
 		t.Fatalf("not restored: %s %s %+v", m.themeName, th.Name, m.cfg.ContextThemes)
 	}
 }
@@ -100,7 +100,7 @@ func TestThemePopupScrollsInAShortPane(t *testing.T) {
 	m = press(t, m, "ctrl+t")
 	names := theme.Names()
 	box := ansi.Strip(m.dialogBox(40))
-	if strings.Contains(box, "arctic") || boxHasRow(box, names[len(names)-1]) || !boxHasRow(box, names[0]) {
+	if strings.Contains(box, "arctic") || boxHasRow(box, names[0]) || !boxHasRow(box, "matrix-reloaded") {
 		t.Fatalf("box:\n%s", box)
 	}
 	m.dlg.idx = len(names) - 1
@@ -141,7 +141,7 @@ func TestThemePopupBackgroundSwitch(t *testing.T) {
 		t.Fatalf("dark preview after switch: paint %v %s", m.paintBg, th.Name)
 	}
 	m = pressSettle(t, m, "esc")
-	if m.dlg != nil || m.paintBg || m.themeName != "nord" || m.cfg.UI.BackgroundSet {
+	if m.dlg != nil || m.paintBg || m.themeName != "matrix-reloaded" || m.cfg.UI.BackgroundSet {
 		t.Fatalf("not reverted: paint %v theme %s cfg %+v", m.paintBg, m.themeName, m.cfg.UI.Background)
 	}
 	if _, err := os.Stat(config.Path()); err == nil {
@@ -155,7 +155,7 @@ func TestThemePopupSavesBackground(t *testing.T) {
 	m := newTestModel(t, cfg, nil)
 	m.kubeconfig, m.context = "/kc", "kind-dev"
 	m = pressSettle(t, m, "ctrl+t", "down", "b", "enter")
-	if m.dlg != nil || !m.paintBg || m.themeName != "dracula" || m.cfg.UI.Background != "theme" {
+	if m.dlg != nil || !m.paintBg || m.themeName != "nord-dark-contrast" || m.cfg.UI.Background != "theme" {
 		t.Fatalf("paint %v theme %s bg %s", m.paintBg, m.themeName, m.cfg.UI.Background)
 	}
 	b, err := os.ReadFile(config.Path())
@@ -163,7 +163,7 @@ func TestThemePopupSavesBackground(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, w := config.Parse(b)
-	if len(w) != 0 || c.UI.Background != "theme" || c.ThemeFor("/kc", "kind-dev") != "dracula" {
+	if len(w) != 0 || c.UI.Background != "theme" || c.ThemeFor("/kc", "kind-dev") != "nord-dark-contrast" {
 		t.Fatalf("config:\n%s", b)
 	}
 

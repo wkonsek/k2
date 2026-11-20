@@ -149,7 +149,7 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Theme:         "nord",
+		Theme:         "matrix-reloaded",
 		MaxPanes:      4,
 		StateDir:      DefaultDir(),
 		KubectlOutput: "default",
