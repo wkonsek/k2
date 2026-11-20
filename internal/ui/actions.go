@@ -30,6 +30,21 @@ func (m model) tableAction(key string) (tea.Model, tea.Cmd, bool) {
 	case m.stage == "logs" && km.Previous.Has(key):
 		next, cmd := m.openLogs(m.logPod, m.vs.logCont, !m.vs.logPrev)
 		return next, cmd, true
+	case m.stage == "workpods" && (km.PodLogs.Has(key) || km.Previous.Has(key)):
+		it, ok := m.selectedItem()
+		if !ok {
+			return m, nil, true
+		}
+		ns, name := kube.SplitRef(it.id, m.namespace)
+		act, prev := "logs", false
+		if km.Previous.Has(key) && !km.PodLogs.Has(key) {
+			act, prev = "prevlogs", true
+		}
+		if next, cmd, asked := m.pickContainer(act, it, ns, name); asked {
+			return next, cmd, true
+		}
+		next, cmd := m.openLogs(it.id, "", prev)
+		return next, cmd, true
 	case !table:
 		return m, nil, false
 	case km.SortNext.Has(key), km.SortPrev.Has(key):

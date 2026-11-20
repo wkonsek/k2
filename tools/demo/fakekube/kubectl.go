@@ -597,7 +597,17 @@ func topCmd(f flags) int {
 	}
 	pk, _ := lookupKind("pods")
 	refs := []resourceRef{{kind: pk}}
-	objs, _ := selectObjects(f, refs)
+	if len(f.pos) >= 3 {
+		refs[0].name = f.pos[2]
+	}
+	objs, missing := selectObjects(f, refs)
+	if len(missing) > 0 {
+		notFound(missing[0])
+		return 1
+	}
+	if f.bools["--containers"] {
+		return topContainers(f, objs)
+	}
 	sortObjects(objs)
 	bucket := strconv.FormatInt(time.Now().Unix()/15, 10)
 	if !f.bools["--no-headers"] {
@@ -655,6 +665,34 @@ func mebi(s string) int {
 	case strings.HasSuffix(s, "Mi"):
 		n, _ := strconv.Atoi(strings.TrimSuffix(s, "Mi"))
 		return n
+	}
+	return 0
+}
+
+func topContainers(f flags, objs []obj) int {
+	bucket := strconv.FormatInt(time.Now().Unix()/15, 10)
+	if !f.bools["--no-headers"] {
+		fmt.Printf("%-52s %-30s %-12s %s\n", "POD", "NAME", "CPU(cores)", "MEMORY(bytes)")
+	}
+	for _, p := range objs {
+		if str(p, "status", "phase") != "Running" {
+			continue
+		}
+		var all []any
+		for _, c := range list(p, "spec", "initContainers") {
+			if str(c, "restartPolicy") == "Always" {
+				all = append(all, c)
+			}
+		}
+		all = append(all, list(p, "spec", "containers")...)
+		for _, c := range all {
+			lim := milli(str(c, "resources", "limits", "cpu"))
+			mlim := mebi(str(c, "resources", "limits", "memory"))
+			pct := 12 + hashN(55, objName(p), str(c, "name"), bucket)
+			mpct := 30 + hashN(40, objName(p), str(c, "name"))
+			cpu := max(1, lim*pct/100)
+			fmt.Printf("%-52s %-30s %-12s %s\n", objName(p), str(c, "name"), fmt.Sprintf("%dm", cpu), fmt.Sprintf("%dMi", mlim*mpct/100))
+		}
 	}
 	return 0
 }

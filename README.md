@@ -376,13 +376,20 @@ cluster info, token lifetime and forwards.
 
 **Pods.**
 
-- `enter` follows the logs: `p` switches to the previous container's log,
+- `enter` opens the containers of the pod, as k9s does: init containers and
+  sidecars included, with state, restarts, probes, CPU and MEM (from
+  `kubectl top pod --containers`), requests and limits, usage percentages,
+  ports and age. `enter` or `l` there follows the logs of that container,
+  `p` its previous logs, `s` opens a shell in it, `F` forwards one of its
+  ports, `d` describes the pod and `esc` returns to the pods with the same
+  pod selected.
+- `l` on the pods list follows the logs of the pod: `p` switches to the previous container's log,
   `m` draws a separator under the current line, `1` and `2` open the last
   30 and 60 minutes in `less` with no line cap (not in stern).
 - `s` opens a shell in the pane (bash, else sh).
 - `F` port-forwards (`ctrl+f` still works).
 - `S` scales the deployment or statefulset that owns the pod.
-- Pods with several containers ask which one.
+- On the pods list, `l` and `p` ask which container when a pod has several.
 - CPU and MEM columns come from `kubectl top pods` every
   `ui.metrics_every` seconds (15) and show `45m ███░░ 62%`: usage against
   the summed limits, or the requests (`~62%`) when not every container has

@@ -25,6 +25,9 @@ func (m model) selectedRef() (kind, ns, name string, ok bool) {
 	}
 	switch m.stage {
 	case "workpods":
+		if cns, pod, ok := parseContainerSel(m.vs.podSel); ok {
+			return "pod", cns, pod, true
+		}
 		ns, name = kube.SplitRef(it.id, m.namespace)
 		return "pod", ns, name, true
 	case "res":

@@ -15,7 +15,7 @@ import (
 
 func TestHintsUseDefaultKeys(t *testing.T) {
 	m := newTestModel(t, testEnv(t), nil)
-	if got := m.podsHint(); got != "enter logs, d describe, F forward, s shell, e edit, ctrl+d delete" {
+	if got := m.podsHint(); got != "enter containers, l logs, d describe, F forward, s shell, e edit, ctrl+d delete" {
 		t.Fatalf("pods hint %q (d now describes)", got)
 	}
 	if got := m.scrollKeys(); got != "jk" {
@@ -40,7 +40,7 @@ func TestHintsFollowRemappedKeys(t *testing.T) {
 	cfg.Keys.Kustomize = config.Binding{"k"}
 	m := newTestModel(t, cfg, nil)
 
-	if got := m.podsHint(); got != "right logs, d describe, + forward, s shell, E edit, ctrl+y delete" {
+	if got := m.podsHint(); got != "right containers, l logs, d describe, + forward, s shell, E edit, ctrl+y delete" {
 		t.Fatalf("pods hint %q", got)
 	}
 	m.stage = "workpods"
@@ -49,7 +49,7 @@ func TestHintsFollowRemappedKeys(t *testing.T) {
 	}
 
 	m.content.SetItems([]list.Item{item{id: "web", title: "web"}})
-	next, cmd := m.handleContentEnter()
+	next, cmd := m.openLogs("web", "", false)
 	m = settle(t, next.(model), cmd)
 	if m.status != "↓↑ scroll    y copy    m mark    V vim    p previous" {
 		t.Fatalf("logs status %q", m.status)

@@ -643,6 +643,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if next, cmd, ok := m.screenBack(); ok {
 				return next, cmd
 			}
+			if m.inContainers() {
+				return m.backToPods()
+			}
 			if m.vs.parent != "" && (m.stage == "workpods" || m.stage == "res") {
 				return m.backToParent()
 			}
@@ -656,6 +659,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if next, cmd, ok := m.screenBack(); ok {
 				return next, cmd
+			}
+			if m.inContainers() {
+				return m.backToPods()
 			}
 			if m.vs.parent != "" && (m.stage == "workpods" || m.stage == "res") {
 				return m.backToParent()

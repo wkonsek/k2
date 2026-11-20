@@ -43,20 +43,24 @@ type item struct {
 }
 
 type viewState struct {
-	podSel    string
-	podTitle  string
-	sortCol   string
-	sortDesc  bool
-	parent    string
-	parentSel string
-	pick      string
-	logCont   string
-	logPrev   bool
-	logMarks  []int
-	wrapFlip  bool
-	logHold   bool
-	logLine   int
-	logSub    int
+	podSel   string
+	podTitle string
+
+	sortBack     podSort
+	podSelBack   string
+	podTitleBack string
+	sortCol      string
+	sortDesc     bool
+	parent       string
+	parentSel    string
+	pick         string
+	logCont      string
+	logPrev      bool
+	logMarks     []int
+	wrapFlip     bool
+	logHold      bool
+	logLine      int
+	logSub       int
 
 	kpos map[string]kmark
 

@@ -146,7 +146,7 @@ func TestPodMetricsUnavailable(t *testing.T) {
 		t.Fatalf("calls %d status %q", n, m.status)
 	}
 
-	rows := loadRows(m.k, m.logID, "workpods", "pods", "/kc", "kind-dev", "shop", "", m.tableWidth())()
+	rows := loadRows(m.k, m.logID, "workpods", "pods", "/kc", "kind-dev", "shop", "", m.tableWidth(), true)()
 	m.applyRows(rows.(rowsMsg))
 	if len(m.content.Items()) != 3 {
 		t.Fatalf("rows %d", len(m.content.Items()))

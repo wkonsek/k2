@@ -260,7 +260,9 @@ func (m model) paneLabel(i int) string {
 		label = or(s.subject, "kustomize")
 	case "workpods":
 		label = scopeLabel(s.namespace, "pods")
-		if s.vs.podTitle != "" {
+		if ns, pod, ok := parseContainerSel(s.vs.podSel); ok {
+			label = containersLabel(ns, pod, len(s.content.Items()))
+		} else if s.vs.podTitle != "" {
 			label += " of " + s.vs.podTitle
 		}
 	case "res":

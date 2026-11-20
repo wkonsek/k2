@@ -172,14 +172,14 @@ func (m model) openListAs(stage, kind string, toggled bool) (tea.Model, tea.Cmd)
 		what = "loading namespaces"
 	}
 	spin := m.startLoad(what, true)
-	k, kc, ctx, ns, sel, width := m.k, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.tableWidth()
+	k, kc, ctx, ns, sel, width, metrics := m.k, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.tableWidth(), m.cfg.UI.PodMetrics
 	alts := m.kindAlts
 	m.kindAlts = nil
 	msg := openedMsg{pane: m.logID, stage: stage, kind: kind, token: m.load.token, toggled: toggled}
 	fetch := func() tea.Msg {
 		switch stage {
 		case "workpods":
-			msg.header, msg.items, msg.err = getPodItems(k, kc, ctx, ns, sel, width)
+			msg.header, msg.items, msg.err = getPodItems(k, kc, ctx, ns, sel, width, metrics)
 		case "res":
 			msg.kind, msg.header, msg.items, msg.also, msg.err = firstListing(append([]string{kind}, alts...), func(kind string) (string, []list.Item, error) {
 				return getResourceItems(k, kc, ctx, ns, kind, width)
@@ -249,6 +249,10 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 		label = "all namespaces"
 	}
 	if msg.err != nil {
+		if _, _, ok := parseContainerSel(m.vs.podSel); ok && msg.stage == "workpods" {
+			m.vs.podSel, m.vs.podTitle = m.vs.podSelBack, m.vs.podTitleBack
+			m.vs.podSelBack, m.vs.podTitleBack = "", ""
+		}
 		m.status = m.errLine(msg.err)
 		if text, ok := m.listFailure(msg.err.Error()); ok {
 			m.status = text
@@ -295,6 +299,9 @@ func (m *model) showRows(msg openedMsg) tea.Cmd {
 	m.vs.pick = ""
 	if msg.stage == "workpods" {
 		m.status = m.podsHint()
+		if m.inContainers() {
+			m.status = m.containersHint()
+		}
 	} else {
 		m.status = msg.kind + alsoNote(msg.also)
 	}
@@ -352,7 +359,7 @@ func (m *model) applyEditDone(msg editDoneMsg) {
 		label = "all namespaces"
 	}
 	if m.stage == "workpods" {
-		header, items, err = getPodItems(m.k, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.tableWidth())
+		header, items, err = getPodItems(m.k, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.tableWidth(), m.cfg.UI.PodMetrics)
 	} else {
 		header, items, err = getResourceItems(m.k, m.kubeconfig, m.context, m.namespace, m.kind, m.tableWidth())
 		label = m.kind

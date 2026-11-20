@@ -96,6 +96,9 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
 	table := m.stage == "workpods" || m.stage == "res"
+	if next, cmd, ok := m.containerKey(key); ok {
+		return next, cmd, true
+	}
 	switch {
 	case km.Theme.Has(key):
 		next, cmd := m.openTheme()

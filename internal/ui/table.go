@@ -315,7 +315,8 @@ func headerLine(heads []string, widths []int) string {
 
 func isMetricHead(h string) bool { return h == "CPU" || h == "MEM" }
 
-var spareHeads = []string{"NOMINATED NODE", "READINESS GATES", "IP", "NODE"}
+var spareHeads = []string{"NOMINATED NODE", "READINESS GATES", "IP", "NODE",
+	"%CPU/R", "%MEM/R", "INIT", "PROBES(L:R)", "%CPU/L", "%MEM/L", "CPU/R:L", "MEM/R:L", "PF"}
 
 func fitWidths(natural []int, heads []string, flex, protect, width int) []int {
 	hidden := map[int]bool{}
@@ -632,7 +633,10 @@ func getResourceItems(k kube.Client, kubeconfig, context, namespace, kind string
 	return packKube(k.GenericTable(kubeconfig, context, kind, namespace, objs), width, namespace)
 }
 
-func getPodItems(k kube.Client, kubeconfig, context, namespace, selector string, width int) (string, []list.Item, error) {
+func getPodItems(k kube.Client, kubeconfig, context, namespace, selector string, width int, metrics bool) (string, []list.Item, error) {
+	if ns, pod, ok := parseContainerSel(selector); ok {
+		return getContainerItems(k, kubeconfig, context, ns, pod, width, metrics)
+	}
 	objs, err := k.ObjectsWhere(kubeconfig, context, "pods", namespace, selector)
 	if err != nil {
 		return "", nil, err
@@ -695,7 +699,7 @@ func (m *model) refreshVisible() []tea.Cmd {
 			return
 		}
 		m.rowBusy[id] = true
-		cmds = append(cmds, loadRows(m.k, id, stage, kind, kc, ctx, ns, sel, m.paneTableWidth(id)))
+		cmds = append(cmds, loadRows(m.k, id, stage, kind, kc, ctx, ns, sel, m.paneTableWidth(id), m.cfg.UI.PodMetrics))
 	}
 	try(m.logID, m.stage, m.kind, m.kubeconfig, m.context, m.namespace, m.vs.podSel, m.content.FilterState() != list.Unfiltered)
 	for i := range m.panes {
@@ -708,13 +712,13 @@ func (m *model) refreshVisible() []tea.Cmd {
 	return cmds
 }
 
-func loadRows(k kube.Client, id, stage, kind, kc, ctx, ns, sel string, width int) tea.Cmd {
+func loadRows(k kube.Client, id, stage, kind, kc, ctx, ns, sel string, width int, metrics bool) tea.Cmd {
 	return func() tea.Msg {
 		var header string
 		var items []list.Item
 		var err error
 		if stage == "workpods" {
-			header, items, err = getPodItems(k, kc, ctx, ns, sel, width)
+			header, items, err = getPodItems(k, kc, ctx, ns, sel, width, metrics)
 		} else {
 			header, items, err = getResourceItems(k, kc, ctx, ns, kind, width)
 		}

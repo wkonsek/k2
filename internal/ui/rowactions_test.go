@@ -140,7 +140,7 @@ func open(t *testing.T, m model, q string) model {
 func TestContainerPickerForLogs(t *testing.T) {
 	f := actionCluster()
 	m := selectRow(t, actionModel(t, f), "web-1")
-	m = pressSettle(t, m, "enter")
+	m = pressSettle(t, m, "l")
 	if m.dlg == nil || strings.Join(m.dlg.options, ",") != "app,side,migrate" || m.dlg.notes[2] != "init" {
 		t.Fatalf("picker %+v", m.dlg)
 	}
@@ -160,7 +160,7 @@ func TestContainerPickerForLogs(t *testing.T) {
 		t.Fatalf("label %q", l)
 	}
 
-	m = pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "enter", "esc")
+	m = pressSettle(t, selectRow(t, actionModel(t, f), "web-1"), "l", "esc")
 	if m.dlg != nil || m.stage != "workpods" {
 		t.Fatalf("cancel: %s", m.stage)
 	}
@@ -168,7 +168,7 @@ func TestContainerPickerForLogs(t *testing.T) {
 
 func TestSingleContainerNoPicker(t *testing.T) {
 	f := actionCluster()
-	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "enter")
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "l")
 	if m.dlg != nil || m.stage != "logs" || m.vs.logCont != "" {
 		t.Fatalf("stage %s dlg %v", m.stage, m.dlg)
 	}
@@ -176,7 +176,7 @@ func TestSingleContainerNoPicker(t *testing.T) {
 
 func TestPreviousLogsToggle(t *testing.T) {
 	f := actionCluster()
-	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "enter", "p")
+	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "l", "p")
 	logs := calls(f, "logs")
 	if !m.vs.logPrev || !strings.Contains(logs[len(logs)-1], "--previous") {
 		t.Fatalf("prev %v %v", m.vs.logPrev, logs)
@@ -371,7 +371,7 @@ func TestColumnSort(t *testing.T) {
 	}
 
 	m = selectRow(t, m, "cache-0")
-	rows := loadRows(m.k, m.logID, "workpods", "pods", "/kc", "kind-dev", "shop", "", m.tableWidth())()
+	rows := loadRows(m.k, m.logID, "workpods", "pods", "/kc", "kind-dev", "shop", "", m.tableWidth(), true)()
 	m.applyRows(rows.(rowsMsg))
 	if names(m) != "web-1,cache-0,db-0" || m.content.SelectedItem().(item).id != "cache-0" {
 		t.Fatalf("refresh %s sel %s", names(m), m.content.SelectedItem().(item).id)
@@ -624,7 +624,7 @@ func TestLogRangeOpensLess(t *testing.T) {
 	m := newTestModel(t, cfg, f)
 	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
 	n, c := m.openPods()
-	m = pressSettle(t, selectRow(t, settle(t, n.(model), c), "db-0"), "enter")
+	m = pressSettle(t, selectRow(t, settle(t, n.(model), c), "db-0"), "l")
 
 	check := func(press string, minutes int) {
 		t.Helper()

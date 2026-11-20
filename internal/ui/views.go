@@ -236,6 +236,9 @@ func (m model) paneView() string {
 	case "logs":
 		return logLabel(m.logPod)
 	case "workpods":
+		if ns, pod, ok := parseContainerSel(m.vs.podSel); ok {
+			return containersLabel(ns, pod, len(m.content.Items()))
+		}
 		return scopeLabel(m.namespace, "pods")
 	case "res", "yaml", "view":
 		label := or(m.subject, or(m.kind, m.stage))
@@ -312,6 +315,10 @@ func (m model) legend() string {
 	}
 	if m.stage == "nav" {
 		parts = []string{pair(k.Select.Label(), "pods")}
+	} else if m.inContainers() {
+		parts[1] = pair(k.Select.Label(), "logs")
+	} else if m.stage == "workpods" {
+		parts[1] = pair(k.Select.Label(), "containers")
 	}
 	back, cmd := pair(k.Back.Short(), "back"), pair(k.Command.Short(), "cmd")
 	if m.stage == "nav" {
@@ -322,7 +329,10 @@ func (m model) legend() string {
 	if m.readOnly {
 		parts = append([]string{warnStyle.Render(lockIcon + " READ-ONLY")}, parts...)
 	}
-	if m.stage == "workpods" {
+	if m.inContainers() {
+		parts = append(parts, pair(k.Previous.Short(), "previous"), pair(k.Shell.Short(), "shell"), pair(podForwardKey(k), "forward"), pair(k.Describe.Short(), "describe pod"))
+		parts = append(parts, m.tableLegend()...)
+	} else if m.stage == "workpods" {
 		parts = append(parts, pair(k.Describe.Short(), "describe"), pair(podForwardKey(k), "forward"), pair(k.Scale.Short(), "scale"), pair(k.Shell.Short(), "shell"), pair(k.SetImage.Short(), "image"), pair(k.Edit.Short(), "edit"), pair(k.Delete.Short(), "delete"),
 			pair(k.Xray.Short(), "xray"), pair(k.MultiLogs.Short(), "all logs"))
 		parts = append(parts, m.tableLegend()...)
@@ -464,7 +474,7 @@ func podForwardKey(k config.Keys) string {
 
 func (m model) podsHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " logs, " + k.Describe.Label() + " describe, " + podForwardKey(k) + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + " containers, " + k.PodLogs.Label() + " logs, " + k.Describe.Label() + " describe, " + podForwardKey(k) + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
 }
 
 func (m model) scrollKeys() string {

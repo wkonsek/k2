@@ -135,12 +135,11 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 		m.save()
 		return m.resumeNS()
 	case "workpods":
-
-		ns, name := kube.SplitRef(it.id, m.namespace)
-		if next, cmd, asked := m.pickContainer("logs", it, ns, name); asked {
+		if m.inContainers() {
+			next, cmd, _ := m.containerKey("enter")
 			return next, cmd
 		}
-		return m.openLogs(it.id, "", false)
+		return m.openContainers()
 	case "res":
 		if next, cmd, ok := m.enterRow(it); ok {
 			return next, cmd

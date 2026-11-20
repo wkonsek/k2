@@ -166,6 +166,7 @@ type Keys struct {
 	CmdEdit       Binding
 	CmdRename     Binding
 	CmdClone      Binding
+	PodLogs       Binding
 }
 
 func DefaultKeys() Keys {
@@ -211,6 +212,7 @@ func DefaultKeys() Keys {
 		LogFilter: Binding{"/"},
 		FavAdd:    Binding{"a"}, FavRemove: Binding{"x"}, FavUp: Binding{"K"}, FavDown: Binding{"J"},
 		CmdFavorites: Binding{"B"}, CmdSave: Binding{"ctrl+s"}, CmdEdit: Binding{"e"}, CmdRename: Binding{"n"}, CmdClone: Binding{"c"},
+		PodLogs: Binding{"l"},
 	}
 }
 
@@ -347,6 +349,7 @@ var keyFields = []keyField{
 	{"cmd_edit", func(k *Keys) *Binding { return &k.CmdEdit }},
 	{"cmd_rename", func(k *Keys) *Binding { return &k.CmdRename }},
 	{"cmd_clone", func(k *Keys) *Binding { return &k.CmdClone }},
+	{"pod_logs", func(k *Keys) *Binding { return &k.PodLogs }},
 }
 
 var keyAliases = map[string]string{"new_pane": "split_down", "forward": "port_forward", "editor_prefix": "prefix"}
@@ -427,6 +430,9 @@ var screenKeys = func() map[string][]string {
 		"helmhist": with("helm_rollback", "helm_mark", "helm_diff", "helm_values", "helm_computed", "helm_manifest", "helm_notes", "copy_name"),
 
 		"mlogs": with("vim", "wrap", "copy_mode", "log_filter", "all_namespaces"),
+
+		"pods": {"pod_logs", "previous", "shell", "describe", "port_forward", "delete", "edit", "scale", "set_image", "xray", "multi_logs",
+			"label", "annotate", "copy_name", "copy_ref", "mark", "all_namespaces", "sort_next", "sort_prev", "sort_reverse"},
 
 		"favpicker": {"submit", "cancel", "scroll_down", "scroll_up", "fav_add", "fav_remove", "fav_up", "fav_down", "cmd_edit", "cmd_rename", "cmd_clone"},
 		"kustomize": with("kustomize_delete", "apply", "diff", "edit", "scan", "kustomize_path", "open_folder"),

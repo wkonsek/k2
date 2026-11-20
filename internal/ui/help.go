@@ -253,8 +253,21 @@ func (m model) viewSection() []helpSection {
 			{k.Command.Label() + "logs app=x", "logs of many pods"},
 		}}}
 	case "workpods":
+		if m.inContainers() {
+			rows := []helpRow{
+				{keyList(k.Select, 1) + "/" + keyList(k.PodLogs, 1), "logs of the container"},
+				r(k.Previous, "previous logs"),
+				r(k.Shell, "shell in the container"),
+				{keyList(k.PortForward, 2), "port-forward the pod"},
+				r(k.Describe, "describe the pod"),
+				{keyList(k.Back, 1), "back to the pods"},
+			}
+			return []helpSection{{"Containers", append(rows, m.tableRows()...)}}
+		}
 		rows := []helpRow{
-			{keyList(k.Select, 1), "logs"},
+			{keyList(k.Select, 1), "containers"},
+			r(k.PodLogs, "logs"),
+			r(k.Previous, "previous logs"),
 			r(k.Describe, "describe"),
 			{keyList(k.PortForward, 2), "port-forward"},
 			r(k.Shell, "shell"),

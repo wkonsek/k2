@@ -56,8 +56,11 @@ func (m *model) metricsCmds() []tea.Cmd {
 		shown[id] = true
 	}
 	var cmds []tea.Cmd
-	try := func(id, stage, kind, kc, ctx, ns string) {
+	try := func(id, stage, kind, kc, ctx, ns string, vs viewState) {
 		what := metricsOf(stage, kind)
+		if _, _, ok := parseContainerSel(vs.podSel); ok && stage == "workpods" {
+			return
+		}
 		if !shown[id] || what == "" || kc == "" || ctx == "" {
 			return
 		}
@@ -87,10 +90,10 @@ func (m *model) metricsCmds() []tea.Cmd {
 			}
 		})
 	}
-	try(m.logID, m.stage, m.kind, m.kubeconfig, m.context, m.namespace)
+	try(m.logID, m.stage, m.kind, m.kubeconfig, m.context, m.namespace, m.vs)
 	for i, p := range m.panes {
 		if i != m.focus {
-			try(p.logID, p.stage, p.kind, p.kubeconfig, p.context, p.namespace)
+			try(p.logID, p.stage, p.kind, p.kubeconfig, p.context, p.namespace, p.vs)
 		}
 	}
 	return cmds
@@ -166,6 +169,11 @@ func metricsReason(err string) string {
 }
 
 func (m model) withMetrics(header string, items []list.Item, kc, ctx, ns string, width int) (string, []list.Item) {
+	if len(items) > 0 {
+		if first, ok := items[0].(item); ok && isContainerHeads(first.heads) {
+			return m.paintContainers(header, items, width)
+		}
+	}
 	if !m.cfg.UI.PodMetrics || len(items) == 0 {
 		return header, items
 	}

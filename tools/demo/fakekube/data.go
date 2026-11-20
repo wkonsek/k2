@@ -55,10 +55,18 @@ func initWorld() error {
 	return w.save()
 }
 
+type ctrPort struct {
+	name string
+	port int
+}
+
 type ctr struct {
 	name, image string
 	port        int
 	portName    string
+	ports       []ctrPort
+	liveness    bool
+	sidecar     bool
 	cpuReq      string
 	cpuLim      string
 	memReq      string
@@ -75,13 +83,30 @@ func (k ctr) json() obj {
 			"limits":   obj{"cpu": k.cpuLim, "memory": k.memLim},
 		},
 		"terminationMessagePath": "/dev/termination-log", "terminationMessagePolicy": "File"}
-	if k.port != 0 {
+	if len(k.ports) > 0 {
+		var ps []any
+		for _, p := range k.ports {
+			ps = append(ps, obj{"containerPort": p.port, "name": p.name, "protocol": "TCP"})
+		}
+		c["ports"] = ps
+		c["readinessProbe"] = obj{"tcpSocket": obj{"port": k.ports[0].port}, "periodSeconds": 10}
+	} else if k.port != 0 {
 		pn := k.portName
 		if pn == "" {
 			pn = "http"
 		}
 		c["ports"] = []any{obj{"containerPort": k.port, "name": pn, "protocol": "TCP"}}
 		c["readinessProbe"] = obj{"tcpSocket": obj{"port": k.port}, "periodSeconds": 10}
+	}
+	if k.liveness && (k.port != 0 || len(k.ports) > 0) {
+		p := k.port
+		if len(k.ports) > 0 {
+			p = k.ports[0].port
+		}
+		c["livenessProbe"] = obj{"tcpSocket": obj{"port": p}, "periodSeconds": 20, "failureThreshold": 3}
+	}
+	if k.sidecar {
+		c["restartPolicy"] = "Always"
 	}
 	var from []any
 	if k.envFromCM != "" {
@@ -144,10 +169,13 @@ func buildContext(w *world, spec contextSpec, now time.Time) {
 		{ns: "shop", name: "cart", replicas: 2 * s, tier: "backend", age: 41 * days, rsAge: 2*days + 3*hours, cm: "cart-config",
 			ctrs: []ctr{{name: "app", image: "ghcr.io/acme/cart:1.8.2", port: 8080, cpuReq: "100m", cpuLim: "500m", memReq: "128Mi", memLim: "256Mi", envFromSec: "cart-redis"}}},
 		{ns: "shop", name: "checkout", replicas: 2 * s, tier: "backend", age: 41 * days, rsAge: 13 * hours, cm: "checkout-config", oldImage: "ghcr.io/acme/checkout:2.2.9",
-			inits: []ctr{{name: "migrate", image: "ghcr.io/acme/checkout:2.3.0", cpuReq: "50m", cpuLim: "200m", memReq: "64Mi", memLim: "128Mi", envFromSec: "checkout-db", args: []string{"migrate", "up"}}},
+			inits: []ctr{
+				{name: "migrate", image: "ghcr.io/acme/checkout:2.3.0", cpuReq: "50m", cpuLim: "200m", memReq: "64Mi", memLim: "128Mi", envFromSec: "checkout-db", args: []string{"migrate", "up"}},
+				{name: "log-shipper", image: "fluent/fluent-bit:3.1.9", sidecar: true, liveness: true, ports: []ctrPort{{"metrics", 2020}}, cpuReq: "20m", cpuLim: "100m", memReq: "32Mi", memLim: "96Mi"},
+			},
 			ctrs: []ctr{
 				{name: "app", image: "ghcr.io/acme/checkout:2.3.0", port: 8080, cpuReq: "100m", cpuLim: "500m", memReq: "128Mi", memLim: "256Mi", envFromSec: "checkout-db"},
-				{name: "envoy", image: "envoyproxy/envoy:v1.31.2", port: 9901, portName: "admin", cpuReq: "50m", cpuLim: "200m", memReq: "64Mi", memLim: "128Mi"},
+				{name: "envoy", image: "envoyproxy/envoy:v1.31.2", liveness: true, ports: []ctrPort{{"admin", 9901}, {"ingress", 10000}}, cpuReq: "50m", cpuLim: "200m", memReq: "64Mi", memLim: "128Mi"},
 			}},
 		{ns: "shop", name: "redis", kind: "StatefulSet", replicas: 1, tier: "cache", age: 41 * days, rsAge: 9 * days, pvc: "data",
 			ctrs: []ctr{{name: "redis", image: "redis:7.4-alpine", port: 6379, portName: "redis", cpuReq: "100m", cpuLim: "500m", memReq: "128Mi", memLim: "512Mi"}}},

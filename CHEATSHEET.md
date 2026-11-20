@@ -161,11 +161,39 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 
 | Key | Config | What it does |
 |---|---|---|
-| `enter` | `keys.select` | logs of the pod (container picker when it has several) |
+| `enter` | `keys.select` | containers of the pod (see below) |
+| `l` | `keys.pod_logs` | logs of the pod (container picker when it has several) |
+| `p` | `keys.previous` | previous logs of the pod (container picker when it has several) |
 | `F` | `keys.port_forward` | port-forward. `ctrl+f` still works; the pods legend shows `F` |
 | `S` | `keys.scale` | scale the deployment or statefulset that owns this pod |
 | `s` | `keys.shell` | shell in the pod, inside the pane (bash, else sh) |
 | `ctrl+d` | `keys.delete` | delete the pod (asks in a red popup), also with other panes or tabs open |
+
+### Containers (`enter` on a pod)
+
+Title `Containers(shop/web-1)[3]`. Init containers come first and are marked
+`(init)`, native sidecars `(sidecar)`. Columns: NAME, PF (`●` when a
+forward of one of its ports is running), IMAGE, READY, STATE (Running, the
+Waiting or Terminated reason such as CrashLoopBackOff or Completed), INIT,
+RESTARTS (`3 (5m ago)`), PROBES(L:R) (`on`/`off` for liveness and
+readiness), CPU and MEM (`kubectl top pod --containers`, `n/a` without
+metrics-server), CPU/R:L (requests:limits in millicores), MEM/R:L (in Mi),
+%CPU/R, %CPU/L, %MEM/R, %MEM/L (usage against requests and limits), PORTS
+(`name:port`) and AGE. Narrow panes drop the least important columns first.
+The list refreshes by itself; `/` filters, `esc`, `q` or `h` goes back to the
+pods with the same pod selected.
+
+| Key | Config | What it does |
+|---|---|---|
+| `enter`, `l` | `keys.select`, `keys.pod_logs` | logs of this container |
+| `p` | `keys.previous` | previous logs of this container |
+| `s` | `keys.shell` | shell in this container (blocked in read-only mode) |
+| `F` | `keys.port_forward` | port-forward the pod, this container's ports first (blocked in read-only mode) |
+| `d` | `keys.describe` | describe the pod |
+| `esc` | `keys.back` | back to the pods |
+
+Keys that act on the pod itself (delete, scale, set image, edit, xray, mark,
+all namespaces) do nothing here and say so.
 
 CPU and MEM show `value ███░░ 62%` (usage of the summed limits; `~62%` =
 of the requests), green / yellow from `ui.metrics_warn` (70) / red from

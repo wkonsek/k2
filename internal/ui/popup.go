@@ -32,6 +32,11 @@ func (m model) openPortForward() (tea.Model, tea.Cmd) {
 	}
 	m.pod, m.pfKind = ns+"/"+name, fk
 	m.suggestions = m.k.TargetPortSuggestions(m.kubeconfig, m.context, fk, ns, name)
+	if m.inContainers() {
+		if it, ok := m.selectedItem(); ok {
+			m.suggestions = containerPortsFirst(m.suggestions, it.extra["ports"])
+		}
+	}
 	m.sugIndex = 0
 	m.portInput.SetValue("")
 	if len(m.suggestions) > 0 {

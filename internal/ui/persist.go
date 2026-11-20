@@ -256,7 +256,7 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 	}
 	switch sp.Stage {
 	case "workpods":
-		header, items, err := getPodItems(m.k, kc, ctx, ns, sp.PodSel, m.tableWidth())
+		header, items, err := getPodItems(m.k, kc, ctx, ns, sp.PodSel, m.tableWidth(), m.cfg.UI.PodMetrics)
 		if err != nil {
 			fail(err)
 			break

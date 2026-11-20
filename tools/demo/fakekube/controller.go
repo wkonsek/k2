@@ -485,6 +485,11 @@ func (c *cl) settlePod(p obj) podState {
 	st["containerStatuses"] = cs
 	var ics []any
 	for _, ct := range list(p, "spec", "initContainers") {
+		if str(ct, "restartPolicy") == "Always" {
+			ics = append(ics, obj{"name": str(ct, "name"), "image": str(ct, "image"), "ready": allReady, "restartCount": 0, "started": true,
+				"state": obj{"running": obj{"startedAt": ts(start.Add(3 * time.Second))}}})
+			continue
+		}
 		ics = append(ics, obj{"name": str(ct, "name"), "image": str(ct, "image"), "ready": true, "restartCount": 0, "started": false,
 			"state": obj{"terminated": obj{"reason": "Completed", "exitCode": 0, "startedAt": ts(start), "finishedAt": ts(start.Add(3 * time.Second))}}})
 	}
