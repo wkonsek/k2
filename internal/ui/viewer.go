@@ -112,6 +112,7 @@ func (m *model) scroll(delta int) {
 		m.logStick = true
 		m.logAt = 0
 		m.clearLogHold()
+		m.flushPending()
 		return
 	}
 	top := m.shownTop(vis, rows)
@@ -123,6 +124,7 @@ func (m *model) scroll(delta int) {
 		m.logStick = true
 		m.logAt = 0
 		m.clearLogHold()
+		m.flushPending()
 		return
 	}
 	m.logStick = false
@@ -217,17 +219,6 @@ func findVisual(vis []vline, line, sub int) int {
 	return -1
 }
 
-func rewindHold(vs *viewState, dropped int, stick bool) {
-	if vs == nil || dropped <= 0 || stick || !vs.logHold {
-		return
-	}
-	vs.logLine -= dropped
-	if vs.logLine < 0 {
-		vs.logLine = 0
-		vs.logSub = 0
-	}
-}
-
 func (m model) logsBody(innerW int) string {
 	if m.load.active() {
 		return m.loadingBlock(innerW)
@@ -276,6 +267,9 @@ func (m model) logsBody(innerW int) string {
 	mode := "follow"
 	if !m.logStick {
 		mode = "paused"
+		if m.vs.logNew > 0 {
+			mode += fmt.Sprintf(" +%d new", m.vs.logNew)
+		}
 	}
 	if m.vs.logPrev {
 		mode = "previous"
@@ -367,16 +361,20 @@ func (m *model) applyLogs(msg logsMsg) {
 			return
 		}
 		if msg.partial {
-			merged := kube.AppendLogs(*text, msg.text)
+			base := joinLogs(*text, vs.logPend)
+			merged := kube.AppendLogs(base, msg.text)
 			lines := strings.Split(merged, "\n")
-			anchor := 0
-			if !*stick {
-				anchor = m.paneAnchor(id, stage, *text, *at, *vs)
+			if hard := m.cfg.Logs.MaxLines * 2; !*stick && m.cfg.Logs.MaxLines > 0 && len(lines) > hard {
+				vs.logNew += len(lines) - splitCount(base)
+				vs.logPend = strings.Join(lines[hard:][max(0, len(lines)-hard-m.cfg.Logs.MaxLines):], "\n")
+				*text = strings.Join(lines[:hard], "\n")
+				*since = time.Now().Add(-2 * time.Second)
+				return
 			}
-			dropped := ringDropN(len(lines), m.cfg.Logs.MaxLines, anchor, *stick)
-			if dropped > 0 && !*stick {
-				*at = max(0, *at-m.paneShift(id, stage, *text, *at, *vs, dropped))
-				rewindHold(vs, dropped, false)
+			vs.logPend, vs.logNew = "", 0
+			dropped := 0
+			if *stick {
+				dropped = ringDropN(len(lines), m.cfg.Logs.MaxLines)
 			}
 			trimmed := merged
 			if dropped > 0 {
@@ -384,15 +382,10 @@ func (m *model) applyLogs(msg logsMsg) {
 			}
 			*text = trimmed
 			if dropped > 0 && marks != nil {
-				kept := make([]int, 0, len(*marks))
-				for _, n := range *marks {
-					if n -= dropped; n >= 0 {
-						kept = append(kept, n)
-					}
-				}
-				*marks = kept
+				*marks = shiftMarks(*marks, dropped)
 			}
 		} else if msg.text != "" {
+			vs.logPend, vs.logNew = "", 0
 			*text = msg.text
 			if marks != nil {
 				*marks = nil
@@ -724,100 +717,11 @@ func lineSpan(shown []vline, total int) string {
 	return fmt.Sprintf("%d-%d/%d", first+1, last+1, total)
 }
 
-// ringDropN is how many leading lines to drop so the buffer stays near limit.
-// While paused, lines at and below the anchor stay, so the viewport does not jump.
-// Past twice the limit the anchor gives way, so a paused view cannot grow without bound.
-func ringDropN(n, limit, anchor int, stick bool) int {
+func ringDropN(n, limit int) int {
 	if limit <= 0 || n <= limit {
 		return 0
 	}
-	excess := n - limit
-	if stick {
-		return excess
-	}
-	drop := min(excess, max(anchor, 0))
-	hard := limit * 2
-	if n-drop > hard {
-		drop = n - hard
-	}
-	if drop < 0 {
-		drop = 0
-	}
-	if drop >= n && n > 0 {
-		drop = n - 1
-	}
-	return drop
-}
-
-func (m model) logicalAnchor() int {
-	vis := m.visualLines(m.viewerWidth())
-	if len(vis) == 0 {
-		return 0
-	}
-	top := m.viewTop(len(vis), m.textRows())
-	if top >= len(vis) {
-		top = len(vis) - 1
-	}
-	for top > 0 && vis[top].num < 0 {
-		top--
-	}
-	if vis[top].num >= 0 {
-		return vis[top].num
-	}
-	return 0
-}
-
-func (m model) rawAnchor() int {
-	if m.vs.logHold && (m.stage == "logs" || m.stage == "mlogs") {
-		n := m.vs.logLine
-		if m.stage == "mlogs" && m.vs.ml != nil && m.vs.ml.filter != "" {
-			if i := m.vs.ml.bufferIndex(n); i >= 0 {
-				return i
-			}
-		}
-		return max(n, 0)
-	}
-	n := m.logicalAnchor()
-	if m.stage == "mlogs" && m.vs.ml != nil && m.vs.ml.filter != "" {
-		if i := m.vs.ml.bufferIndex(n); i >= 0 {
-			return i
-		}
-	}
-	return n
-}
-
-func (m model) droppedVisual(droppedLogical int) int {
-	if droppedLogical <= 0 {
-		return 0
-	}
-	vis := m.visualLines(m.viewerWidth())
-	shift := 0
-	for _, row := range vis {
-		if row.num >= droppedLogical {
-			break
-		}
-		shift++
-	}
-	return shift
-}
-
-func (m model) withLog(id, stage, text string, at int, vs viewState) model {
-	alt := m
-	alt.logID = id
-	alt.stage = stage
-	alt.logText = text
-	alt.logStick = false
-	alt.logAt = at
-	alt.vs = vs
-	return alt
-}
-
-func (m model) paneAnchor(id, stage, text string, at int, vs viewState) int {
-	return m.withLog(id, stage, text, at, vs).rawAnchor()
-}
-
-func (m model) paneShift(id, stage, text string, at int, vs viewState, dropped int) int {
-	return m.withLog(id, stage, text, at, vs).droppedVisual(dropped)
+	return n - limit
 }
 
 func trimLogDrop(s string, max int) (string, int) {
@@ -830,4 +734,62 @@ func trimLogDrop(s string, max int) (string, int) {
 	}
 	drop := len(lines) - max
 	return strings.Join(lines[drop:], "\n"), drop
+}
+
+func joinLogs(text, more string) string {
+	if more == "" {
+		return text
+	}
+	if text == "" {
+		return more
+	}
+	return text + "\n" + more
+}
+
+func splitCount(s string) int {
+	return strings.Count(s, "\n") + 1
+}
+
+func shiftMarks(marks []int, dropped int) []int {
+	kept := make([]int, 0, len(marks))
+	for _, n := range marks {
+		if n -= dropped; n >= 0 {
+			kept = append(kept, n)
+		}
+	}
+	return kept
+}
+
+func (m *model) flushPending() {
+	if !m.logStick {
+		return
+	}
+	switch m.stage {
+	case "logs":
+		if m.vs.logPend == "" {
+			return
+		}
+		lines := strings.Split(joinLogs(m.logText, m.vs.logPend), "\n")
+		dropped := ringDropN(len(lines), m.cfg.Logs.MaxLines)
+		m.logText = strings.Join(lines[dropped:], "\n")
+		if dropped > 0 {
+			m.vs.logMarks = shiftMarks(m.vs.logMarks, dropped)
+		}
+		m.vs.logPend, m.vs.logNew = "", 0
+	case "mlogs":
+		v := m.vs.ml
+		if v == nil || len(v.pend) == 0 {
+			return
+		}
+		next := *v
+		next.lines = append(v.lines[:len(v.lines):len(v.lines)], v.pend...)
+		next.pend, next.fresh = nil, 0
+		if over := ringDropN(len(next.lines), m.cfg.Logs.MultiMaxLines); over > 0 {
+			next.lines = next.lines[over:]
+			next.dropped += over
+			next.marks = shiftMarks(next.marks, over)
+		}
+		m.vs.ml = &next
+		m.logText = next.render()
+	}
 }

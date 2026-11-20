@@ -190,6 +190,7 @@ func (m model) openLogs(podRef, container string, prev bool) (tea.Model, tea.Cmd
 	m.logText = ""
 	m.logSince = time.Time{}
 	m.vs.logMarks = nil
+	m.vs.logPend, m.vs.logNew = "", 0
 	m.stage = "logs"
 	m.logStick = true
 	m.logAt = 0

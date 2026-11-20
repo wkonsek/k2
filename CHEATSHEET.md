@@ -356,7 +356,7 @@ It reads one namespace: `0` (`keys.all_namespaces`) only says so.
 | `j`, `down` / `k`, `up` | `keys.scroll_down` / `keys.scroll_up` | scroll one line |
 | `pgdown`, `}` / `pgup`, `{` | `keys.page_down` / `keys.page_up` | scroll one page |
 | `g` | `keys.top` | top (pauses log tailing) |
-| `G` | `keys.bottom` | bottom; resumes log tailing |
+| `G` | `keys.bottom` | bottom; resumes log tailing and catches up. While paused the lines on screen never move, even on a very busy log; the header counts what arrived meanwhile (`paused +120 new`) |
 
 In output views (kustomize and kubectl results, viewer errors) error and
 warning lines always wrap in full, whatever `w` says; `!`

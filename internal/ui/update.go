@@ -577,6 +577,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewing() && !filtering {
 				m.logStick = true
 				m.clearLogHold()
+				m.flushPending()
 				return m, nil
 			}
 		case km.KustomizePath.Has(key) && (m.stage == "kdir" || m.stage == "kust") && !filtering:

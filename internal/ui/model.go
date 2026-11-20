@@ -61,6 +61,8 @@ type viewState struct {
 	logHold      bool
 	logLine      int
 	logSub       int
+	logPend      string
+	logNew       int
 
 	kpos map[string]kmark
 

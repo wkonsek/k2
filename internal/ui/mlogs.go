@@ -25,6 +25,8 @@ type mlogView struct {
 	re      *regexp.Regexp
 	dropped int
 	marks   []int
+	pend    []kube.LogLine
+	fresh   int
 	note    string
 	polls   int
 	colors  map[string]color
@@ -221,17 +223,22 @@ func (m *model) applyMlog(msg mlogMsg) tea.Cmd {
 		fresh, cur := v.cur.Fresh(msg.lines)
 		next.cur, next.pods, next.note = cur, msg.pods, msg.note
 
-		next.lines = append(v.lines[:len(v.lines):len(v.lines)], fresh...)
-		anchor := 0
-		if !m.logStick {
-			anchor = m.rawAnchor()
+		next.lines = append(v.lines[:len(v.lines):len(v.lines)], v.pend...)
+		next.lines = append(next.lines, fresh...)
+		next.pend, next.fresh = nil, 0
+		limit := m.cfg.Logs.MultiMaxLines
+		over := 0
+		if m.logStick {
+			over = ringDropN(len(next.lines), limit)
 		}
-		if over := ringDropN(len(next.lines), m.cfg.Logs.MultiMaxLines, anchor, m.logStick); over > 0 {
-			shown := v.shownPrefix(over)
-			if !m.logStick {
-				m.holdLogAt(shown)
-				rewindHold(&m.vs, shown, false)
-			}
+		if hard := limit * 2; !m.logStick && limit > 0 && len(next.lines) > hard {
+			all := next.lines
+			next.lines = append([]kube.LogLine(nil), all[:hard]...)
+			next.pend = append([]kube.LogLine(nil), all[hard:][max(0, len(all)-hard-limit):]...)
+			next.fresh = v.fresh + len(fresh)
+			over = 0
+		}
+		if over > 0 {
 			next.lines = next.lines[over:]
 			next.dropped += over
 			kept := make([]int, 0, len(v.marks))
@@ -315,33 +322,6 @@ func (v *mlogView) renderedMarks() []int {
 		shown++
 	}
 	return out
-}
-
-func (v *mlogView) shownPrefix(n int) int {
-	if v == nil || n <= 0 {
-		return 0
-	}
-	if n > len(v.lines) {
-		n = len(v.lines)
-	}
-	if v.filter == "" {
-		return n
-	}
-	c := 0
-	for i := 0; i < n; i++ {
-		l := v.lines[i]
-		if v.matches(l.Source() + " " + l.Text) {
-			c++
-		}
-	}
-	return c
-}
-
-func (m *model) holdLogAt(droppedLogical int) {
-	if m.logStick || droppedLogical <= 0 {
-		return
-	}
-	m.logAt = max(0, m.logAt-m.droppedVisual(droppedLogical))
 }
 
 func (v *mlogView) lastShown() int {
@@ -445,6 +425,9 @@ func (m model) mlogHeader(span string) string {
 	mode := "follow"
 	if !m.logStick {
 		mode = "paused"
+		if v.fresh > 0 {
+			mode += fmt.Sprintf(" +%d new", v.fresh)
+		}
 	}
 	parts := []string{mode, plural(len(v.pods), "pod", "pods"), span}
 	if v.dropped > 0 {
