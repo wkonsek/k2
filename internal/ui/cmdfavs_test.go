@@ -7,6 +7,7 @@ import (
 	"k2/internal/config"
 	"k2/internal/state"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -226,5 +227,29 @@ func TestCmdFavoritesKeysInTextFields(t *testing.T) {
 	m = typeText(t, m, "B")
 	if m.dlg != nil || m.cmd.Value() != "B" {
 		t.Fatalf("B in the command line: %v %q", m.dlg != nil, m.cmd.Value())
+	}
+}
+
+func TestCommandLineUsesThePaneWidth(t *testing.T) {
+	long := "logs app=cart,tier=frontend -c main --since=15m --tail=500"
+	m := appModel(t, appCluster(t))
+	m = pressSettle(t, m, ":")
+	m = typeText(t, m, long)
+	if view := ansi.Strip(m.View()); !strings.Contains(view, ": "+long) {
+		t.Fatalf("a long command is cut in a wide terminal:\n%s", view)
+	}
+
+	for _, w := range []int{100, 70, 50, 36, 24} {
+		next, _ := m.Update(tea.WindowSizeMsg{Width: w, Height: 30})
+		n := next.(model)
+		view := ansi.Strip(n.View())
+		for i, l := range strings.Split(view, "\n") {
+			if ansi.StringWidth(l) > w {
+				t.Fatalf("width %d: line %d is %d wide:\n%s", w, i, ansi.StringWidth(l), view)
+			}
+		}
+		if !strings.Contains(view, "--tail=500") && w >= 70 {
+			t.Fatalf("width %d: the end of the command is hidden:\n%s", w, view)
+		}
 	}
 }

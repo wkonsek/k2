@@ -373,3 +373,10 @@ func (m *model) rememberCommand(q string) {
 	}
 	m.lastCmd = cleanCommand(q)
 }
+
+func (m model) cmdView(width int) string {
+	c := m.cmd
+	c.Width = max(8, width-5)
+	c.SetCursor(c.Position())
+	return c.View()
+}

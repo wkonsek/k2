@@ -762,7 +762,7 @@ func (m model) paneBlock(i, width, h int) string {
 		if hint == "" {
 			hint = m.cfg.Keys.Complete.Label() + " completes"
 		}
-		foot := clipLine(m.cmd.View(), bodyW) + "\n" + dimStyle.Render(clipLine(hint, bodyW))
+		foot := clipLine(m.cmdView(bodyW), bodyW) + "\n" + dimStyle.Render(clipLine(hint, bodyW))
 		body = padLines(crop(body, bodyW, h-4), h-4) + "\n" + foot
 	}
 	foot := ""
