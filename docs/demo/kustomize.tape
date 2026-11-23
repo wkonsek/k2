@@ -32,7 +32,7 @@ Sleep 1.2s
 Type "q"
 Sleep 500ms
 
-Type "a"
+Type "A"
 Sleep 1.2s
 Type "y"
 Sleep 4s
@@ -59,7 +59,7 @@ Sleep 1s
 Type "jj"
 Sleep 600ms
 
-Type "d"
+Ctrl+D
 Sleep 1s
 Type "y"
 Sleep 9s

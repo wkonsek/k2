@@ -91,7 +91,7 @@ stays dead across restarts.
 **Kustomize browser.** `K` browses directories, marks kustomizations with a
 green square and diffs, applies or deletes them.
 
-- A plain YAML file has no square; `a` applies it, `D` diffs it and `d`
+- A plain YAML file has no square; `A` applies it, `D` diffs it and `ctrl+d`
   deletes it, all with `kubectl -f`.
 - Apply and delete show a progress bar over the objects the kustomization
   renders to.
@@ -540,7 +540,7 @@ it shows:
 `node_modules` and `vendor` are skipped).
 
 - A green square marks kustomizations. A plain YAML file has no square;
-  `a`, `D` and `d` use `kubectl -f`. Other files are dimmed.
+  `A`, `D` and `ctrl+d` use `kubectl -f`. Other files are dimmed.
 - `s` scans for kustomizations.
 - `p` jumps to a typed path with shell-like `tab` completion.
 - `e` / `enter` opens a file in vim.
