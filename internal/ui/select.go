@@ -15,6 +15,30 @@ type objRef struct {
 	kind, ns, name string
 }
 
+func (m model) canClearMarks() bool {
+	return (m.stage == "workpods" || m.stage == "res") && !m.inContainers() && len(m.vs.marks) > 0
+}
+
+func (m model) markCount() int { return len(m.vs.marks) }
+
+func (m model) clearKeys() string { return keyList(m.cfg.Keys.Back, 2) }
+
+func (m model) marksStatus() string {
+	n := m.markCount()
+	if n == 0 {
+		return ""
+	}
+	k := m.cfg.Keys
+	return fmt.Sprintf("%d selected · %s delete · %s logs · %s clear", n, k.Delete.Label(), k.MultiLogs.Label(), m.clearKeys())
+}
+
+func (m *model) clearMarks() tea.Cmd {
+	n := m.markCount()
+	m.vs.marks = nil
+	m.status = fmt.Sprintf("cleared %s", plural(n, "selection", "selections"))
+	return m.notify(toneOK, m.status)
+}
+
 func (m *model) toggleMark() {
 	it, ok := m.selectedItem()
 	if !ok || it.id == "" {
@@ -38,7 +62,7 @@ func (m *model) toggleMark() {
 	if len(next) == 0 {
 		m.status = "selection cleared"
 	} else {
-		m.status = fmt.Sprintf("%d selected · %s delete · %s logs", len(next), m.cfg.Keys.Delete.Label(), m.cfg.Keys.MultiLogs.Label())
+		m.status = m.marksStatus()
 	}
 	m.content.CursorDown()
 }

@@ -28,7 +28,7 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `R` | `keys.readonly` | toggle read-only mode for this session: browse, filter, describe, YAML, logs and context/namespace stay available; apply, delete, edit (cluster and local Kustomize / folder open), shell, scale, restart, kubectl submit and other changes are blocked. Lock icon + READ-ONLY shows beside the logo. Already-running editors, shells and port-forwards are not killed |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
-| `q`, `esc`, `H` | `keys.back` | back one screen (the previous `: ` view or drill, or home); or clear a filter |
+| `q`, `esc`, `H` | `keys.back` | back one screen (the previous `: ` view or drill, or home); or clear a filter. With rows selected, the first press clears them (`cleared N selections`); another press does the usual back or filter clear |
 | `~` | `keys.home` | go to the home screen and clear the view history |
 | `left`, `h` | `keys.left` | back too, but ignored while filtering |
 | `enter`, `right`, `l` | `keys.select` | open / choose the selected row |
@@ -135,7 +135,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 
 | Key | Config | What it does |
 |---|---|---|
-| `space` (` `) | `keys.mark` | select or unselect the row. `ctrl+d` deletes every selected row, `M` tails exactly those pods. With nothing selected, both keys keep their old behaviour |
+| `space` (` `) | `keys.mark` | select or unselect the row. `ctrl+d` deletes every selected row, `M` tails exactly those pods. With nothing selected, both keys keep their old behaviour. With rows selected, `q` or `esc` clears them all (`cleared N selections`); press again to go back or to clear a filter |
 | `k`, `up` | `keys.scroll_up` | previous row |
 | `pgdown`, `}` | `keys.page_down` | page down |
 | `pgup`, `{` | `keys.page_up` | page up |

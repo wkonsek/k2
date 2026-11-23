@@ -163,6 +163,7 @@ func (m model) tableRows() []helpRow {
 	k := m.cfg.Keys
 	return []helpRow{
 		{keyList(k.Mark, 1), "mark rows"},
+		{keyList(k.Back, 2), "clear marks (then back)"},
 		{keyList(k.Label, 1) + "/" + keyList(k.Annotate, 1), "label / annotate"},
 		{keyList(k.CopyName, 1) + "/" + keyList(k.CopyRef, 1), "copy name / ref"},
 		{keyList(k.SortNext, 1) + keyList(k.SortPrev, 1) + " " + keyList(k.SortReverse, 1), "sort, reverse"},

@@ -299,11 +299,11 @@ Then:
 | `ctrl+a c`, `ctrl+a n` | new tab, next tab |
 | `ctrl+arrows` | move between panes |
 | `0` | all namespaces and back |
-| `q` / `esc` | back (the previous `: ` view or drill, or home) |
+| `q` / `esc` | back (the previous `: ` view or drill, or home); with rows selected, clear the selection first |
 | `~` | home (clears the view history) |
 | `?` | help: the keys of the current view in a popup |
 | `Q` | quit; your shell switches to the focused pane's cluster |
-| `space` | select rows; `ctrl+d` deletes them, `M` tails those pods |
+| `space` | select rows; `ctrl+d` deletes them, `M` tails those pods; `q` / `esc` clears the selection (press again to go back) |
 | `ctrl+p` | save this layout as a profile (`:profile save dev`, `k2 --profile dev`) |
 | `:fresh` | close every tab and pane, leave one home pane (`k2 --fresh` does it at start) |
 

@@ -62,7 +62,10 @@ func toastIcon(t tone) string {
 }
 
 func (m model) toastLabel(innerW int) string {
-	if m.toast.text == "" || innerW < 12 {
+	if m.toast.text == "" {
+		return m.marksLabel(innerW)
+	}
+	if innerW < 12 {
 		return ""
 	}
 	text := " " + toastIcon(m.toast.tone) + " " + m.toast.text + " "
@@ -74,6 +77,18 @@ func (m model) toastLabel(innerW int) string {
 		st = lipgloss.NewStyle().Foreground(th.Accent)
 	}
 	return st.Bold(true).Render(text)
+}
+
+func (m model) marksLabel(innerW int) string {
+	text := m.marksStatus()
+	if text == "" || innerW < 12 {
+		return ""
+	}
+	text = " " + text + " "
+	if room := innerW - 4; ansi.StringWidth(text) > room {
+		text = ansi.Truncate(text, room-1, "…") + " "
+	}
+	return lipgloss.NewStyle().Foreground(th.Accent).Bold(true).Render(text)
 }
 
 type noticeMsg struct{ text string }

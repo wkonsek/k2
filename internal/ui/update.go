@@ -638,6 +638,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cancelLoad() {
 				return m, nil
 			}
+			if m.canClearMarks() {
+				return m, m.clearMarks()
+			}
 
 			if filtering || m.stage != "nav" && m.content.FilterState() == list.FilterApplied {
 				m.content.ResetFilter()
