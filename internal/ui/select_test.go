@@ -154,3 +154,147 @@ func TestHelpMentionsClearMarks(t *testing.T) {
 		}
 	}
 }
+
+func hasSelectionHint(m model) string {
+	for _, s := range []string{ansi.Strip(m.toastLabel(80)), ansi.Strip(m.legend()), ansi.Strip(m.View())} {
+		if strings.Contains(s, "selected ·") || strings.Contains(s, "q/esc clear") || strings.Contains(s, "clear 1") || strings.Contains(s, "clear 2") {
+			return s
+		}
+	}
+	if m.marksStatus() != "" {
+		return m.marksStatus()
+	}
+	return ""
+}
+
+func TestSelectionHintHiddenOutsideLists(t *testing.T) {
+	m := histModel(t)
+	m = markRows(t, m, "db-0", "web-1")
+	if hint := hasSelectionHint(m); hint == "" {
+		t.Fatal("expected a selection hint on the pods list")
+	}
+
+	cases := []struct {
+		name string
+		open func(testing.TB, model) model
+		back string
+	}{
+		{"logs", func(t testing.TB, m model) model {
+			m = selectRow(t.(*testing.T), m, "db-0")
+			m = press(t.(*testing.T), m, "l")
+			if m.stage != "logs" {
+				t.Fatalf("logs stage %s", m.stage)
+			}
+			return m
+		}, "esc"},
+		{"mlogs", func(t testing.TB, m model) model {
+			m = press(t.(*testing.T), m, "M")
+			if m.stage != "mlogs" {
+				t.Fatalf("mlogs stage %s", m.stage)
+			}
+			return m
+		}, "esc"},
+		{"describe", func(t testing.TB, m model) model {
+			m = selectRow(t.(*testing.T), m, "db-0")
+			m = pressSettle(t.(*testing.T), m, "d")
+			if m.stage != "describe" {
+				t.Fatalf("describe stage %s status %q", m.stage, m.status)
+			}
+			return m
+		}, "esc"},
+		{"containers", func(t testing.TB, m model) model {
+			m = selectRow(t.(*testing.T), m, "web-1")
+			m = pressSettle(t.(*testing.T), m, "enter")
+			if !m.inContainers() {
+				t.Fatalf("containers stage %s in %v status %q", m.stage, m.inContainers(), m.status)
+			}
+			return m
+		}, "esc"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := c.open(t, m)
+			if hint := hasSelectionHint(got); hint != "" {
+				t.Fatalf("hint still visible in %s:\n%s", c.name, hint)
+			}
+			if c.name != "containers" && len(got.vs.marks) != 2 {
+				t.Fatalf("%s dropped marks: %d", c.name, len(got.vs.marks))
+			}
+			got = pressSettle(t, got, c.back)
+			if got.stage != "workpods" || got.inContainers() {
+				t.Fatalf("%s back: stage %s containers %v status %q", c.name, got.stage, got.inContainers(), got.status)
+			}
+			if len(got.vs.marks) != 2 {
+				t.Fatalf("%s did not keep marks: %d status %q", c.name, len(got.vs.marks), got.status)
+			}
+			if hint := hasSelectionHint(got); hint == "" {
+				t.Fatalf("%s: hint missing after returning to the list", c.name)
+			}
+		})
+	}
+}
+
+func TestSelectionHintHiddenOnResourceViews(t *testing.T) {
+	m := histModel(t)
+	m = open(t, m, "secrets")
+	m = markRows(t, m, "db-cred", "web-tls")
+	if hint := hasSelectionHint(m); hint == "" {
+		t.Fatal("expected a selection hint on the secrets list")
+	}
+
+	cases := []struct {
+		name, key, stage string
+	}{
+		{"yaml", "enter", "yaml"},
+		{"decode", "x", "view"},
+		{"describe", "d", "describe"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := selectRow(t, m, "web-tls")
+			got = pressSettle(t, got, c.key)
+			if got.stage != c.stage {
+				t.Fatalf("stage %s want %s status %q", got.stage, c.stage, got.status)
+			}
+			if hint := hasSelectionHint(got); hint != "" {
+				t.Fatalf("hint still visible in %s:\n%s", c.name, hint)
+			}
+			if len(got.vs.marks) != 2 {
+				t.Fatalf("%s dropped marks: %d", c.name, len(got.vs.marks))
+			}
+			got = pressSettle(t, got, "esc")
+			if got.stage != "res" || got.kind != "secrets" {
+				t.Fatalf("%s back: stage %s kind %s", c.name, got.stage, got.kind)
+			}
+			if len(got.vs.marks) != 2 {
+				t.Fatalf("%s did not keep marks: %d status %q", c.name, len(got.vs.marks), got.status)
+			}
+			if hint := hasSelectionHint(got); hint == "" {
+				t.Fatalf("%s: hint missing after returning to the list", c.name)
+			}
+		})
+	}
+}
+
+func TestSelectionHintHiddenWhenStageIsNotAList(t *testing.T) {
+	m := histModel(t)
+	m = markRows(t, m, "db-0", "web-1")
+	for _, stage := range []string{"logs", "mlogs", "describe", "yaml", "view", "xray", "pulse", "kcmd"} {
+		got := m
+		got.stage = stage
+		if hint := hasSelectionHint(got); hint != "" {
+			t.Fatalf("%s still shows a hint:\n%s", stage, hint)
+		}
+		if len(got.vs.marks) != 2 {
+			t.Fatalf("%s dropped marks", stage)
+		}
+	}
+	got := m
+	got.vs.podSel = containerSel("shop", "web-1")
+	if !got.inContainers() {
+		t.Fatal("expected containers")
+	}
+	if hint := hasSelectionHint(got); hint != "" {
+		t.Fatalf("containers still shows a hint:\n%s", hint)
+	}
+}

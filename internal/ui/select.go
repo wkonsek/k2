@@ -24,10 +24,10 @@ func (m model) markCount() int { return len(m.vs.marks) }
 func (m model) clearKeys() string { return keyList(m.cfg.Keys.Back, 2) }
 
 func (m model) marksStatus() string {
-	n := m.markCount()
-	if n == 0 {
+	if !m.canClearMarks() {
 		return ""
 	}
+	n := m.markCount()
 	k := m.cfg.Keys
 	return fmt.Sprintf("%d selected · %s delete · %s logs · %s clear", n, k.Delete.Label(), k.MultiLogs.Label(), m.clearKeys())
 }
