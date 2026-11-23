@@ -191,6 +191,7 @@ func (m model) openLogs(podRef, container string, prev bool) (tea.Model, tea.Cmd
 	m.logSince = time.Time{}
 	m.vs.logMarks = nil
 	m.vs.logPend, m.vs.logNew = "", 0
+	m.vs.logPager, m.vs.logErr = false, false
 	m.stage = "logs"
 	m.logStick = true
 	m.logAt = 0
@@ -198,12 +199,12 @@ func (m model) openLogs(podRef, container string, prev bool) (tea.Model, tea.Cmd
 	if prev {
 		m.status = "previous log (not followed) · " + m.cfg.Keys.Previous.Short() + " back to the live log"
 	}
-	m.logBusy = true
 	if prev {
+		m.logBusy = true
 		return m, tea.Batch(m.startLoad("loading logs", false), m.fetchLogs())
 	}
 	m.logBusy = false
-	return m, m.startLoad("loading logs", false)
+	return m, nil
 }
 
 func (m model) scaleFromPod(ns, name string) tea.Cmd {

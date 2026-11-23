@@ -223,6 +223,9 @@ func (m model) logsBody(innerW int) string {
 	if m.load.active() {
 		return m.loadingBlock(innerW)
 	}
+	if m.stage == "logs" && !m.vs.logPrev && strings.TrimSpace(m.logText) == "" && !m.vs.logErr {
+		return dimStyle.Render("follow    "+m.scrollKeys()) + "\n\n" + itemStyle.Render("no log lines yet, waiting\u2026") + "\n"
+	}
 	lines := m.visualLines(innerW)
 	rows := m.textRows()
 	top := m.shownTop(lines, rows)

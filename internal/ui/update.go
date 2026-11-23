@@ -18,6 +18,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	if mm, ok := next.(model); ok {
 		mm.syncTheme()
+		mm.clearStaleLogLoad()
 		if more := mm.syncLogStreams(); len(more) > 0 {
 			cmd = tea.Batch(cmd, tea.Batch(more...))
 		}

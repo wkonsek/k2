@@ -212,6 +212,7 @@ func FailText(out []byte, err error) string {
 }
 
 func runStream(cmd *exec.Cmd, req Request) Result {
+	armProcessGroup(cmd)
 	var mu sync.Mutex
 	out := &lineWriter{fn: req.OnLine, mu: &mu}
 	errs := &lineWriter{fn: req.OnLine, mu: &mu}

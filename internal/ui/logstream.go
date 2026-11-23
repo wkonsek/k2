@@ -46,6 +46,7 @@ type logStream struct {
 	notify    chan struct{}
 	fol       *kube.Follower
 	pods      map[string]*podFollow
+	epoch     int
 }
 
 type podFollow struct {
@@ -74,7 +75,10 @@ type logWant struct {
 	first  bool
 }
 
-type logWakeMsg struct{ s *logStream }
+type logWakeMsg struct {
+	s     *logStream
+	epoch int
+}
 
 func (r *logStreams) stopAll() {
 	if r == nil {
@@ -198,7 +202,11 @@ func (s *logStream) parkedAt() time.Time {
 func (s *logStream) start() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.cancel != nil {
+		s.cancel()
+	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.epoch++
 	s.running = true
 	s.announced = false
 	for _, p := range s.pods {
@@ -262,10 +270,16 @@ func (s *logStream) drain() (lines []kube.LogLine, lost int, note string, first 
 	return
 }
 
+func (s *logStream) currentEpoch() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.epoch
+}
+
 func (s *logStream) wait() tea.Cmd {
 	return func() tea.Msg {
 		s.mu.Lock()
-		ctx, announced := s.ctx, s.announced
+		ctx, announced, epoch := s.ctx, s.announced, s.epoch
 		s.mu.Unlock()
 		var timeout <-chan time.Time
 		if !announced {
@@ -281,9 +295,13 @@ func (s *logStream) wait() tea.Cmd {
 		case <-ctx.Done():
 		}
 		s.mu.Lock()
+		if s.epoch != epoch {
+			s.mu.Unlock()
+			return nil
+		}
 		s.announced = true
 		s.mu.Unlock()
-		return logWakeMsg{s: s}
+		return logWakeMsg{s: s, epoch: epoch}
 	}
 }
 
@@ -384,7 +402,7 @@ func (m *model) syncLogStreams() []tea.Cmd {
 
 func (m *model) applyStreamWake(msg logWakeMsg) tea.Cmd {
 	s := msg.s
-	if !m.streams.live(s) {
+	if !m.streams.live(s) || s.currentEpoch() != msg.epoch {
 		return nil
 	}
 	lines, lost, note, first := s.drain()
@@ -406,3 +424,24 @@ func (m *model) applyStreamWake(msg logWakeMsg) tea.Cmd {
 }
 
 func (m *model) stopLogStreams() { m.streams.stopAll() }
+
+func (m *model) clearStaleLogLoad() {
+	if m.stage != "logs" && m.load.what == "loading logs" {
+		m.load = load{}
+	}
+	if m.stage != "mlogs" && m.load.what == "reading logs" {
+		m.load = load{}
+	}
+	for i := range m.panes {
+		if i == m.focus {
+			continue
+		}
+		p := &m.panes[i]
+		if p.stage != "logs" && p.load.what == "loading logs" {
+			p.load = load{}
+		}
+		if p.stage != "mlogs" && p.load.what == "reading logs" {
+			p.load = load{}
+		}
+	}
+}
