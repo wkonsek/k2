@@ -105,22 +105,28 @@ func TestColumnWidthsFollowContent(t *testing.T) {
 	_, items, _ := packTable(headers, rows, [][2]string{{"cert-manager", "a"}, {"kube-system", "b"}}, nil, 3, 220, "")
 	lst := list.New(items, rowDelegate{width: 80}, 80, 10)
 	reflowList(&lst, 80)
-	if it := lst.Items()[0].(item); strings.Contains(it.plain, "6klxw") {
-		t.Fatalf("not narrowed: %q", it.plain)
+	if it := lst.Items()[0].(item); true {
+		_, plain := paintRow(it.cells, it.widths, it.heads, it.colorCol, it.flex, it.dimCol, it.ageIdx, it.tones, it.meters)
+		if strings.Contains(plain, "6klxw") {
+			t.Fatalf("not narrowed: %q", plain)
+		}
 	}
 	reflowList(&lst, 220)
-	if it := lst.Items()[0].(item); !strings.Contains(it.plain, "cert-manager-58b7ddd96b-6klxw  1/1") {
-		t.Fatalf("not restored: %q", it.plain)
+	if it := lst.Items()[0].(item); true {
+		_, plain := paintRow(it.cells, it.widths, it.heads, it.colorCol, it.flex, it.dimCol, it.ageIdx, it.tones, it.meters)
+		if !strings.Contains(plain, "cert-manager-58b7ddd96b-6klxw  1/1") {
+			t.Fatalf("not restored: %q", plain)
+		}
 	}
 
 	lst.SetFilterText("58b7ddd96b")
 	reflowList(&lst, 100)
-	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(strings.Join(v[0].(item).cells, " "), "cert-manager") {
 		t.Fatalf("filter lost on reflow: %d rows", len(v))
 	}
 
 	setRows(&lst, "", items, viewState{}, "")
-	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(v[0].(item).plain, "cert-manager") {
+	if v := lst.VisibleItems(); len(v) != 1 || !strings.Contains(strings.Join(v[0].(item).cells, " "), "cert-manager") {
 		t.Fatalf("filter lost on refresh: %d rows", len(v))
 	}
 }

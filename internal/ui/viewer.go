@@ -231,7 +231,7 @@ func (m model) logsBody(innerW int) string {
 	top := m.shownTop(lines, rows)
 	end := min(len(lines), top+rows)
 	shown := lines[top:end]
-	logical := len(m.textLines())
+	logical := m.logicalLines(innerW)
 	wrapNote := m.wrapNote()
 	var b strings.Builder
 	if m.stage == "mlogs" {
@@ -378,22 +378,23 @@ func (m *model) applyLogs(msg logsMsg) {
 				vs.logNew += msg.lost
 				return
 			}
-			lines := strings.Split(merged, "\n")
-			if hard := m.cfg.Logs.MaxLines * 2; !*stick && m.cfg.Logs.MaxLines > 0 && len(lines) > hard {
-				vs.logNew += len(lines) - splitCount(base) + msg.lost
-				vs.logPend = strings.Join(lines[hard:][max(0, len(lines)-hard-m.cfg.Logs.MaxLines):], "\n")
-				*text = strings.Join(lines[:hard], "\n")
+			n := splitLineCount(merged)
+			if hard := m.cfg.Logs.MaxLines * 2; !*stick && m.cfg.Logs.MaxLines > 0 && n > hard {
+				vs.logNew += n - splitCount(base) + msg.lost
+				from := hard + max(0, n-hard-m.cfg.Logs.MaxLines)
+				vs.logPend = dropHeadLines(merged, from)
+				*text = headLines(merged, hard)
 				*since = time.Now().Add(-2 * time.Second)
 				return
 			}
 			vs.logPend, vs.logNew = "", 0
 			dropped := 0
 			if *stick {
-				dropped = ringDropN(len(lines), m.cfg.Logs.MaxLines)
+				dropped = ringDropN(n, m.cfg.Logs.MaxLines)
 			}
 			trimmed := merged
 			if dropped > 0 {
-				trimmed = strings.Join(lines[dropped:], "\n")
+				trimmed = dropHeadLines(merged, dropped)
 			}
 			*text = trimmed
 			if dropped > 0 && marks != nil {
@@ -743,16 +744,50 @@ func ringDropN(n, limit int) int {
 	return n - limit
 }
 
+func splitLineCount(s string) int {
+	if s == "" {
+		return 0
+	}
+	return strings.Count(s, "\n") + 1
+}
+
+func dropHeadLines(s string, n int) string {
+	for i := 0; i < n; i++ {
+		j := strings.IndexByte(s, '\n')
+		if j < 0 {
+			return ""
+		}
+		s = s[j+1:]
+	}
+	return s
+}
+
+func headLines(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	count := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			count++
+			if count == n {
+				return s[:i]
+			}
+		}
+	}
+	return s
+}
+
 func trimLogDrop(s string, max int) (string, int) {
 	if max <= 0 {
 		return s, 0
 	}
-	lines := strings.Split(s, "\n")
-	if len(lines) <= max {
+	total := splitLineCount(s)
+	if total <= max {
 		return s, 0
 	}
-	drop := len(lines) - max
-	return strings.Join(lines[drop:], "\n"), drop
+	drop := total - max
+	return dropHeadLines(s, drop), drop
 }
 
 func joinLogs(text, more string) string {
@@ -788,9 +823,9 @@ func (m *model) flushPending() {
 		if m.vs.logPend == "" {
 			return
 		}
-		lines := strings.Split(joinLogs(m.logText, m.vs.logPend), "\n")
-		dropped := ringDropN(len(lines), m.cfg.Logs.MaxLines)
-		m.logText = strings.Join(lines[dropped:], "\n")
+		merged := joinLogs(m.logText, m.vs.logPend)
+		dropped := ringDropN(splitLineCount(merged), m.cfg.Logs.MaxLines)
+		m.logText = dropHeadLines(merged, dropped)
 		if dropped > 0 {
 			m.vs.logMarks = shiftMarks(m.vs.logMarks, dropped)
 		}

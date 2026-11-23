@@ -432,6 +432,9 @@ func TestSternStreamsEveryLineAndFreezesWhenPaused(t *testing.T) {
 	d.until("the pending count", func() bool {
 		return strings.Contains(strings.SplitN(ansi.Strip(d.m.logsBody(110)), "\n", 2)[0], "paused +")
 	})
+	d.idle(200)
+	f.produce(8)
+	d.idle(200)
 	d.press("G")
 	d.until("catch up", func() bool { return strings.Count(d.m.logText, fmt.Sprintf("seq-%06d", f.total()-1)) == 2 })
 	for pod, got := range sternText(t, d.m) {

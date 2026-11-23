@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -134,6 +133,18 @@ func balanceWidths(widths []int, heads []string, flex, protect, width int) []int
 	return w
 }
 
+func sameWidths(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func reflowList(lst *list.Model, width int) {
 	if width < 10 {
 		width = 10
@@ -142,7 +153,27 @@ func reflowList(lst *list.Model, width int) {
 	if len(raws) == 0 {
 		return
 	}
-	changed := false
+	var proto item
+	found := false
+	for _, raw := range raws {
+		it, ok := raw.(item)
+		if ok && len(it.cells) > 0 && len(it.widths) > 0 {
+			proto = it
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+	src := proto.natural
+	if len(src) != len(proto.widths) {
+		src = proto.widths
+	}
+	fitted := fitWidths(src, proto.heads, proto.flex, proto.ageIdx, width)
+	if sameWidths(fitted, proto.widths) {
+		return
+	}
 	next := make([]list.Item, len(raws))
 	var heads []string
 	var widths []int
@@ -152,26 +183,12 @@ func reflowList(lst *list.Model, width int) {
 			next[i] = raw
 			continue
 		}
-		src := it.natural
-		if len(src) != len(it.widths) {
-			src = it.widths
-		}
-		fitted := fitWidths(src, it.heads, it.flex, it.ageIdx, width)
-		title, plain := paintRow(it.cells, fitted, it.heads, it.colorCol, it.flex, it.dimCol, it.ageIdx, it.tones, it.meters)
-		if title != it.title || plain != it.plain {
-			changed = true
-		}
 		it.widths = fitted
-		it.title = title
-		it.plain = plain
 		next[i] = it
 		if len(it.heads) > 0 {
 			heads = it.heads
 			widths = fitted
 		}
-	}
-	if !changed {
-		return
 	}
 	idx := lst.Index()
 	if cmd := lst.SetItems(next); cmd != nil {
@@ -265,7 +282,7 @@ func paintRow(cells []string, widths []int, heads []string, colorCol, flex, dimC
 		pparts[i] = ansi.Strip(cell)
 		st := itemStyle
 		if i == flex {
-			st = lipgloss.NewStyle().Foreground(th.Text)
+			st = textStyle
 			if marks.name {
 				st = warnStyle
 			}
@@ -599,24 +616,28 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 			mark = markSquare + " "
 		}
 	}
+	title, plain := it.title, it.plain
+	if len(it.cells) > 0 && len(it.widths) > 0 {
+		title, plain = paintRow(it.cells, it.widths, it.heads, it.colorCol, it.flex, it.dimCol, it.ageIdx, it.tones, it.meters)
+	}
 	if index == m.Index() {
-		text := ansi.Strip(it.plain)
+		text := ansi.Strip(plain)
 		if text == "" {
-			text = ansi.Strip(it.title)
+			text = ansi.Strip(title)
 		}
 		text = fitCell(mark+text, d.width)
 		fmt.Fprint(w, selectedItemStyle.Render(text))
 		return
 	}
 	if mark == "" {
-		fmt.Fprint(w, clipLine(it.title, d.width))
+		fmt.Fprint(w, clipLine(title, d.width))
 		return
 	}
 	dot := dimStyle.Render(mark)
 	if d.marks[it.id] {
 		dot = okStyle.Render(markSquare + " ")
 	}
-	fmt.Fprint(w, clipLine(dot+it.title, d.width))
+	fmt.Fprint(w, clipLine(dot+title, d.width))
 }
 
 func getResourceItems(k kube.Client, kubeconfig, context, namespace, kind string, width int) (string, []list.Item, error) {

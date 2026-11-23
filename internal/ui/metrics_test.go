@@ -220,14 +220,17 @@ func TestPodMetricsNarrowAndOff(t *testing.T) {
 			t.Fatalf("width %d: widths %v", w, it.widths)
 		}
 		for _, raw := range m.content.Items() {
-			if lw := ansi.StringWidth(raw.(item).plain); lw > w {
-				t.Fatalf("width %d: row %d wide: %q", w, lw, raw.(item).plain)
+			row := raw.(item)
+			_, plain := paintRow(row.cells, row.widths, row.heads, row.colorCol, row.flex, row.dimCol, row.ageIdx, row.tones, row.meters)
+			if lw := ansi.StringWidth(plain); lw > w {
+				t.Fatalf("width %d: row %d wide: %q", w, lw, plain)
 			}
 		}
 		if narrow == strings.Contains(m.content.Title, "CPU") {
 			t.Fatalf("width %d: header %q", w, m.content.Title)
 		}
-		if !narrow && !strings.Contains(it.plain, "480m") {
+		_, painted := paintRow(it.cells, it.widths, it.heads, it.colorCol, it.flex, it.dimCol, it.ageIdx, it.tones, it.meters)
+		if !narrow && !strings.Contains(painted, "480m") {
 			t.Fatalf("width %d: no value", w)
 		}
 	}

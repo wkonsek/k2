@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"k2/internal/config"
@@ -108,6 +109,9 @@ func (i item) Title() string { return i.title }
 func (i item) Description() string { return i.desc }
 
 func (i item) FilterValue() string {
+	if len(i.cells) > 0 {
+		return strings.Join(i.cells, " ")
+	}
 	if i.plain != "" {
 		return i.plain
 	}

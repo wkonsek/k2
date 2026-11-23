@@ -6,11 +6,11 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 RPM     := dist/k2-$(PKGVER)-1.x86_64.rpm
 DEB     := dist/k2_$(PKGVER)_amd64.deb
 
-.PHONY: help build build-linux install test test-race vet fmt rpm deb dist clean demo
+.PHONY: help build build-linux install test test-race vet fmt bench perf rpm deb dist clean demo
 
 help:
 	@echo "k2 $(VERSION)"
-	@echo "  build  install  test  test-race  vet  fmt"
+	@echo "  build  install  test  test-race  vet  fmt  bench  perf"
 	@echo "  rpm    deb      dist  clean  demo"
 
 build:
@@ -34,6 +34,14 @@ vet:
 
 fmt:
 	gofmt -s -w cmd internal
+
+benchtime ?= 200ms
+
+bench:
+	go test ./internal/ui ./internal/paneterm -run '^$$' -bench . -benchmem -benchtime=$(benchtime) -count=1 -timeout 120s
+
+perf:
+	go test ./internal/ui -count=1 -timeout 180s -run 'TestBudget|TestSessionDoesNotLeak|TestWatchToggle|TestSpinnerTicks|TestOpenCloseFollow|TestLeavingLogs|TestFollowCancel|TestTrimLogDrop|TestReflowSkips'
 
 rpm: build-linux
 	@command -v rpmbuild >/dev/null || { echo "need rpmbuild (dnf install rpm-build)"; exit 1; }

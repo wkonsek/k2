@@ -918,6 +918,8 @@ where the token lives). The token is not printed afterwards.
 make build       bin/k2
 make install     $(go env GOPATH)/bin/k2
 make test        no cluster needed
+make bench       hot-path benchmarks (short; set benchtime=…)
+make perf        frame-budget and leak tests
 make rpm / deb   packages in dist/
 make demo        the README GIFs (needs vhs)
 ```

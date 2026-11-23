@@ -21,6 +21,8 @@ var (
 	okStyle           = th.Styles().OK
 	warnStyle         = th.Styles().Warn
 	errStyle          = th.Styles().Err
+	textStyle         = lipgloss.NewStyle().Foreground(th.Text)
+	doneStyle         = lipgloss.NewStyle().Foreground(th.Accent2)
 )
 
 func useTheme(p theme.Palette) {
@@ -28,6 +30,8 @@ func useTheme(p theme.Palette) {
 	st := p.Styles()
 	titleStyle, itemStyle, selectedItemStyle = st.Title, st.Item, st.Selected
 	dimStyle, keyStyle, okStyle, warnStyle, errStyle = st.Dim, st.Key, st.OK, st.Warn, st.Err
+	textStyle = lipgloss.NewStyle().Foreground(th.Text)
+	doneStyle = lipgloss.NewStyle().Foreground(th.Accent2)
 }
 
 type tone int
@@ -76,7 +80,7 @@ func toneStyle(t tone) lipgloss.Style {
 	case toneOK:
 		return okStyle
 	case toneDone:
-		return lipgloss.NewStyle().Foreground(th.Accent2)
+		return doneStyle
 	case toneWarn:
 		return warnStyle
 	case toneErr:

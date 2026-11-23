@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -18,15 +19,16 @@ type vline struct {
 // call visualLines; without this every frame rewalks the whole buffer.
 // Keyed by logID on the model (the map is shared across snap copies).
 type visCache struct {
-	text  string
-	w     int
-	wrap  bool
-	stage string
-	theme string
-	mode  string
-	extra string
-	marks []int
-	lines []vline
+	text    string
+	w       int
+	wrap    bool
+	stage   string
+	theme   string
+	mode    string
+	extra   string
+	marks   []int
+	lines   []vline
+	logical int
 }
 
 func (m model) wrapping() bool { return m.cfg.UI.Wrap != m.vs.wrapFlip }
@@ -67,26 +69,47 @@ func (m model) visMarks() []int {
 	return nil
 }
 
-func (m model) visualLines(innerW int) []vline {
+func sameString(a, b string) bool {
+	return len(a) == len(b) && (len(a) == 0 || unsafe.StringData(a) == unsafe.StringData(b))
+}
+
+func (m model) visHit(innerW int) *visCache {
 	if m.vis == nil {
-		return m.buildVisual(innerW)
+		return nil
 	}
-	wrap := m.wrapping()
-	marks := m.visMarks()
-	extra := m.visExtra()
-	if c := m.vis[m.logID]; c != nil &&
-		c.w == innerW && c.wrap == wrap && c.stage == m.stage &&
-		c.theme == m.themeName && c.mode == m.ran.mode && c.extra == extra &&
-		c.text == m.logText && slices.Equal(c.marks, marks) {
+	c := m.vis[m.logID]
+	if c == nil {
+		return nil
+	}
+	if c.w == innerW && c.wrap == m.wrapping() && c.stage == m.stage &&
+		c.theme == m.themeName && c.mode == m.ran.mode && c.extra == m.visExtra() &&
+		sameString(c.text, m.logText) && slices.Equal(c.marks, m.visMarks()) {
+		return c
+	}
+	return nil
+}
+
+func (m model) visualLines(innerW int) []vline {
+	if c := m.visHit(innerW); c != nil {
 		return c.lines
 	}
-	lines := m.buildVisual(innerW)
-	m.vis[m.logID] = &visCache{
-		text: m.logText, w: innerW, wrap: wrap, stage: m.stage,
-		theme: m.themeName, mode: m.ran.mode, extra: extra,
-		marks: cloneMarks(marks), lines: lines,
+	logical := m.textLines()
+	lines := m.buildVisualFrom(logical, innerW)
+	if m.vis != nil {
+		m.vis[m.logID] = &visCache{
+			text: m.logText, w: innerW, wrap: m.wrapping(), stage: m.stage,
+			theme: m.themeName, mode: m.ran.mode, extra: m.visExtra(),
+			marks: cloneMarks(m.visMarks()), lines: lines, logical: len(logical),
+		}
 	}
 	return lines
+}
+
+func (m model) logicalLines(innerW int) int {
+	if c := m.visHit(innerW); c != nil {
+		return c.logical
+	}
+	return len(m.textLines())
 }
 
 func (m model) dropVis(id string) {
@@ -105,7 +128,10 @@ func cloneMarks(s []int) []int {
 }
 
 func (m model) buildVisual(innerW int) []vline {
-	logical := m.textLines()
+	return m.buildVisualFrom(m.textLines(), innerW)
+}
+
+func (m model) buildVisualFrom(logical []string, innerW int) []vline {
 	width := innerW
 	if m.stage == "logs" || m.stage == "mlogs" {
 		width = logRoom(innerW, len(logical))

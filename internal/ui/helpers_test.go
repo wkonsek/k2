@@ -34,7 +34,12 @@ func newTestModel(t *testing.T, cfg config.Config, f *shell.Fake, warnings ...st
 	return m
 }
 
-func key(t *testing.T, s string) tea.KeyMsg {
+type fataler interface {
+	Helper()
+	Fatalf(string, ...any)
+}
+
+func key(t fataler, s string) tea.KeyMsg {
 	t.Helper()
 	types := map[string]tea.KeyType{
 		"tab": tea.KeyTab, "enter": tea.KeyEnter, "esc": tea.KeyEsc,
