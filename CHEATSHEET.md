@@ -1,21 +1,17 @@
 # k2 keyboard cheatsheet
 
-Every key below is the **default**; each one can be changed in
-`~/.k2/config.yaml` under the config name shown (see `config.example.yaml`).
-The hints in k2 always name the keys you configured. A key that clashes
-with another action is rejected with a warning and that action keeps its
-default.
+Defaults. Change them in `~/.k2/config.yaml` under the name in the Config
+column (see `config.example.yaml`). Hints in k2 always show the keys you
+set. A clash is rejected with a warning and that action keeps its default.
 
-**The prefix.** Pane and tab keys are tmux/screen style: press the prefix
-`ctrl+a` (`keys.prefix`), let go, then press ONE key, e.g. `ctrl+a v` splits
-right. The status line shows `prefix ctrl+a …` and the legend lists the
-keys while k2 waits (1.5s; `esc` cancels). The prefix works in tables,
-viewers and the in-pane vim / shell. In k2's own text inputs (`:` line, `/`
-filter, kubectl line, path field, popups) `ctrl+a` keeps its editing meaning
-(go to the line start) and is not the prefix there; leave the input first
-(`esc`), or pick a prefix that is no editing key (`keys.prefix: ctrl+\`).
-Pressing the prefix twice sends a literal `ctrl+a` to the in-pane vim /
-shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
+**The prefix.** Pane and tab keys are tmux/screen style: press `ctrl+a`
+(`keys.prefix`), let go, then press one key, e.g. `ctrl+a v` splits right.
+The status line shows `prefix ctrl+a …` and the legend lists the keys while
+k2 waits (1.5s; `esc` cancels). Works in tables, viewers and the in-pane
+vim / shell. In k2's own text inputs (`:` line, `/` filter, kubectl line,
+path field, popups) `ctrl+a` stays "go to line start"; leave the input first
+(`esc`), or pick a prefix that is not an editing key (`keys.prefix: ctrl+\`).
+Press the prefix twice to send a literal `ctrl+a` to vim / the shell.
 
 ## Global
 
@@ -25,10 +21,10 @@ shell. `keys.prefix: ctrl+k` or `ctrl+\` if you want a different one.
 | `Z`, `ctrl+a z` | `keys.fullscreen`, `keys.zoom` | zoom the focused pane / back to the split |
 | `!` | `keys.last_error` | the last error in full, in a popup: `j/k` scroll, `enter` opens it as a log, `a` opens every error this session, `[` `]` step through them, `y` copies, `esc` closes (also `ctrl+a !`) |
 | `?` | `keys.help` | help popup for the current view: navigation first, then the keys of this screen (Kustomize, forwards, logs …); `j/k` `pgup/pgdown` scroll, `?`, `esc` or `q` close. In text inputs `?` is typed as usual; in vim / shell `ctrl+a ?` |
-| `R` | `keys.readonly` | toggle read-only mode for this session: browse, filter, describe, YAML, logs and context/namespace stay available; apply, delete, edit (cluster and local Kustomize / folder open), shell, scale, restart, kubectl submit and other changes are blocked. Lock icon + READ-ONLY shows beside the logo. Already-running editors, shells and port-forwards are not killed |
+| `R` | `keys.readonly` | toggle read-only for this session: browse, filter, describe, YAML, logs and context/namespace still work; apply, delete, edit (cluster and local Kustomize / folder open), shell, scale, restart, kubectl submit and other changes are blocked. Lock icon + READ-ONLY beside the logo. Running editors, shells and port-forwards are not killed |
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
-| `q`, `esc`, `H` | `keys.back` | back one screen (the previous `: ` view or drill, or home); or clear a filter. With rows selected, the first press clears them (`cleared N selections`); another press does the usual back or filter clear |
+| `q`, `esc`, `H` | `keys.back` | back one screen (the previous `:` view or drill, or home), or clear a filter. With rows selected, the first press clears them (`cleared N selections`); another press does the usual back or filter clear |
 | `~` | `keys.home` | go to the home screen and clear the view history |
 | `left`, `h` | `keys.left` | back too, but ignored while filtering |
 | `enter`, `right`, `l` | `keys.select` | open / choose the selected row |
@@ -122,7 +118,7 @@ cuts them with `…`).
 | `esc` | `keys.cancel` | close the `:` line |
 
 Any resource name works too (`:deployments`, `:routes` …), plus your
-`aliases:` and the built-in short names `:dp` deployments, `:sts`
+`aliases:` and the built-in short names `:deploy` deployments, `:sts`
 statefulsets, `:ds` daemonsets, `:rs` replicasets, `:cm` configmaps, `:sec`
 secrets, `:svc` services, `:ing` ingresses, `:pvc` persistentvolumeclaims,
 `:cj` cronjobs, `:ev` events, `:crd` CRDs, `:sub` subscriptions, `:csv`
