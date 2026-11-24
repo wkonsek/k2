@@ -149,11 +149,16 @@ type kcountMsg struct {
 }
 
 func (m *model) askKust(verb string) (tea.Model, tea.Cmd) {
-	if m.content.SelectedItem() == nil {
+	var target string
+	var file, ok bool
+	if m.kustDiff() {
+		target, file, ok = m.kfileTarget()
+	} else if m.content.SelectedItem() == nil {
 		m.status = "nothing selected"
 		return *m, nil
+	} else {
+		target, file, ok = m.selectedTarget()
 	}
-	target, file, ok := m.selectedTarget()
 	if !ok {
 		return m.notKust()
 	}
@@ -220,7 +225,10 @@ func (m model) setKustCount(msg kcountMsg) model {
 func (m model) runKust(verb, dir string) (tea.Model, tea.Cmd) {
 	m.kfile = dir
 	m.subject = verb
-	m.kback = m.stage
+	if m.stage != "kout" {
+		m.kback = m.stage
+	}
+	m.ran = runInfo{}
 	m.logText = ""
 	m.logStick = false
 	m.logAt = 0

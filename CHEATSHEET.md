@@ -398,7 +398,7 @@ the bottom unless `ui.copy_mode_hint: false`.
 |---|---|---|
 | `s` | `keys.scan` | scan the tree for kustomizations |
 | `p` | `keys.kustomize_path` | type a directory to jump to (`tab` completes) |
-| `A` | `keys.apply` | kubectl apply -k on a kustomization, kubectl apply -f on a plain YAML file (popup: path, context, object count) |
+| `A` | `keys.apply` | kubectl apply -k on a kustomization, kubectl apply -f on a plain YAML file (popup: path, context, object count). From a diff (`D`) the same key confirms and applies that kustomization without leaving the viewer first |
 | `D` | `keys.diff` | kubectl diff -k, or kubectl diff -f on a plain YAML file |
 | `ctrl+d` | `keys.kustomize_delete` | kubectl delete -k, or kubectl delete -f on a plain YAML file (red popup: path, context, object count) |
 | `e` | `keys.edit` | open the file / kustomization in vim |

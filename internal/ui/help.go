@@ -198,6 +198,9 @@ func (m model) viewerRows() []helpRow {
 	if m.stage == "pulse" {
 		rows = append(rows, helpRow{keyList(k.AllNamespaces, 1), "all namespaces"})
 	}
+	if m.kustDiff() {
+		rows = append(rows, helpRow{keyList(k.Apply, 1), "apply the same kustomization"})
+	}
 	return rows
 }
 

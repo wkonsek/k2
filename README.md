@@ -98,7 +98,9 @@ green square and diffs, applies or deletes them.
 - Every output line shows up as kubectl prints it, with an icon and a color
   (`+` created, `~` configured, `−` deleted, `✗` error); a bordered summary
   closes the run.
-- Diffs get one bold header per resource.
+- Diffs get one bold header per resource. From the diff, `A` asks for
+  confirmation and applies the same kustomization, then shows the apply
+  progress in place of the diff.
 
 ![Kustomize diff, apply and delete with live output](docs/demo/kustomize.gif)
 

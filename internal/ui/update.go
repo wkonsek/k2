@@ -588,7 +588,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.scanKustomize()
 			}
 		case km.Apply.Has(key):
-			if (m.stage == "kust" || m.stage == "kdir") && !filtering {
+			if ((m.stage == "kust" || m.stage == "kdir") && !filtering) || m.kustDiff() {
 				if next, cmd, blocked := m.readOnlyBlock("apply"); blocked {
 					return next, cmd
 				}

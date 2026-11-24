@@ -170,6 +170,20 @@ func (m model) selectedTarget() (path string, file, ok bool) {
 	return "", false, false
 }
 
+func (m model) kustDiff() bool {
+	return m.stage == "kout" && m.subject == "diff" && m.kfile != ""
+}
+
+func (m model) kfileTarget() (path string, file, ok bool) {
+	if m.kfile == "" {
+		return "", false, false
+	}
+	if st, err := os.Stat(m.kfile); err == nil && !st.IsDir() {
+		return m.kfile, true, true
+	}
+	return m.kfile, false, true
+}
+
 func (m model) kustomizeCmd(verb, dir string) tea.Cmd {
 	kc, ctx, pane, token, r := m.kubeconfig, m.context, m.logID, m.load.token, m.k.Run
 	file := false

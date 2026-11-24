@@ -369,6 +369,9 @@ func (m model) legend() string {
 		parts = append(parts, m.tableLegend()...)
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
+		if m.kustDiff() {
+			parts = append(parts, pair(k.Apply.Short(), "apply"))
+		}
 		if m.stage == "logs" {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 		}
@@ -408,6 +411,9 @@ func (m model) legend() string {
 		}
 		if m.viewing() {
 			head = append(head, pair(k.CopyMode.Short(), "copy"), pair(k.Wrap.Short(), "wrap"), pair(k.Vim.Short(), "vim"))
+			if m.kustDiff() {
+				head = append(head, pair(k.Apply.Short(), "apply"))
+			}
 			if m.stage == "logs" {
 				head = append(head, pair(k.LogMark.Short(), "mark"), pair(k.Previous.Short(), "previous"), pair(k.Log30.Short(), "30m"), pair(k.Log60.Short(), "60m"))
 			}
