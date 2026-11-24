@@ -377,8 +377,6 @@ func (m model) coloredSource(c color, src string) string {
 	return s
 }
 
-// paintMlogRow colors the pod prefix on the first visual row. The line is
-// wrapped plain, so continuation rows stay uncolored and the fast path applies.
 func (m model) paintMlogRow(line string, rows []string) {
 	if len(rows) == 0 || m.vs.ml == nil {
 		return

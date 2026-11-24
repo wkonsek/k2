@@ -357,10 +357,6 @@ var csi = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 var dyffChange = regexp.MustCompile(`(?m)(?:\[\d+ lines? unchanged\)?\]|[±⇆]|^\s*[+\-±⇆] (?:value change|content change|whitespace only change|certificate change|order changed|.+ (?:added|removed):))`)
 
-// DiffOutcome reads the diff body as well as the exit code. kubectl diff
-// exits 1 when the built-in diff finds changes, but an external tool such as
-// dyff exits 0 unless it was given --set-exit-code, even when it printed a
-// real change.
 func DiffOutcome(text string, code int) string {
 	switch {
 	case code > 1:

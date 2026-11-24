@@ -17,9 +17,6 @@ type ProfilePane struct {
 	Selector   string `yaml:"selector,omitempty"`
 }
 
-// ProfileLayout is the pane tree. split right places children left to right,
-// split down places them top to bottom, and pane is an index into Profile.Panes.
-// A leaf has Pane set. A branch has Split and at least two Children.
 type ProfileLayout struct {
 	Split    string          `yaml:"split,omitempty"`
 	Pane     *int            `yaml:"pane,omitempty"`

@@ -252,14 +252,10 @@ func (t *Term) View(cursor bool) string {
 	return t.viewAt(cursor, 0, -1, -1, -1, -1)
 }
 
-// ViewOffset shows the screen shifted up by lines of scrollback.
-// Zero is the live screen. The shift is clamped to the scrollback length.
 func (t *Term) ViewOffset(cursor bool, up int) string {
 	return t.viewAt(cursor, up, -1, -1, -1, -1)
 }
 
-// ViewSelected is ViewOffset with a reversed drag selection. Coordinates are
-// cells of the visible screen. A negative x0 draws no selection.
 func (t *Term) ViewSelected(cursor bool, up, x0, y0, x1, y1 int) string {
 	return t.viewAt(cursor, up, x0, y0, x1, y1)
 }
@@ -345,7 +341,6 @@ func cellSelected(x, y, x0, y0, x1, y1 int) bool {
 	return true
 }
 
-// Transcript is the scrollback plus the live screen, one line per row.
 func (t *Term) Transcript() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -361,7 +356,6 @@ func (t *Term) Transcript() string {
 	return strings.Join(lines, "\n")
 }
 
-// Selected returns the drag selection on the visible screen, scrollback included when up > 0.
 func (t *Term) Selected(up, x0, y0, x1, y1 int) string {
 	t.mu.Lock()
 	defer t.mu.Unlock()

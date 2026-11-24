@@ -141,14 +141,6 @@ func (m *model) notKust() (tea.Model, tea.Cmd) {
 	return *m, m.notify(toneWarn, "not a kustomization")
 }
 
-func (m model) selectedKust() (string, bool) {
-	path, file, ok := m.selectedTarget()
-	if !ok || file {
-		return "", false
-	}
-	return path, true
-}
-
 func (m model) selectedTarget() (path string, file, ok bool) {
 	sel := m.content.SelectedItem()
 	if sel == nil {

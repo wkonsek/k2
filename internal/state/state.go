@@ -68,8 +68,6 @@ type Pane struct {
 
 	NsPrev string `json:"nsPrev,omitempty"`
 
-	// Where the pane was, beyond the stage name: xray object, helm release,
-	// kustomize root, kubectl line, or the pods of one workload.
 	HelmAll  bool   `json:"helmAll,omitempty"`
 	Target   string `json:"target,omitempty"`
 	PodSel   string `json:"podSel,omitempty"`

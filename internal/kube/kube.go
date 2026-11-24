@@ -54,8 +54,6 @@ func (c Client) NamespaceOf(kubeconfig, context string) string {
 	if kubeconfig == "" || context == "" {
 		return ""
 	}
-	// --minify follows the file's current context, not --context, so an
-	// OpenShift switch kept the previous project. read the file instead.
 	if ns, ok := contextNamespace(kubeconfig, context); ok {
 		return ns
 	}
@@ -97,8 +95,6 @@ func contextNamespace(kubeconfig, context string) (ns string, found bool) {
 }
 
 func openShiftContextNS(name string) string {
-	// oc names contexts "namespace/cluster/user" and often leaves the
-	// namespace field empty.
 	parts := strings.Split(name, "/")
 	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
 		return ""

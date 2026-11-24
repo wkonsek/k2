@@ -25,8 +25,6 @@ type Request struct {
 
 	Combined bool
 
-	// TTY gives the command a terminal for stdout. Diff tools such as dyff
-	// only colorize when stdout is a terminal.
 	TTY bool
 
 	OnLine func(line string)
@@ -194,8 +192,6 @@ func OneLine(s string) string {
 	return s
 }
 
-// FailText is the full command output for an error. The status line shortens
-// it later; the last-error popup and the error log keep this text.
 func FailText(out []byte, err error) string {
 	text := strings.TrimSpace(string(out))
 	if text == "" && err != nil {

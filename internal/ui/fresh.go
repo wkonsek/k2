@@ -6,8 +6,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// freshSession drops every tab and pane and leaves the home screen.
-// The focused cluster, port-forwards and favorites stay.
 func (m model) freshSession() (tea.Model, tea.Cmd) {
 	m.killEditors()
 	for _, p := range m.panes {

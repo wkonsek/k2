@@ -423,8 +423,6 @@ func (m *model) applyStreamWake(msg logWakeMsg) tea.Cmd {
 	return tea.Batch(cmd, s.wait())
 }
 
-func (m *model) stopLogStreams() { m.streams.stopAll() }
-
 func (m *model) clearStaleLogLoad() {
 	if m.stage != "logs" && m.load.what == "loading logs" {
 		m.load = load{}

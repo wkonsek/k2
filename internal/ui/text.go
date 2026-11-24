@@ -66,18 +66,6 @@ func padPlain(s string, width int) string {
 
 const markSquare = "■"
 
-func iconSlot(s string) string {
-	w := ansi.StringWidth(s)
-	switch {
-	case w <= 0:
-		return "  "
-	case w == 1:
-		return s + " "
-	default:
-		return ansi.Truncate(s, 2, "")
-	}
-}
-
 func clampWidth(s string, width int) string {
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {

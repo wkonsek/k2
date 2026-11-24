@@ -60,7 +60,6 @@ type TokenLife struct {
 
 	Expired bool
 
-	// Invalid is a token the API rejected and that has no expiry of its own.
 	Invalid bool
 
 	Start, End time.Time
@@ -158,9 +157,6 @@ func TokenOf(kubeconfigPath, context string) Token {
 	return Token{}
 }
 
-// SetContextToken replaces the current context user's token. A token: value
-// is rewritten in place. A tokenFile is rewritten when that is the only
-// credential. The rest of the kubeconfig is left byte for byte.
 func SetContextToken(kubeconfigPath, context, token string) (string, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -502,9 +498,6 @@ func (c Client) Life(kubeconfigPath, context string, t Token) TokenLife {
 	return c.tokenAccepted(kubeconfigPath, context)
 }
 
-// tokenAccepted asks the API once. A token kubectl accepts, but whose
-// lifetime we cannot read, stays unknown (no sidebar row). A rejected
-// token is invalid.
 func (c Client) tokenAccepted(kubeconfigPath, context string) TokenLife {
 	args := append(targetArgs(kubeconfigPath, context), "get", "--raw", "/api", "--request-timeout="+InfoTimeout.String())
 	res := c.Run.Run(shell.Request{Name: "kubectl", Args: args})

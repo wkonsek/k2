@@ -423,7 +423,6 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateShell(msg)
 		}
 
-		// same key as delete. on home it closes the pane, then the tab, then quits.
 		if !filtering && km.Delete.Has(key) && !m.inputEditKey(key) && m.stage == "nav" {
 			if m.tabs[m.tab].root.Count() > 1 {
 				m.closePane()

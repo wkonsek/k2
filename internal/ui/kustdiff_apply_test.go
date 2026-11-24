@@ -170,7 +170,6 @@ func TestApplyFromKustomizeDiffFooterAndHelp(t *testing.T) {
 	m := kustBrowse(t, root, kustCluster())
 	selectTitle(t, &m, "kustomization.yaml")
 	if strings.Contains(ansi.Strip(m.legend()), "A apply") {
-		// list should show it
 	} else {
 		t.Fatalf("list should show A apply: %q", ansi.Strip(m.legend()))
 	}

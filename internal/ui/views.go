@@ -222,13 +222,6 @@ func (m model) identityBlock(inner int) string {
 	return b.String()
 }
 
-func (m model) whereTitle(n int) string {
-	if len(m.tabs) > 1 {
-		return fmt.Sprintf("tab %d/%d · pane %d/%d", m.tab+1, len(m.tabs), m.tabPos(m.logID)+1, n)
-	}
-	return fmt.Sprintf("active · pane %d/%d", m.tabPos(m.logID)+1, n)
-}
-
 func (m model) paneView() string {
 	switch m.stage {
 	case "nav":

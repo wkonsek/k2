@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// xray, helm, stern, pulse. update.go was already a long switch.
 func (m *model) screenTick() []tea.Cmd {
 	cmds := m.mlogTick()
 	if m.beat%max(1, m.cfg.UI.RefreshEvery) != 0 {

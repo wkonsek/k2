@@ -9,8 +9,6 @@ import (
 	"k2/internal/config"
 )
 
-// only a single export line gets eval'd. a panic used to dump bubble tea's
-// "Caught panic" text on stdout and the shell tried to run it.
 const shellWrapper = `  k2() {
     if (( $# )); then
       command k2 "$@"

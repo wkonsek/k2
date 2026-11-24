@@ -376,22 +376,6 @@ func (p *parser) prodList(n *yaml.Node) []string {
 	return out
 }
 
-func (p *parser) section(name string, n *yaml.Node, fields map[string]*int, lo, hi int) {
-	if n.Kind != yaml.MappingNode {
-		p.warn("%s: expected a mapping (line %d, using defaults)", name, n.Line)
-		return
-	}
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		k := n.Content[i].Value
-		dst, ok := fields[k]
-		if !ok {
-			p.warn("%s: unknown setting %q (have %s)", name, k, strings.Join(sortedKeys(fields), ", "))
-			continue
-		}
-		p.intIn(name+"."+k, n.Content[i+1], lo, hi, dst)
-	}
-}
-
 func (p *parser) logs(n *yaml.Node, l *Logs) {
 	if n.Kind != yaml.MappingNode {
 		p.warn("logs: expected a mapping (line %d, using defaults)", n.Line)
@@ -804,7 +788,7 @@ func (p *parser) boolean(key string, n *yaml.Node, dst *bool) {
 
 func (p *parser) aliases(n *yaml.Node, dst map[string]string) {
 	if n.Kind != yaml.MappingNode {
-		p.warn("aliases: expected a mapping like `dp: deployments` (line %d, ignored)", n.Line)
+		p.warn("aliases: expected a mapping like `deploy: deployments` (line %d, ignored)", n.Line)
 		return
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {

@@ -21,9 +21,6 @@ func ownerOf(r shell.Runner, kc, ctx, ns, kind, name string) (string, string) {
 	return k, n
 }
 
-// ScalableOwner is the deployment or statefulset that owns a pod, plus its
-// current replica count. A pod owned by a replicaset is followed up to the
-// deployment. Anything else (a job, a bare pod) is an error.
 func ScalableOwner(r shell.Runner, kc, ctx, ns, pod string) (kind, name, replicas string, err error) {
 	okind, name := ownerOf(r, kc, ctx, ns, "pod", pod)
 	switch okind {
