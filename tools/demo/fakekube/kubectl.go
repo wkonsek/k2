@@ -528,6 +528,12 @@ func printTable(objs []obj, all, wide, noHeaders bool) {
 		case "Node":
 			head = []string{"NAME", "STATUS", "ROLES", "AGE", "VERSION"}
 			r = []string{objName(o), "Ready", nodeRoles(o), age(parseTS(str(o, "metadata", "creationTimestamp"))), str(o, "status", "nodeInfo", "kubeletVersion")}
+		case "Certificate":
+			head = []string{"NAME", "READY", "SECRET", "ISSUER", "STATUS", "AGE"}
+			r = []string{objName(o), condStatus(o, "Ready"), str(o, "spec", "secretName"), issuerRefName(o), condMsg(o, "Ready"), age(parseTS(str(o, "metadata", "creationTimestamp")))}
+		case "CertificateRequest":
+			head = []string{"NAME", "APPROVED", "DENIED", "READY", "ISSUER", "REQUESTOR", "STATUS", "AGE"}
+			r = []string{objName(o), condStatus(o, "Approved"), condStatus(o, "Denied"), condStatus(o, "Ready"), issuerRefName(o), str(o, "spec", "username"), condMsg(o, "Ready"), age(parseTS(str(o, "metadata", "creationTimestamp")))}
 		default:
 			head = []string{"NAME", "AGE"}
 			r = []string{objName(o), age(parseTS(str(o, "metadata", "creationTimestamp")))}
@@ -700,4 +706,26 @@ func topContainers(f flags, objs []obj) int {
 		}
 	}
 	return 0
+}
+
+func condStatus(o obj, typ string) string {
+	for _, c := range list(o, "status", "conditions") {
+		if str(c, "type") == typ {
+			return str(c, "status")
+		}
+	}
+	return ""
+}
+
+func condMsg(o obj, typ string) string {
+	for _, c := range list(o, "status", "conditions") {
+		if str(c, "type") == typ {
+			return str(c, "message")
+		}
+	}
+	return ""
+}
+
+func issuerRefName(o obj) string {
+	return str(o, "spec", "issuerRef", "name")
 }

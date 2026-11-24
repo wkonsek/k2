@@ -303,9 +303,11 @@ list.
 
 **`:` line.** Any resource name the cluster reports works
 (`:deployments`, `:subscriptions`, `:routes` …), plus your `aliases:` and
-built-in short names (`:deploy`, `:sts`, `:ds`, `:cj`, `:ev`, `:sub`,
+built-in short names (`:deploy`, `:sts`, `:ds`, `:cj`, `:ev`, `:csr`, `:sub`,
 `:csv`, `:rt` …) unless your config or the cluster gives a name another
-meaning.
+meaning. `:csr` is cert-manager CertificateRequests; type
+`:certificatesigningrequests` for the Kubernetes ones. `:certs` shows the
+issuer next to READY and SECRET.
 
 Custom resources work by plural, singular or short name, or with the
 group spelled out: `:gateways.networking.istio.io` or

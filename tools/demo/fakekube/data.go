@@ -226,6 +226,7 @@ func buildContext(w *world, spec contextSpec, now time.Time) {
 	b.argoApps()
 	b.helmReleases()
 	b.gateways()
+	b.certManager()
 	if spec.trouble {
 		b.trouble()
 	}
@@ -606,4 +607,62 @@ func (b *builder) gateways() {
 			"servers": []any{obj{"port": obj{"number": 443, "name": "https", "protocol": "HTTPS"}, "hosts": []any{"shop.example.com", "api.example.com"}}}}})
 	b.c.add(obj{"apiVersion": iapi, "kind": "VirtualService", "metadata": meta("vs", "gateway-system", "shop", 60*days),
 		"spec": obj{"hosts": []any{"shop.example.com"}, "gateways": []any{"ingress"}}})
+}
+
+func (b *builder) certManager() {
+	days := 24 * time.Hour
+	meta := func(kind, ns, n string, age time.Duration) obj {
+		m := obj{"name": n, "uid": uid(b.spec.name, kind, ns, n), "creationTimestamp": ts(b.now.Add(-age))}
+		if ns != "" {
+			m["namespace"] = ns
+		}
+		return m
+	}
+	cond := func(typ, st, reason, msg string, age time.Duration) obj {
+		return obj{"type": typ, "status": st, "reason": reason, "message": msg, "lastTransitionTime": ts(b.now.Add(-age))}
+	}
+	cm := "cert-manager.io/v1"
+	b.c.add(obj{"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
+		"metadata": obj{"name": "certificates.cert-manager.io", "uid": uid(b.spec.name, "crd", "certs"), "creationTimestamp": ts(b.now.Add(-200 * days))},
+		"spec": obj{"group": "cert-manager.io", "scope": "Namespaced", "names": obj{"kind": "Certificate", "plural": "certificates", "shortNames": []any{"cert", "certs"}},
+			"versions": []any{obj{"name": "v1", "served": true, "storage": true}}}})
+	b.c.add(obj{"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
+		"metadata": obj{"name": "certificaterequests.cert-manager.io", "uid": uid(b.spec.name, "crd", "crs"), "creationTimestamp": ts(b.now.Add(-200 * days))},
+		"spec": obj{"group": "cert-manager.io", "scope": "Namespaced", "names": obj{"kind": "CertificateRequest", "plural": "certificaterequests", "shortNames": []any{"cr", "crs"}},
+			"versions": []any{obj{"name": "v1", "served": true, "storage": true}}}})
+	b.c.add(obj{"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
+		"metadata": obj{"name": "issuers.cert-manager.io", "uid": uid(b.spec.name, "crd", "iss"), "creationTimestamp": ts(b.now.Add(-200 * days))},
+		"spec": obj{"group": "cert-manager.io", "scope": "Namespaced", "names": obj{"kind": "Issuer", "plural": "issuers"},
+			"versions": []any{obj{"name": "v1", "served": true, "storage": true}}}})
+	b.c.add(obj{"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
+		"metadata": obj{"name": "clusterissuers.cert-manager.io", "uid": uid(b.spec.name, "crd", "ciss"), "creationTimestamp": ts(b.now.Add(-200 * days))},
+		"spec": obj{"group": "cert-manager.io", "scope": "Cluster", "names": obj{"kind": "ClusterIssuer", "plural": "clusterissuers"},
+			"versions": []any{obj{"name": "v1", "served": true, "storage": true}}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "Issuer", "metadata": meta("iss", "shop", "shop-ca", 80*days),
+		"spec":   obj{"ca": obj{"secretName": "shop-ca"}},
+		"status": obj{"conditions": []any{cond("Ready", "True", "Verified", "Signing CA verified", 80*days)}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "ClusterIssuer", "metadata": meta("ciss", "", "public-ca", 120*days),
+		"spec":   obj{"ca": obj{"secretName": "public-ca"}},
+		"status": obj{"conditions": []any{cond("Ready", "True", "Verified", "Signing CA verified", 120*days)}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "Certificate", "metadata": meta("cert", "shop", "shop-web", 41*days),
+		"spec": obj{"secretName": "web-tls", "commonName": "shop.acme.example", "dnsNames": []any{"shop.acme.example", "www.shop.acme.example"},
+			"issuerRef": obj{"name": "shop-ca", "kind": "Issuer", "group": "cert-manager.io"}},
+		"status": obj{"conditions": []any{cond("Ready", "True", "Ready", "Certificate is up to date and has not expired", 13*time.Hour)}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "Certificate", "metadata": meta("cert", "payments", "payments-api", 63*days),
+		"spec": obj{"secretName": "api-tls", "commonName": "api.payments.acme.example", "dnsNames": []any{"api.payments.acme.example"},
+			"issuerRef": obj{"name": "public-ca", "kind": "ClusterIssuer", "group": "cert-manager.io"}},
+		"status": obj{"conditions": []any{cond("Ready", "True", "Ready", "Certificate is up to date and has not expired", 4*time.Hour)}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "CertificateRequest", "metadata": meta("cr", "shop", "shop-web-1", 13*time.Hour),
+		"spec": obj{"username": "system:serviceaccount:cert-manager:cert-manager", "issuerRef": obj{"name": "shop-ca", "kind": "Issuer", "group": "cert-manager.io"}},
+		"status": obj{"conditions": []any{
+			cond("Approved", "True", "cert-manager.io", "Certificate request has been approved by cert-manager.io", 13*time.Hour),
+			cond("Ready", "True", "Issued", "Certificate issued", 13*time.Hour)}}})
+	b.c.add(obj{"apiVersion": cm, "kind": "CertificateRequest", "metadata": meta("cr", "payments", "payments-api-1", 4*time.Hour),
+		"spec": obj{"username": "system:serviceaccount:cert-manager:cert-manager", "issuerRef": obj{"name": "public-ca", "kind": "ClusterIssuer", "group": "cert-manager.io"}},
+		"status": obj{"conditions": []any{
+			cond("Approved", "True", "cert-manager.io", "Certificate request has been approved by cert-manager.io", 4*time.Hour),
+			cond("Ready", "True", "Issued", "Certificate issued", 4*time.Hour)}}})
+	b.c.add(obj{"apiVersion": "certificates.k8s.io/v1", "kind": "CertificateSigningRequest", "metadata": meta("kcsr", "", "lab-node-a", 9*days),
+		"spec":   obj{"signerName": "kubernetes.io/kubelet-serving", "username": "system:node:lab-node-a", "usages": []any{"digital signature", "key encipherment", "server auth"}},
+		"status": obj{"conditions": []any{obj{"type": "Approved", "status": "True", "reason": "AutoApproved", "message": "approved"}}}})
 }

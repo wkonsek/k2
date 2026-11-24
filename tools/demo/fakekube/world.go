@@ -128,6 +128,11 @@ var kinds = []kindInfo{
 	{"gatewayclasses", "GatewayClass", "gateway.networking.k8s.io/v1", false, []string{"gc"}},
 	{"gateways", "Gateway", "gateway.networking.k8s.io/v1", true, []string{"gtw"}},
 	{"httproutes", "HTTPRoute", "gateway.networking.k8s.io/v1", true, nil},
+	{"certificates", "Certificate", "cert-manager.io/v1", true, []string{"cert", "certs"}},
+	{"certificaterequests", "CertificateRequest", "cert-manager.io/v1", true, []string{"cr", "crs"}},
+	{"issuers", "Issuer", "cert-manager.io/v1", true, nil},
+	{"clusterissuers", "ClusterIssuer", "cert-manager.io/v1", false, nil},
+	{"certificatesigningrequests", "CertificateSigningRequest", "certificates.k8s.io/v1", false, []string{"csr"}},
 }
 
 func isVersion(s string) bool {

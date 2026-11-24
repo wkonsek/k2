@@ -24,6 +24,7 @@
 #   csv: clusterserviceversions.operators.coreos.com
 #   ip: installplans.operators.coreos.com
 #   rt: routes.route.openshift.io
+#   csr: certificatesigningrequests  # default :csr is cert-manager CertificateRequests
 # logs:
 #   tail: 80              # lines shown when a log opens, then it streams (1..100000)
 #   max_lines: 400        # one container, 1..100000

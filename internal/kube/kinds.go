@@ -55,6 +55,15 @@ func KnownKind(name string) bool {
 	return ok
 }
 
+func IsBuiltinTarget(q string) bool {
+	for _, t := range Builtin {
+		if t == q {
+			return true
+		}
+	}
+	return false
+}
+
 var Builtin = map[string]string{
 	"dp":   "deployments",
 	"sts":  "statefulsets",
@@ -75,6 +84,7 @@ var Builtin = map[string]string{
 	"cs":   "catalogsources.operators.coreos.com",
 	"rt":   "routes.route.openshift.io",
 	"proj": "projects",
+	"csr":  "certificaterequests.cert-manager.io",
 }
 
 func MissingAPI(kind, msg string) string {
@@ -99,6 +109,9 @@ func apiHint(kind string) string {
 	}
 	if strings.HasSuffix(k, ".openshift.io") || k == "projects" {
 		return " (not OpenShift)"
+	}
+	if strings.Contains(k, "cert-manager.io") {
+		return " (no cert-manager)"
 	}
 	return ""
 }

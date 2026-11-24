@@ -15,7 +15,7 @@ var clusterKinds = map[string]bool{
 	"customresourcedefinitions": true, "crd": true, "crds": true,
 	"clusterroles": true, "clusterrolebindings": true, "priorityclasses": true, "pc": true,
 	"ingressclasses": true, "runtimeclasses": true, "csidrivers": true, "csinodes": true,
-	"volumesnapshotclasses": true, "certificatesigningrequests": true, "csr": true,
+	"volumesnapshotclasses": true, "certificatesigningrequests": true,
 	"mutatingwebhookconfigurations": true, "validatingwebhookconfigurations": true,
 	"apiservices": true, "projects": true, "clusterversions": true, "clusteroperators": true, "co": true,
 	"clusterserviceversions.operators.coreos.com/cluster": true,

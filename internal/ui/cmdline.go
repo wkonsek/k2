@@ -75,6 +75,8 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	q := strings.ToLower(strings.TrimSpace(raw))
 	if target, ok := m.cfg.Aliases[q]; ok {
 		q = target
+	} else if target, ok := kube.Builtin[q]; ok {
+		q = target
 	}
 	switch q {
 
@@ -97,26 +99,14 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 		return m.openNamed("sh")
 	}
 	kind, alts := m.resolveKind(q)
-	if kind == "" {
-
-		if target, ok := kube.Builtin[q]; ok {
-			base, _, _ := strings.Cut(target, ".")
-			if len(m.resources) > 0 && m.canonical(base) == "" {
-				m.status = kube.MissingAPI(target, "doesn't have a resource type")
-				return m, m.notify(toneWarn, "not installed: "+base)
-			}
-			kind = target
-		}
-	}
-	if kind == "" && kube.KnownKind(q) {
+	if kind == "" && (kube.KnownKind(q) || kube.IsBuiltinTarget(q)) {
 		if len(m.resources) > 0 {
-
 			m.status = kube.MissingAPI(q, "doesn't have a resource type")
 			return m, m.notify(toneWarn, "not installed: "+q)
 		}
 		kind = q
 	}
-	if kind == "" && len(m.apis) > 0 && strings.ContainsAny(q, "./") {
+	if kind == "" && strings.ContainsAny(q, "./") && (len(m.apis) > 0 || len(m.resources) > 0) {
 		m.status = kube.MissingAPI(q, "doesn't have a resource type")
 		return m, m.notify(toneWarn, "not installed: "+q)
 	}

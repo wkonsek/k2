@@ -253,6 +253,7 @@ func (m model) viewSection() []helpSection {
 			r(k.Profile, "save the layout"),
 			r(k.Delete, "close pane / tab / quit"),
 			{k.Command.Label() + "helm", "helm releases"},
+			{k.Command.Label() + "csr", "cert-manager CertificateRequests"},
 			{k.Command.Label() + "pulse", "namespace health"},
 			{k.Command.Label() + "xray deploy", "owner trees"},
 			{k.Command.Label() + "logs app=x", "logs of many pods"},

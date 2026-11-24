@@ -123,7 +123,9 @@ statefulsets, `:ds` daemonsets, `:rs` replicasets, `:cm` configmaps, `:sec`
 secrets, `:svc` services, `:ing` ingresses, `:pvc` persistentvolumeclaims,
 `:cj` cronjobs, `:ev` events, `:crd` CRDs, `:sub` subscriptions, `:csv`
 clusterserviceversions, `:ip` installplans, `:og` operatorgroups, `:cs`
-catalogsources, `:rt` routes, `:proj` projects. A name served by several
+catalogsources, `:rt` routes, `:proj` projects, `:csr` cert-manager
+CertificateRequests (Kubernetes CSRs: `:certificatesigningrequests`).
+`:certs` lists the issuer. A name served by several
 API groups can be spelled out: `:gateways.networking.istio.io`,
 `:gateway.networking.k8s.io/v1/gatewayclasses`.
 

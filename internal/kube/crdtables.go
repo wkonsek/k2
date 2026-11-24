@@ -7,6 +7,7 @@ import (
 
 type groupSpec struct {
 	group, plural, kind string
+	short               []string
 	spec                spec
 }
 
@@ -30,6 +31,39 @@ func joinUniq(ss []string) string {
 		}
 	}
 	return strings.Join(out, ",")
+}
+
+func groupSpecMatch(s groupSpec, res string) bool {
+	if res == s.plural || strings.EqualFold(s.kind, res) {
+		return true
+	}
+	for _, sh := range s.short {
+		if res == sh {
+			return true
+		}
+	}
+	return false
+}
+
+func issuerRef(o Object) string {
+	name := o.Str("spec", "issuerRef", "name")
+	if name == "" {
+		return ""
+	}
+	kind := o.Str("spec", "issuerRef", "kind")
+	if kind != "" && !strings.EqualFold(kind, "Issuer") {
+		return kind + "/" + name
+	}
+	return name
+}
+
+func (o Object) conditionMsg(typ string) string {
+	for _, c := range o.List("status", "conditions") {
+		if field(c, "type") == typ {
+			return field(c, "message")
+		}
+	}
+	return ""
 }
 
 func gatewayAddress(o Object) string {
@@ -76,26 +110,40 @@ func cond(typ string) func(Object) string {
 }
 
 var groupSpecs = []groupSpec{
-	{"gateway.networking.k8s.io", "gateways", "Gateway", spec{cols: []column{
+	{"gateway.networking.k8s.io", "gateways", "Gateway", nil, spec{cols: []column{
 		{"CLASS", func(o Object) string { return o.Str("spec", "gatewayClassName") }},
 		{"ADDRESS", gatewayAddress},
 		{"PROGRAMMED", cond("Programmed")},
 	}}},
-	{"gateway.networking.k8s.io", "gatewayclasses", "GatewayClass", spec{cols: []column{
+	{"gateway.networking.k8s.io", "gatewayclasses", "GatewayClass", nil, spec{cols: []column{
 		{"CONTROLLER", func(o Object) string { return o.Str("spec", "controllerName") }},
 		{"ACCEPTED", cond("Accepted")},
 	}}},
-	{"gateway.networking.k8s.io", "httproutes", "HTTPRoute", spec{cols: []column{
+	{"gateway.networking.k8s.io", "httproutes", "HTTPRoute", nil, spec{cols: []column{
 		{"HOSTNAMES", func(o Object) string { return joinUniq(strs(o, "spec", "hostnames")) }},
 		{"PARENTS", routeParents},
 	}}},
-	{"networking.istio.io", "gateways", "Gateway", spec{cols: []column{
+	{"networking.istio.io", "gateways", "Gateway", nil, spec{cols: []column{
 		{"SELECTOR", istioSelector},
 		{"HOSTS", istioHosts},
 	}}},
-	{"networking.istio.io", "virtualservices", "VirtualService", spec{cols: []column{
+	{"networking.istio.io", "virtualservices", "VirtualService", nil, spec{cols: []column{
 		{"GATEWAYS", func(o Object) string { return joinUniq(strs(o, "spec", "gateways")) }},
 		{"HOSTS", func(o Object) string { return joinUniq(strs(o, "spec", "hosts")) }},
+	}}},
+	{"cert-manager.io", "certificates", "Certificate", []string{"cert", "certs"}, spec{cols: []column{
+		{"READY", cond("Ready")},
+		{"SECRET", func(o Object) string { return o.Str("spec", "secretName") }},
+		{"ISSUER", issuerRef},
+		{"STATUS", func(o Object) string { return o.conditionMsg("Ready") }},
+	}}},
+	{"cert-manager.io", "certificaterequests", "CertificateRequest", []string{"cr", "crs"}, spec{cols: []column{
+		{"APPROVED", cond("Approved")},
+		{"DENIED", cond("Denied")},
+		{"READY", cond("Ready")},
+		{"ISSUER", issuerRef},
+		{"REQUESTOR", func(o Object) string { return o.Str("spec", "username") }},
+		{"STATUS", func(o Object) string { return o.conditionMsg("Ready") }},
 	}}},
 }
 
@@ -120,7 +168,10 @@ func HasTableSpec(kind string) bool {
 		res = base
 	}
 	for _, s := range groupSpecs {
-		if s.plural == res && (grp == "" || s.group == grp || strings.HasSuffix(kind, "."+s.group) || strings.Contains(kind, s.group)) {
+		if !groupSpecMatch(s, res) {
+			continue
+		}
+		if grp == "" || s.group == grp || strings.HasSuffix(kind, "."+s.group) || strings.Contains(kind, s.group) {
 			return true
 		}
 		if strings.EqualFold(s.kind, res) {
@@ -143,7 +194,7 @@ func specFor(kind string, objs []Object) (spec, bool) {
 	res, _, grp := SplitKind(kind)
 	var hits []groupSpec
 	for _, s := range groupSpecs {
-		if (grp == "" || s.group == grp) && (res == s.plural || res == strings.ToLower(s.kind)) {
+		if (grp == "" || s.group == grp) && groupSpecMatch(s, res) {
 			hits = append(hits, s)
 		}
 	}

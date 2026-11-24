@@ -147,4 +147,7 @@ func TestMissingAPI(t *testing.T) {
 	if MissingAPI("pods", "connection refused") != "" {
 		t.Fatal("other errors pass through")
 	}
+	if got := MissingAPI("certificaterequests.cert-manager.io", msg); got != "certificaterequests.cert-manager.io is not installed on this cluster (no cert-manager)" {
+		t.Fatal(got)
+	}
 }
