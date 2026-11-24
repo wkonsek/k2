@@ -88,6 +88,7 @@ It sits on the left unless `ui.sidebar_position` says `right`, `top` or
 right it lines up with the right edge.
 `ui.logo` picks the logo at the top: `wordmark` (default, the pixel
 `k2`) or `mountain` (a small pixel mountain over `k2`).
+`ui.logo_twinkle` (on by default) blinks a few pixels in the theme's bright color; `false` keeps the logo still.
 Forwards too long for it scroll sideways (`ui.forward_scroll: false`
 cuts them with `…`).
 

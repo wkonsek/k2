@@ -67,3 +67,17 @@ colors:
 		t.Fatalf("ignored: %+v %v", c.Custom, w)
 	}
 }
+
+func TestLogoTwinkleSetting(t *testing.T) {
+	if !Default().UI.LogoTwinkle {
+		t.Fatal("logo_twinkle should default to true")
+	}
+	c, w := Parse([]byte("ui:\n  logo_twinkle: false\n"))
+	if len(w) != 0 || c.UI.LogoTwinkle {
+		t.Fatalf("false: %v %v", c.UI.LogoTwinkle, w)
+	}
+	c, w = Parse([]byte("ui:\n  logo_twinkle: maybe\n"))
+	if !c.UI.LogoTwinkle || len(w) != 1 || !strings.Contains(w[0], "ui.logo_twinkle") {
+		t.Fatalf("maybe: %v %v", c.UI.LogoTwinkle, w)
+	}
+}

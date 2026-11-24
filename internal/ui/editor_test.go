@@ -32,7 +32,7 @@ func (h *edHarness) run(cmd tea.Cmd) {
 	}
 	go func() {
 		switch msg := cmd().(type) {
-		case nil, spinner.TickMsg, toastExpiredMsg, tickMsg:
+		case nil, spinner.TickMsg, toastExpiredMsg, tickMsg, twinkleMsg, marqueeMsg:
 		case tea.BatchMsg:
 			for _, c := range msg {
 				h.run(c)

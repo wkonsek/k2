@@ -114,7 +114,7 @@ func settle(t *testing.T, m model, cmd tea.Cmd) model {
 			continue
 		}
 		switch msg := msg.(type) {
-		case nil, spinner.TickMsg, toastExpiredMsg, tickMsg:
+		case nil, spinner.TickMsg, toastExpiredMsg, tickMsg, twinkleMsg, marqueeMsg:
 			continue
 		case tea.BatchMsg:
 			queue = append(queue, msg...)

@@ -80,6 +80,7 @@
 #   copy_mode_hint: true
 #   logo: wordmark            # wordmark (default) | mountain
 #   logo_title_color: green   # logo color: green | accent
+#   logo_twinkle: true        # a few logo pixels blink in the bright color
 #   clipboard: auto           # auto | wl-copy | xclip | xsel | osc52
 # keys:                       # one key, or a list. "direct " means without the ctrl+a prefix
 #   kubeconfig: C

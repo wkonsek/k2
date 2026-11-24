@@ -332,6 +332,9 @@ type model struct {
 	ticker      int
 	tickerSeq   int
 	tickerAt    time.Time
+	twinkle     int
+	twinkleSeq  int
+	twinkleAt   time.Time
 	toast       toast
 	toastSeq    int
 	cfgNote     bool

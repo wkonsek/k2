@@ -189,17 +189,17 @@ func TestReadOnlyAllowsBrowse(t *testing.T) {
 func TestReadOnlyBadgeNarrow(t *testing.T) {
 	cfg := testEnv(t).UI
 	cfg.Logo = "wordmark"
-	rows := brandRowsLocked(cfg, 12, true, true)
+	rows := brandRowsLocked(cfg, 12, true, true, 0)
 	joined := strings.Join(mapStrip(rows), "\n")
 	if !strings.Contains(joined, "READ-ONLY") {
 		t.Fatalf("narrow badge:\n%s", joined)
 	}
-	rows = brandRowsLocked(cfg, 40, true, true)
+	rows = brandRowsLocked(cfg, 40, true, true, 0)
 	joined = strings.Join(mapStrip(rows), "\n")
 	if !strings.Contains(joined, lockIcon) || !strings.Contains(joined, "READ-ONLY") {
 		t.Fatalf("wide badge:\n%s", joined)
 	}
-	off := brandRowsLocked(cfg, 40, true, false)
+	off := brandRowsLocked(cfg, 40, true, false, 0)
 	if strings.Contains(strings.Join(mapStrip(off), "\n"), "READ-ONLY") {
 		t.Fatal("badge when off")
 	}

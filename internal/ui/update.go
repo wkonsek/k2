@@ -64,12 +64,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, m.watchDue()...)
 		cmds = append(cmds, m.screenTick()...)
-		cmds = append(cmds, m.marqueeStart())
+		cmds = append(cmds, m.marqueeStart(), m.twinkleStart())
 		return m, tea.Batch(cmds...)
 	case spinner.TickMsg:
 		return m, m.spinTick(msg)
 	case marqueeMsg:
 		return m, m.marqueeStep(msg)
+	case twinkleMsg:
+		return m, m.twinkleStep(msg)
 	case imagesMsg:
 		return m.applyImages(msg)
 	case tokenMsg:

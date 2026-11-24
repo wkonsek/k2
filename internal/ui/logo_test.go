@@ -201,7 +201,7 @@ func TestMountainColors(t *testing.T) {
 		}
 		snow, body, base := open(lipgloss.NewStyle().Foreground(th.Bright)), open(lipgloss.NewStyle().Foreground(th.Accent)), open(dimStyle)
 		for i := range mountain {
-			line := paintMountain(i)
+			line := paintMountain(i, 0)
 			for c, o := range map[rune]string{'S': snow, 'A': body, 'B': base} {
 				if strings.ContainsRune(mountainMask[i], c) != strings.Contains(line, o) {
 					t.Fatalf("%s row %d: color %c in %q", name, i, c, line)
@@ -281,5 +281,170 @@ func TestDefaultIsWordmark(t *testing.T) {
 	}
 	if out := ansi.Strip(newTestModel(t, testEnv(t), nil).sidebarBody(26, 60)); strings.Contains(out, "▟") {
 		t.Fatalf("default drew the mountain:\n%s", out)
+	}
+}
+
+func TestTwinkleLevelIsDeterministic(t *testing.T) {
+	if twinkleLevel(0, 0) != 0 || twinkleLevel(-3, 4) != 0 {
+		t.Fatal("frame 0 should be still")
+	}
+	var seen [3]int
+	maxOn := 0
+	for frame := 1; frame <= twinklePeriod*2; frame++ {
+		on := 0
+		for i := 0; i < wordmarkPixels(); i++ {
+			lv := twinkleLevel(frame, i)
+			if lv != twinkleLevel(frame, i) || lv < 0 || lv > 2 {
+				t.Fatalf("frame %d idx %d: %d", frame, i, lv)
+			}
+			seen[lv]++
+			if lv > 0 {
+				on++
+			}
+		}
+		if on < 1 || on > 4 {
+			t.Fatalf("frame %d lights %d pixels", frame, on)
+		}
+		if on > maxOn {
+			maxOn = on
+		}
+	}
+	if seen[0] == 0 || seen[1] == 0 || seen[2] == 0 {
+		t.Fatalf("levels %v", seen)
+	}
+	if maxOn < 2 {
+		t.Fatalf("never more than one pixel at a time")
+	}
+}
+
+func TestTwinkleFrameZeroMatchesStatic(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	style := logoTitle("green")
+	base, bright := logoBase("green"), th.Bright
+	still := paintWordmark(style, base, bright, 0)
+	want := []string{style.Render(wordmark[0]), style.Render(wordmark[1])}
+	if still[0] != want[0] || still[1] != want[1] {
+		t.Fatalf("frame 0:\n%q\n%q", still, want)
+	}
+}
+
+func TestTwinkleUsesBright(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	defer useTheme(theme.MatrixReloaded())
+	useTheme(theme.MatrixReloaded())
+	style := logoTitle("green")
+	base, bright := logoBase("green"), th.Bright
+	open := func(c lipgloss.Color) string {
+		s := lipgloss.NewStyle().Foreground(c).Bold(true).Render("x")
+		return s[:strings.Index(s, "x")]
+	}
+	baseOpen, brightOpen := open(base), open(bright)
+	midOpen := open(mixHex(base, bright, 1, 2))
+	if baseOpen == brightOpen {
+		t.Fatal("base and bright are the same")
+	}
+	foundBright, foundMid := false, false
+	for frame := 1; frame <= twinklePeriod; frame++ {
+		rows := paintWordmark(style, base, bright, frame)
+		joined := strings.Join(rows, "\n")
+		plain := []string{ansi.Strip(rows[0]), ansi.Strip(rows[1])}
+		if ansi.StringWidth(plain[0]) != ansi.StringWidth(wordmark[0]) || ansi.StringWidth(plain[1]) != ansi.StringWidth(wordmark[1]) {
+			t.Fatalf("frame %d width:\n%q", frame, plain)
+		}
+		if strings.Contains(joined, brightOpen) {
+			foundBright = true
+		}
+		if strings.Contains(joined, midOpen) {
+			foundMid = true
+		}
+	}
+	if !foundBright || !foundMid {
+		t.Fatalf("bright %v mid %v", foundBright, foundMid)
+	}
+}
+
+func TestTwinkleOffKeepsWordmark(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	m := newTestModel(t, testEnv(t), nil)
+	m.twinkle = 7
+	on := paintWordmark(logoTitle(m.cfg.UI.LogoTitleColor), logoBase(m.cfg.UI.LogoTitleColor), th.Bright, m.twinkle)
+	m.cfg.UI.LogoTwinkle = false
+	if m.logoFrame() != 0 {
+		t.Fatalf("disabled frame %d", m.logoFrame())
+	}
+	off := sidebarPlain(m, 26, 60)
+	if off[0] != wordmark[0] || off[1] != wordmark[1] {
+		t.Fatalf("disabled:\n%s", strings.Join(off[:3], "\n"))
+	}
+	m.cfg.UI.LogoTwinkle = true
+	m.cfg.UI.Animations = false
+	if m.logoFrame() != 0 {
+		t.Fatal("animations off still twinkles")
+	}
+	_ = on
+}
+
+func TestMountainTwinkleUsesBright(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	defer useTheme(theme.Nord())
+	useTheme(theme.Nord())
+	plain := paintMountain(2, 0)
+	brightOpen := lipgloss.NewStyle().Foreground(th.Bright).Render("x")
+	brightOpen = brightOpen[:strings.Index(brightOpen, "x")]
+	found := false
+	for frame := 1; frame <= twinklePeriod; frame++ {
+		line := paintMountain(2, frame)
+		if ansi.StringWidth(ansi.Strip(line)) != ansi.StringWidth(mountain[2]) {
+			t.Fatalf("frame %d width %q", frame, ansi.Strip(line))
+		}
+		if line != plain && strings.Contains(line, brightOpen) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("mountain body never used the bright color")
+	}
+}
+
+func TestTwinkleKeepsReadOnlyBadge(t *testing.T) {
+	cfg := config.Default().UI
+	rows := brandRowsLocked(cfg, 40, true, true, 9)
+	plain := strings.Join(mapStrip(rows), "\n")
+	if !strings.Contains(plain, lockIcon) || !strings.Contains(plain, "READ-ONLY") {
+		t.Fatalf("twinkle lost the badge:\n%s", plain)
+	}
+}
+
+func TestTwinkleTickAdvances(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nil)
+	if !m.twinkleOn() {
+		t.Fatal("twinkle should be on by default")
+	}
+	if cmd := m.twinkleStart(); cmd == nil {
+		t.Fatal("start")
+	}
+	seq := m.twinkleSeq
+	if m.twinkleStep(twinkleMsg{seq - 1}) != nil {
+		t.Fatal("stale seq")
+	}
+	if m.twinkle != 0 {
+		t.Fatalf("stale advanced to %d", m.twinkle)
+	}
+	if m.twinkleStep(twinkleMsg{seq}) == nil || m.twinkle != 1 {
+		t.Fatalf("step %d", m.twinkle)
+	}
+	m.zoom = true
+	if m.twinkleStep(twinkleMsg{seq}) != nil || m.logoFrame() != 0 {
+		t.Fatal("zoom should stop the tick")
+	}
+	m.zoom = false
+	m.cfg.UI.LogoTwinkle = false
+	if m.twinkleStart() != nil || m.logoFrame() != 0 {
+		t.Fatal("logo_twinkle false should not start")
 	}
 }

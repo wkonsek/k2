@@ -677,6 +677,7 @@ ui:
   dim_inactive: true        # mute the other panes' borders and titles (default false)
   logo: wordmark            # wordmark (default) | mountain
   logo_title_color: green   # logo color: green | accent
+  logo_twinkle: true        # a few logo pixels blink in the bright color
   sidebar_position: left    # left (default) | right | top | bottom
   forward_scroll: true      # scroll long forwards instead of cutting them
 ```
@@ -695,7 +696,9 @@ ui:
   focused context, the kubeconfig path and the namespace, then the
   actions. `ui.logo: wordmark` (default) is the pixel `k2`; `mountain`
   swaps it for a small pixel mountain with `k2` and the tagline under it.
-  Where the mountain does not fit, the wordmark is shown. Under that,
+  Where the mountain does not fit, the wordmark is shown. A few pixels
+  light up in the theme's bright color now and then (`ui.logo_twinkle:
+  false` or `ui.animations: false` keeps it still). Under that,
   when it fits, are `k2`, `kubectl`, `k8s server` and (when readable)
   `ocp` versions of the focused context, fetched in the background
   (`ui.cluster_info: false` hides them). If the API answers but the
