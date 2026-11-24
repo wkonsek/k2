@@ -15,9 +15,6 @@ type vline struct {
 	num  int
 }
 
-// visCache is one pane's wrapped rows. View, scroll and unfocused panes all
-// call visualLines; without this every frame rewalks the whole buffer.
-// Keyed by logID on the model (the map is shared across snap copies).
 type visCache struct {
 	text    string
 	w       int
@@ -127,8 +124,61 @@ func cloneMarks(s []int) []int {
 	return out
 }
 
-func (m model) buildVisual(innerW int) []vline {
-	return m.buildVisualFrom(m.textLines(), innerW)
+func (m *model) patchLogVis(id, next string, drop int, added string) {
+	if m.vis == nil || id == "" {
+		return
+	}
+	c := m.vis[id]
+	if c == nil || c.stage != "logs" || len(c.marks) > 0 {
+		return
+	}
+	addN := splitLineCount(added)
+	oldN := c.logical
+	if drop < 0 || drop > oldN {
+		delete(m.vis, id)
+		return
+	}
+	newN := oldN - drop + addN
+	if newN < 0 || logRoom(c.w, oldN) != logRoom(c.w, newN) {
+		delete(m.vis, id)
+		return
+	}
+	lines := c.lines
+	if drop > 0 {
+		i := 0
+		for i < len(lines) && lines[i].num < drop {
+			i++
+		}
+		lines = lines[i:]
+		for j := range lines {
+			if lines[j].num >= 0 {
+				lines[j].num -= drop
+			}
+		}
+	}
+	if addN > 0 {
+		width := logRoom(c.w, newN)
+		start := oldN - drop
+		text := strings.TrimRight(sanitizeText(added), "\n")
+		for _, raw := range strings.Split(text, "\n") {
+			if !c.wrap {
+				lines = append(lines, vline{text: raw, num: start})
+			} else {
+				parts := wrapLine(raw, width)
+				for j, row := range parts {
+					n := start
+					if j > 0 {
+						n = -1
+					}
+					lines = append(lines, vline{text: row, num: n})
+				}
+			}
+			start++
+		}
+	}
+	c.text = next
+	c.lines = lines
+	c.logical = newN
 }
 
 func (m model) buildVisualFrom(logical []string, innerW int) []vline {

@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"k2/internal/kube"
 
@@ -49,43 +50,11 @@ func sortValue(cell string) (float64, string, bool) {
 	return 0, strings.ToLower(t), false
 }
 
-func lessBy(a, b item, col int, age bool) bool {
-	if age {
-		return a.born.After(b.born)
-	}
-	ca, cb := "", ""
-	if col < len(a.cells) {
-		ca = a.cells[col]
-	}
-	if col < len(b.cells) {
-		cb = b.cells[col]
-	}
-	na, sa, nok := sortValue(ca)
-	nb, sb, mok := sortValue(cb)
-	if col < len(a.heads) && isMetricHead(a.heads[col]) {
-
-		parse := kube.ParseCPU
-		if a.heads[col] == "MEM" {
-			parse = kube.ParseMem
-		}
-		na, nok = parse(ca)
-		nb, mok = parse(cb)
-	}
-	switch {
-	case nok && mok:
-		return na < nb
-	case nok != mok:
-		return nok
-	}
-	return sa < sb
-}
-
 func sortItems(items []list.Item, col string, desc bool) []list.Item {
 	if len(items) == 0 {
 		return items
 	}
 	if col == "" {
-
 		out := append([]list.Item(nil), items...)
 		sort.SliceStable(out, func(i, j int) bool {
 			a, aok := out[i].(item)
@@ -108,18 +77,70 @@ func sortItems(items []list.Item, col string, desc bool) []list.Item {
 		return items
 	}
 	age := isAgeHead(col)
-	out := append([]list.Item(nil), items...)
-	sort.SliceStable(out, func(i, j int) bool {
-		a, aok := out[i].(item)
-		b, bok := out[j].(item)
-		if !aok || !bok {
+	metric := isMetricHead(col)
+	parse := kube.ParseCPU
+	if metric && col == "MEM" {
+		parse = kube.ParseMem
+	}
+	type key struct {
+		num    float64
+		str    string
+		ok     bool
+		okItem bool
+		born   time.Time
+		it     list.Item
+	}
+	keys := make([]key, len(items))
+	for i, raw := range items {
+		it, ok := raw.(item)
+		k := key{it: raw, okItem: ok}
+		if !ok {
+			keys[i] = k
+			continue
+		}
+		if age {
+			k.born = it.born
+		} else {
+			cell := ""
+			if idx < len(it.cells) {
+				cell = it.cells[idx]
+			}
+			if metric {
+				k.num, k.ok = parse(cell)
+				if !k.ok {
+					k.str = strings.ToLower(strings.TrimSpace(cell))
+				}
+			} else {
+				k.num, k.str, k.ok = sortValue(cell)
+			}
+		}
+		keys[i] = k
+	}
+	less := func(a, b key) bool {
+		if !a.okItem || !b.okItem {
 			return false
 		}
-		if desc {
-			return lessBy(b, a, idx, age)
+		if age {
+			return a.born.After(b.born)
 		}
-		return lessBy(a, b, idx, age)
+		switch {
+		case a.ok && b.ok:
+			return a.num < b.num
+		case a.ok != b.ok:
+			return a.ok
+		}
+		return a.str < b.str
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		if desc {
+			return less(keys[j], keys[i])
+		}
+		return less(keys[i], keys[j])
 	})
+	out := make([]list.Item, len(keys))
+	for i, k := range keys {
+		out[i] = k.it
+	}
 	return out
 }
 

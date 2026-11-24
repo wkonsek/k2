@@ -173,7 +173,7 @@ func TestBudgetTypicalActions(t *testing.T) {
 func TestTrimLogDropMatchesSplit(t *testing.T) {
 	s := "a\nb\nc\nd\n"
 	got, n := trimLogDrop(s, 2)
-	if n != 3 || got != "d\n" {
+	if n != 2 || got != "c\nd\n" {
 		t.Fatalf("got %q drop %d", got, n)
 	}
 	if dropHeadLines("a\nb\nc", 1) != "b\nc" || headLines("a\nb\nc", 2) != "a\nb" {

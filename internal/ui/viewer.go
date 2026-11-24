@@ -385,8 +385,10 @@ func (m *model) applyLogs(msg logsMsg) {
 				vs.logPend = dropHeadLines(merged, from)
 				*text = headLines(merged, hard)
 				*since = time.Now().Add(-2 * time.Second)
+				m.dropVis(id)
 				return
 			}
+			pending := vs.logPend
 			vs.logPend, vs.logNew = "", 0
 			dropped := 0
 			if *stick {
@@ -397,15 +399,18 @@ func (m *model) applyLogs(msg logsMsg) {
 				trimmed = dropHeadLines(merged, dropped)
 			}
 			*text = trimmed
+			more := joinLogs(pending, msg.text)
 			if dropped > 0 && marks != nil {
 				*marks = shiftMarks(*marks, dropped)
 			}
+			m.patchLogVis(id, trimmed, dropped, more)
 		} else if msg.text != "" {
 			vs.logPend, vs.logNew = "", 0
 			*text = msg.text
 			if marks != nil {
 				*marks = nil
 			}
+			m.dropVis(id)
 		}
 		*since = time.Now().Add(-2 * time.Second)
 	}
@@ -552,18 +557,6 @@ func (m model) openClusterEdit(msg editReadyMsg) (tea.Model, tea.Cmd) {
 		next = mm
 	}
 	return next, cmd
-}
-
-func (m model) deleteSelectedPod() tea.Cmd {
-	sel := m.content.SelectedItem()
-	if sel == nil {
-		return nil
-	}
-	ns, name := kube.SplitRef(sel.(item).id, m.namespace)
-	kc, ctx := m.kubeconfig, m.context
-	return func() tea.Msg {
-		return editDoneMsg{what: "deleted " + name, err: m.k.DeletePod(kc, ctx, ns, name)}
-	}
 }
 
 func (m *model) applyView(msg viewMsg) {
@@ -745,6 +738,7 @@ func ringDropN(n, limit int) int {
 }
 
 func splitLineCount(s string) int {
+	s = strings.TrimRight(s, "\n")
 	if s == "" {
 		return 0
 	}
@@ -797,6 +791,9 @@ func joinLogs(text, more string) string {
 	if text == "" {
 		return more
 	}
+	if strings.HasSuffix(text, "\n") {
+		return text + more
+	}
 	return text + "\n" + more
 }
 
@@ -823,13 +820,15 @@ func (m *model) flushPending() {
 		if m.vs.logPend == "" {
 			return
 		}
-		merged := joinLogs(m.logText, m.vs.logPend)
+		added := m.vs.logPend
+		merged := joinLogs(m.logText, added)
 		dropped := ringDropN(splitLineCount(merged), m.cfg.Logs.MaxLines)
 		m.logText = dropHeadLines(merged, dropped)
 		if dropped > 0 {
 			m.vs.logMarks = shiftMarks(m.vs.logMarks, dropped)
 		}
 		m.vs.logPend, m.vs.logNew = "", 0
+		m.patchLogVis(m.logID, m.logText, dropped, added)
 	case "mlogs":
 		v := m.vs.ml
 		if v == nil || len(v.pend) == 0 {
