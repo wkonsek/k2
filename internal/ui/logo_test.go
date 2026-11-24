@@ -302,7 +302,7 @@ func TestTwinkleLevelIsDeterministic(t *testing.T) {
 				on++
 			}
 		}
-		if on < 1 || on > 4 {
+		if on < 2 || on > 4 {
 			t.Fatalf("frame %d lights %d pixels", frame, on)
 		}
 		if on > maxOn {

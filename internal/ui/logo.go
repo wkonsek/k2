@@ -16,10 +16,10 @@ import (
 const tagline = "kubectl, elevated"
 
 const (
-	twinklePeriod = 24
-	twinkleHold   = 4
-	twinkleStride = 7
-	twinkleStep   = 300 * time.Millisecond
+	twinklePeriod = 13
+	twinkleHold   = 3
+	twinkleStride = 5
+	twinkleStep   = time.Second
 )
 
 type twinkleMsg struct{ seq int }
@@ -67,9 +67,9 @@ func twinkleLevel(frame, idx int) int {
 	}
 	phase := (frame + idx*twinkleStride) % twinklePeriod
 	switch phase {
-	case 0, 3:
+	case 0, 2:
 		return 1
-	case 1, 2:
+	case 1:
 		return 2
 	default:
 		return 0
