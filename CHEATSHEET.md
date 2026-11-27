@@ -323,11 +323,11 @@ that cluster. Failed jobs stay in the list; `enter` or `space` still
 opens the log.
 
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
-optional config YAML, node image, starter-chart checkboxes). The image
-field lists the five latest stable `kindest/node` tags (`←` `→` cycle,
-or type a custom image; blank keeps kind's default). `edit config`
-opens the generated `kind.x-k8s.io/v1alpha4` YAML (or an existing path)
-in `$EDITOR`. `v` on a catalog chart edits its values in `$EDITOR` and
+a prefilled generated config path, node image, starter-chart checkboxes).
+`ctrl+e` on the config field opens that YAML in `$EDITOR`, or type your
+own path. The image field lists the five latest stable `kindest/node`
+tags under the input (`tab` / `shift+tab` cycle, or type a custom
+image). `v` on a catalog chart edits its values in `$EDITOR` and
 passes them to Helm. Enter asks in a red popup, then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
 charts (already-installed ones are checked); `v` edits values the same

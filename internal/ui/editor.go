@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"k2/internal/config"
 	"k2/internal/paneterm"
 )
 
@@ -197,6 +198,17 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 		if m.vs.hop != nil {
 			m.reopenHelmForm()
 			m.status = "values " + m.vs.hop.values
+		}
+	case "kindconfig":
+		if m.vs.kop != nil {
+			m.vs.kop.edited = true
+			m.reopenKindForm()
+			m.status = "config " + config.HomePath(m.vs.kop.config)
+		}
+	case "kindvalues":
+		m.reopenKindForm()
+		if m.vs.kop != nil && m.vs.kop.valuesChart != "" {
+			m.status = "values " + m.vs.kop.valuesChart
 		}
 	}
 	return nil

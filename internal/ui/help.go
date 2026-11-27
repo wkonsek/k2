@@ -338,7 +338,8 @@ func (m model) viewSection() []helpSection {
 			r(k.Delete, "delete the cluster"),
 			r(k.Watch, "refresh the list"),
 			{"↑↓←→ / h j k l / tab", "move between clusters"},
-			{"←→", "cycle node images in the create form"},
+			{"tab / shift+tab", "cycle node images in the create form"},
+			{"ctrl+e", "edit the kind config file in the create form"},
 		}}}
 	case "kindlog":
 		return []helpSection{{"Kind logs", []helpRow{

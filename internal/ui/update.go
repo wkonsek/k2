@@ -333,7 +333,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.copyKey(msg)
 		}
 
-		if (m.pfOn || m.dlg != nil) && altLeak(msg) && !m.inputEditKey(key) {
+		if (m.pfOn || m.dialogActive()) && altLeak(msg) && !m.inputEditKey(key) {
 			return m, nil
 		}
 
@@ -341,7 +341,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updatePopup(msg)
 		}
 
-		if m.dlg != nil {
+		if m.dialogActive() {
 			return m.updateDialog(msg)
 		}
 

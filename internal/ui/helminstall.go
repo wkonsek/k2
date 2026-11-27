@@ -407,6 +407,9 @@ func (m model) moveHelmField(delta int) model {
 	if d.hfields[d.idx].key == "chart" {
 		m.syncHelmChartSuggest()
 	}
+	if d.hfields[d.idx].key == "image" {
+		m.syncKindImageSuggest()
+	}
 	return m
 }
 
@@ -1035,11 +1038,11 @@ func (d *dialog) helmFormRows(inner int) []string {
 			continue
 		}
 		out = append(out, label+in.View())
-		if f.key == "chart" && i == d.idx {
+		if (f.key == "chart" || f.key == "image") && i == d.idx {
 			out = append(out, d.helmChartSuggestRows(inner, ansi.StringWidth(ansi.Strip(label)))...)
 		}
 	}
-	if len(d.cands) > 0 && !(d.idx >= 0 && d.idx < len(d.hfields) && d.hfields[d.idx].key == "chart") {
+	if len(d.cands) > 0 && !(d.idx >= 0 && d.idx < len(d.hfields) && (d.hfields[d.idx].key == "chart" || d.hfields[d.idx].key == "image")) {
 		var parts []string
 		for i, c := range d.cands {
 			if i == maxCands {

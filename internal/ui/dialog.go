@@ -431,12 +431,7 @@ func (m model) dialogBox(width int) string {
 	case d.msg != "":
 		lines = append(lines, errStyle.Render(d.msg))
 	case (d.act == "kindcreate" || d.act == "kindcharts") && len(d.hfields) > 0:
-		foot := keyStyle.Render("tab/↑↓") + dimStyle.Render(" move ") + keyStyle.Render("space") + dimStyle.Render(" toggle ")
-		if d.act == "kindcreate" {
-			foot += keyStyle.Render("←→") + dimStyle.Render(" image ")
-		}
-		foot += keyStyle.Render(k.HelmValues.Short()) + dimStyle.Render(" values ") +
-			keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" confirm ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		foot := m.kindFormFooter(d)
 		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
 			lines = append(lines, l)
 		}
@@ -522,8 +517,21 @@ func (m model) optionWindow() (start, end int) {
 	return start, start + limit
 }
 
-func (m model) withDialog(screen string) string {
+func (m model) dialogActive() bool {
 	if m.dlg == nil {
+		return false
+	}
+	if m.ed.live() {
+		switch m.dlg.act {
+		case "kindcreate", "kindcharts", "helminstall":
+			return false
+		}
+	}
+	return true
+}
+
+func (m model) withDialog(screen string) string {
+	if !m.dialogActive() {
 		return screen
 	}
 	if m.dlg.act == "help" {

@@ -239,7 +239,7 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 		t.Fatalf("form %+v", m.dlg)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"kind create", "name", "control-planes", "workers", "config", "edit config", "image", "istio", "metallb", "kafbat"} {
+	for _, want := range []string{"kind create", "name", "control-planes", "workers", "config", "image", "istio", "metallb", "kafbat"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("form lacks %q:\n%s", want, view)
 		}
@@ -247,13 +247,24 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 	if helmFieldValue(m.dlg, "name") != "k2" {
 		t.Fatalf("default name %q", helmFieldValue(m.dlg, "name"))
 	}
+	if helmFieldValue(m.dlg, "config") == "" {
+		t.Fatal("config should be prefilled with the generated path")
+	}
+	for _, f := range m.dlg.hfields {
+		if f.key == "editcfg" {
+			t.Fatal("edit config row should be gone")
+		}
+	}
+	if strings.Contains(ansi.Strip(m.View()), "edit config") {
+		t.Fatalf("edit config still shown:\n%s", ansi.Strip(m.View()))
+	}
 	next, cmd := m.submitKindForm()
 	m = settle(t, next.(model), cmd)
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "create kind cluster k2?") {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
 	view = ansi.Strip(m.View())
-	for _, want := range []string{kindDetail("cluster", "k2"), kindDetail("context", "kind-k2"), kindDetail("kubeconfig", "~/.kube/k2"), kindDetail("nodes", "1 control-plane")} {
+	for _, want := range []string{kindDetail("cluster", "k2"), kindDetail("context", "kind-k2"), kindDetail("kubeconfig", "~/.kube/k2"), kindDetail("config", config.HomePath(kindConfigPath("k2")))} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -307,7 +318,7 @@ func TestKindCreateCommandPrefillAndNamedKubeconfig(t *testing.T) {
 	view := ansi.Strip(m.View())
 	home := os.Getenv("HOME")
 	wantKC := kube.KindKubeconfig("lab", home)
-	for _, want := range []string{kindDetail("cluster", "lab"), kindDetail("nodes", "3 control-planes, 2 workers"), kindDetail("kubeconfig", config.HomePath(wantKC)), "kindest/node:v1.31.0"} {
+	for _, want := range []string{kindDetail("cluster", "lab"), kindDetail("config", config.HomePath(kindConfigPath("lab"))), kindDetail("kubeconfig", config.HomePath(wantKC)), "kindest/node:v1.31.0"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -575,21 +586,17 @@ func TestKindEditConfigOpensGeneratedYAML(t *testing.T) {
 	old := vimCommand
 	vimCommand = func(path string) *exec.Cmd { opened = path; return exec.Command("true") }
 	t.Cleanup(func() { vimCommand = old })
-	found := false
-	for i, field := range m.dlg.hfields {
-		if field.key == "editcfg" {
-			m.dlg.idx = i
-			found = true
-			break
-		}
+	cfg := helmFieldValue(m.dlg, "config")
+	if cfg == "" {
+		t.Fatal("config should be prefilled")
 	}
-	if !found {
-		t.Fatal("no edit config field")
-	}
-	next, cmd := m.submitKindForm()
-	m = settle(t, next.(model), cmd)
+	m = focusKindField(t, m, "config")
+	m = pressSettle(t, m, "ctrl+e")
 	if opened == "" {
 		t.Fatal("editor was not opened")
+	}
+	if opened != cfg {
+		t.Fatalf("opened %q want prefilled %q", opened, cfg)
 	}
 	raw, err := os.ReadFile(opened)
 	if err != nil {
@@ -598,7 +605,7 @@ func TestKindEditConfigOpensGeneratedYAML(t *testing.T) {
 	if !strings.Contains(string(raw), "kind.x-k8s.io/v1alpha4") {
 		t.Fatalf("generated config:\n%s", raw)
 	}
-	next, cmd = m.Update(kindConfigDoneMsg{})
+	next, cmd := m.Update(kindConfigDoneMsg{})
 	m = settle(t, next.(model), cmd)
 	if m.dlg == nil || m.dlg.act != "kindcreate" {
 		t.Fatalf("form %+v", m.dlg)
@@ -821,7 +828,7 @@ func focusKindField(t *testing.T, m model, key string) model {
 	for i, f := range m.dlg.hfields {
 		if f.key == key {
 			m.dlg.idx = i
-			return m
+			return m.moveHelmField(0)
 		}
 	}
 	t.Fatalf("no field %s", key)
@@ -1069,27 +1076,49 @@ func TestKindNodeImagePicker(t *testing.T) {
 		t.Fatalf("default image %q", helmFieldValue(m.dlg, "image"))
 	}
 	m = focusKindField(t, m, "image")
-	m = pressSettle(t, m, "right")
+	view := ansi.Strip(m.View())
+	for _, img := range images {
+		if !strings.Contains(view, img) {
+			t.Fatalf("prefilled image should still list all tags, missing %q:\n%s", img, view)
+		}
+	}
+	if !strings.Contains(view, "cycle images") {
+		t.Fatalf("footer:\n%s", view)
+	}
+	if strings.Contains(view, "space toggle") || strings.Contains(view, " values") && strings.Contains(view, "v values") {
+		t.Fatalf("footer should not show chart hints on image:\n%s", view)
+	}
+	m = pressSettle(t, m, "tab")
 	if helmFieldValue(m.dlg, "image") != images[1] {
-		t.Fatalf("next %q", helmFieldValue(m.dlg, "image"))
+		t.Fatalf("tab next %q", helmFieldValue(m.dlg, "image"))
 	}
-	m = pressSettle(t, m, "left")
+	m = pressSettle(t, m, "shift+tab")
 	if helmFieldValue(m.dlg, "image") != images[0] {
-		t.Fatalf("prev %q", helmFieldValue(m.dlg, "image"))
+		t.Fatalf("shift+tab prev %q", helmFieldValue(m.dlg, "image"))
 	}
-	for i := 0; i < len(images); i++ {
-		m = pressSettle(t, m, "right")
+	for i := 0; i < len(images)-1; i++ {
+		m = pressSettle(t, m, "tab")
 	}
-	if helmFieldValue(m.dlg, "image") != "" {
-		t.Fatalf("blank default %q", helmFieldValue(m.dlg, "image"))
+	if helmFieldValue(m.dlg, "image") != images[len(images)-1] {
+		t.Fatalf("last %q", helmFieldValue(m.dlg, "image"))
 	}
-	m = pressSettle(t, m, "right")
+	m = pressSettle(t, m, "tab")
 	if helmFieldValue(m.dlg, "image") != images[0] {
 		t.Fatalf("wrap %q", helmFieldValue(m.dlg, "image"))
 	}
-	view := ansi.Strip(m.View())
-	if !strings.Contains(view, "←→") || !strings.Contains(view, "image") {
-		t.Fatalf("footer:\n%s", view)
+	start := m.dlg.idx
+	m = pressSettle(t, m, "down")
+	if m.dlg.idx == start {
+		t.Fatal("down should leave the image field")
+	}
+	m = pressSettle(t, m, "up")
+	if m.dlg.hfields[m.dlg.idx].key != "image" {
+		t.Fatalf("up should return to image, at %s", m.dlg.hfields[m.dlg.idx].key)
+	}
+	setHelmField(m.dlg, "image", "v1.32")
+	m.syncKindImageSuggest()
+	if !containsStr(m.dlg.cands, "kindest/node:v1.32.2") || len(m.dlg.cands) != 1 {
+		t.Fatalf("typed filter %v", m.dlg.cands)
 	}
 }
 
@@ -1487,5 +1516,57 @@ func TestKindFormTypesJAndK(t *testing.T) {
 	}
 	if helmFieldValue(m.dlg, "name") != "k2-jk" {
 		t.Fatalf("name=%q", helmFieldValue(m.dlg, "name"))
+	}
+}
+
+func TestKindCreateHidesDialogOverEditor(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	if !m.dialogActive() || !strings.Contains(ansi.Strip(m.View()), "control-planes") {
+		t.Fatalf("form should be visible before the editor:\n%s", ansi.Strip(m.View()))
+	}
+	m.ed = &editor{kind: "kindconfig"}
+	if m.dialogActive() {
+		t.Fatal("dialog should be suspended while vim is open")
+	}
+	if m.withDialog("SCREEN") != "SCREEN" {
+		t.Fatal("create popup should not overlay the screen while vim is open")
+	}
+	m.ed = nil
+	if !m.dialogActive() || !strings.Contains(ansi.Strip(m.View()), "control-planes") {
+		t.Fatalf("form should return after vim:\n%s", ansi.Strip(m.View()))
+	}
+}
+
+func TestKindCreateFooterFollowsFocus(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m.kindNodeImages = []string{"kindest/node:v1.34.0", "kindest/node:v1.33.1"}
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	view := ansi.Strip(m.View())
+	if strings.Contains(view, "cycle images") || strings.Contains(view, "space toggle") || strings.Contains(view, "ctrl+e") {
+		t.Fatalf("name field footer should be generic:\n%s", view)
+	}
+	m = focusKindField(t, m, "config")
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "ctrl+e") || !strings.Contains(view, "edit") {
+		t.Fatalf("config footer:\n%s", view)
+	}
+	if strings.Contains(view, "space toggle") || strings.Contains(view, "cycle images") {
+		t.Fatalf("config footer leaked other hints:\n%s", view)
+	}
+	m = focusKindField(t, m, "c:istio")
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "space") || !strings.Contains(view, "toggle") || !strings.Contains(view, "values") {
+		t.Fatalf("chart footer:\n%s", view)
+	}
+	if strings.Contains(view, "cycle images") || strings.Contains(view, "ctrl+e") {
+		t.Fatalf("chart footer leaked other hints:\n%s", view)
 	}
 }

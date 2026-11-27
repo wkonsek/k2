@@ -753,7 +753,7 @@ func (m model) renderNode(n *layout.Node, w, h int) string {
 func (m model) zoomView() string {
 	if m.ed.live() && m.ed.kind == "shell" {
 		w, h := m.editorSize(m.logID)
-		body := m.ed.body(!m.pfOn && m.dlg == nil, w, h, m.cfg.Keys.Back.Label())
+		body := m.ed.body(!m.pfOn && !m.dialogActive(), w, h, m.cfg.Keys.Back.Label())
 		return clampWidth(m.withTabBar(lipgloss.JoinVertical(lipgloss.Left, body, m.legend())), max(1, m.width))
 	}
 	_, mainW, panelH := m.layout()
@@ -773,7 +773,7 @@ func (m model) paneBlock(i, width, h int) string {
 	}
 	switch {
 	case ed != nil:
-		body = ed.body(i == m.focus && !m.pfOn && m.dlg == nil, bodyW, h-2, m.cfg.Keys.Back.Label())
+		body = ed.body(i == m.focus && !m.pfOn && !m.dialogActive(), bodyW, h-2, m.cfg.Keys.Back.Label())
 	case i != m.focus && i < len(m.panes):
 		body = m.snapBody(m.panes[i], bodyW, h-2)
 	default:

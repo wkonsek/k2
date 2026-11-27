@@ -20,7 +20,7 @@ type kindOp struct {
 	name, config, image, kubeconfig, form, valuesChart string
 	planes, workers                                    int
 	charts                                             []string
-	edited                                             bool
+	edited, autoConfig                                 bool
 	uninstall, upgrade                                 []string
 	values                                             map[string]string
 }
@@ -326,6 +326,11 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	if op.image == "" && len(m.kindNodeImages) > 0 {
 		op.image = m.kindNodeImages[0]
 	}
+	if op.config == "" {
+		if err := m.writeKindGeneratedConfig(&op); err != nil {
+			m.status = err.Error()
+		}
+	}
 	title := "✚ kind create"
 	d := m.newDialog("kindcreate", title, "kind", "", op.name)
 	m.dlgSeq++
@@ -363,6 +368,7 @@ func (m *model) applyKindNodeImages(msg kindNodeImagesMsg) {
 	if m.vs.kop != nil {
 		m.vs.kop.image = msg.images[0]
 	}
+	m.syncKindImageSuggest()
 }
 
 func (m *model) fillKindForm(d *dialog, op *kindOp) {
@@ -375,7 +381,6 @@ func (m *model) fillKindForm(d *dialog, op *kindOp) {
 		{key: "planes", label: "control-planes", input: helmFieldInput(strconv.Itoa(max(1, op.planes)), "1")},
 		{key: "workers", label: "workers", input: helmFieldInput(strconv.Itoa(max(0, op.workers)), "0")},
 		{key: "config", label: "config", input: helmFieldInput(op.config, cfgHint)},
-		{key: "editcfg", label: "edit config", input: helmFieldInput("", ""), action: true},
 		{key: "image", label: "image", input: helmFieldInput(op.image, "kindest/node:…")},
 	}
 	fields = append(fields, m.kindChartFields(op)...)
@@ -443,21 +448,25 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		d.idx = 0
 	}
 	switch {
-	case key == "tab" || key == "down" || (km.ScrollDown.Has(key) && !d.hfields[d.idx].typed()):
+	case key == "tab" || key == "down":
+		if key == "tab" && d.hfields[d.idx].key == "image" {
+			return m.cycleKindImageList(1)
+		}
 		if key == "tab" && d.hfields[d.idx].key == "config" {
 			if next, cmd, done := m.completeKindPath(); done {
 				return next, cmd
 			}
 		}
 		return m.moveHelmField(1), nil
-	case key == "shift+tab" || key == "up" || (km.ScrollUp.Has(key) && !d.hfields[d.idx].typed()):
+	case key == "shift+tab" || key == "up":
+		if key == "shift+tab" && d.hfields[d.idx].key == "image" {
+			return m.cycleKindImageList(-1)
+		}
 		return m.moveHelmField(-1), nil
+	case key == "ctrl+e" && d.hfields[d.idx].key == "config":
+		return m.editKindConfig()
 	case km.HelmValues.Has(key) && strings.HasPrefix(d.hfields[d.idx].key, "c:"):
 		return m.editKindChartValues()
-	case (key == "left" || key == "right") && d.hfields[d.idx].key == "image":
-		if m.cycleKindImage(key == "right") {
-			return m, nil
-		}
 	case (key == " " || key == "c") && d.hfields[d.idx].toggle:
 		d.hfields[d.idx].on = !d.hfields[d.idx].on
 		return m, nil
@@ -465,39 +474,185 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.hfields[d.idx].toggle || d.hfields[d.idx].action || d.hfields[d.idx].locked {
 		return m, nil
 	}
-	d.cands, d.candBase, d.candAt = nil, "", -1
 	var cmd tea.Cmd
 	d.hfields[d.idx].input, cmd = d.hfields[d.idx].input.Update(msg)
 	d.msg = ""
+	switch d.hfields[d.idx].key {
+	case "image":
+		m.refreshKindImageSuggest(true)
+		if m.vs.kop != nil {
+			m.vs.kop.image = helmFieldValue(d, "image")
+			m.refreshKindGeneratedConfig()
+		}
+		return m, cmd
+	case "config":
+		if m.vs.kop != nil && m.vs.kop.autoConfig && helmFieldValue(d, "config") != kindConfigPath(m.vs.kop.name) {
+			m.vs.kop.autoConfig = false
+		}
+	case "name", "planes", "workers":
+		m.refreshKindGeneratedConfig()
+	}
+	d.cands, d.candBase, d.candAt = nil, "", -1
 	return m, cmd
 }
 
-func (m model) cycleKindImage(next bool) bool {
-	if m.dlg == nil || len(m.kindNodeImages) == 0 {
-		return false
+func kindConfigPath(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "k2"
 	}
-	cur := helmFieldValue(m.dlg, "image")
-	picks := append(append([]string{}, m.kindNodeImages...), "")
-	found := -1
-	for i, p := range picks {
-		if p == cur {
-			found = i
-			break
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
 		}
 	}
-	if found < 0 {
-		return false
+	if b.Len() == 0 {
+		return filepath.Join(os.TempDir(), "k2-kind.yaml")
 	}
-	if next {
-		found = (found + 1) % len(picks)
+	return filepath.Join(os.TempDir(), "k2-kind-"+b.String()+".yaml")
+}
+
+func (m *model) writeKindGeneratedConfig(op *kindOp) error {
+	if op == nil {
+		return nil
+	}
+	text, err := kube.KindConfigYAML(max(1, op.planes), max(0, op.workers), op.image)
+	if err != nil {
+		return err
+	}
+	path := kindConfigPath(op.name)
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		return err
+	}
+	op.config, op.autoConfig = path, true
+	return nil
+}
+
+func (m *model) refreshKindGeneratedConfig() {
+	if m.dlg == nil || m.vs.kop == nil || !m.vs.kop.autoConfig || m.vs.kop.edited {
+		return
+	}
+	m.stashKindForm()
+	if !m.vs.kop.autoConfig || m.vs.kop.edited {
+		return
+	}
+	if err := m.writeKindGeneratedConfig(m.vs.kop); err != nil {
+		return
+	}
+	setHelmField(m.dlg, "config", m.vs.kop.config)
+}
+
+func kindImageKnown(images []string, value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	for _, img := range images {
+		if img == value {
+			return true
+		}
+	}
+	return false
+}
+
+func (m model) kindImageSuggestions(typed string) []string {
+	typed = strings.TrimSpace(typed)
+	if kindImageKnown(m.kindNodeImages, typed) {
+		return append([]string{}, m.kindNodeImages...)
+	}
+	var out []string
+	for _, img := range m.kindNodeImages {
+		if strings.Contains(img, typed) {
+			out = append(out, img)
+		}
+	}
+	return out
+}
+
+func (m *model) syncKindImageSuggest() {
+	m.refreshKindImageSuggest(false)
+}
+
+func (m *model) refreshKindImageSuggest(fromType bool) {
+	if m.dlg == nil || m.dlg.idx < 0 || m.dlg.idx >= len(m.dlg.hfields) || m.dlg.hfields[m.dlg.idx].key != "image" {
+		return
+	}
+	typed := helmFieldValue(m.dlg, "image")
+	if fromType && !kindImageKnown(m.kindNodeImages, typed) {
+		m.dlg.candBase = typed
+		m.dlg.cands = m.kindImageSuggestions(typed)
+		m.dlg.candAt = m.helmChartCandIndex(m.dlg.cands, typed)
+		return
+	}
+	m.dlg.candBase = ""
+	m.dlg.cands = m.kindImageSuggestions(typed)
+	m.dlg.candAt = m.helmChartCandIndex(m.dlg.cands, typed)
+}
+
+func (m model) cycleKindImageList(delta int) (tea.Model, tea.Cmd) {
+	d := m.dlg
+	if d == nil {
+		return m, nil
+	}
+	typed := helmFieldValue(d, "image")
+	if len(d.cands) == 0 || (m.helmChartCandIndex(d.cands, typed) < 0 && typed != d.candBase && !kindImageKnown(d.cands, typed)) {
+		d.cands = m.kindImageSuggestions(typed)
+		if kindImageKnown(m.kindNodeImages, typed) {
+			d.candBase = ""
+		} else {
+			d.candBase = typed
+		}
+	}
+	if len(d.cands) == 0 {
+		d.msg = "no match"
+		return m, nil
+	}
+	at := m.helmChartCandIndex(d.cands, typed)
+	if at < 0 {
+		if delta < 0 {
+			at = len(d.cands) - 1
+		} else {
+			at = 0
+		}
 	} else {
-		found = (found - 1 + len(picks)) % len(picks)
+		at = (at + delta) % len(d.cands)
+		if at < 0 {
+			at += len(d.cands)
+		}
 	}
-	setHelmField(m.dlg, "image", picks[found])
+	d.candAt = at
+	d.msg = ""
+	setHelmField(d, "image", d.cands[at])
 	if m.vs.kop != nil {
-		m.vs.kop.image = picks[found]
+		m.vs.kop.image = d.cands[at]
 	}
-	return true
+	m.refreshKindGeneratedConfig()
+	return m, nil
+}
+
+func (m model) kindFormFooter(d *dialog) string {
+	k := m.cfg.Keys
+	key := ""
+	if d != nil && d.idx >= 0 && d.idx < len(d.hfields) {
+		key = d.hfields[d.idx].key
+	}
+	foot := keyStyle.Render("↑↓") + dimStyle.Render(" move  ")
+	switch {
+	case key == "image":
+		foot = keyStyle.Render("tab/shift+tab") + dimStyle.Render(" cycle images  ") + foot
+	case key == "config":
+		foot = keyStyle.Render("ctrl+e") + dimStyle.Render(" edit  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + foot
+	case strings.HasPrefix(key, "c:"):
+		foot += keyStyle.Render("space") + dimStyle.Render(" toggle  ") + keyStyle.Render(k.HelmValues.Short()) + dimStyle.Render(" values  ")
+	default:
+		foot = keyStyle.Render("tab/↑↓") + dimStyle.Render(" move  ")
+	}
+	foot += keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" confirm  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+	return foot
 }
 
 func (m model) completeKindPath() (tea.Model, tea.Cmd, bool) {
@@ -533,9 +688,6 @@ func (m *model) stashKindForm() {
 }
 
 func (m model) submitKindForm() (tea.Model, tea.Cmd) {
-	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "editcfg" {
-		return m.editKindConfig()
-	}
 	if next, cmd, blocked := m.readOnlyBlock("create cluster"); blocked {
 		return next, cmd
 	}
