@@ -17,11 +17,16 @@ import (
 )
 
 type kindOp struct {
-	name, config, image, kubeconfig string
-	planes, workers                 int
-	charts                          []string
-	edited                          bool
-	uninstall                       []string
+	name, config, image, kubeconfig, form, valuesChart string
+	planes, workers                                    int
+	charts                                             []string
+	edited                                             bool
+	uninstall, upgrade                                 []string
+	values                                             map[string]string
+}
+
+var fetchKindNodeImages = func() ([]string, error) {
+	return kube.FetchKindNodeImages(nil, "")
 }
 
 type kindJob struct {
@@ -315,6 +320,12 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	if op.workers < 0 {
 		op.workers = 0
 	}
+	if op.form == "" {
+		op.form = "kindcreate"
+	}
+	if op.image == "" && len(m.kindNodeImages) > 0 {
+		op.image = m.kindNodeImages[0]
+	}
 	title := "✚ kind create"
 	d := m.newDialog("kindcreate", title, "kind", "", op.name)
 	m.dlgSeq++
@@ -322,7 +333,36 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	m.fillKindForm(d, &op)
 	m.vs.kop = &op
 	m.dlg = d
-	return m, nil
+	return m, m.kindNodeImagesCmd()
+}
+
+func (m model) kindNodeImagesCmd() tea.Cmd {
+	if len(m.kindNodeImages) > 0 || m.kindNodeImagesBusy {
+		return nil
+	}
+	m.kindNodeImagesBusy = true
+	return func() tea.Msg {
+		tags, _ := fetchKindNodeImages()
+		return kindNodeImagesMsg{images: tags}
+	}
+}
+
+func (m *model) applyKindNodeImages(msg kindNodeImagesMsg) {
+	m.kindNodeImagesBusy = false
+	if len(msg.images) == 0 {
+		return
+	}
+	m.kindNodeImages = msg.images
+	if m.dlg == nil || m.dlg.act != "kindcreate" {
+		return
+	}
+	if helmFieldValue(m.dlg, "image") != "" {
+		return
+	}
+	setHelmField(m.dlg, "image", msg.images[0])
+	if m.vs.kop != nil {
+		m.vs.kop.image = msg.images[0]
+	}
 }
 
 func (m *model) fillKindForm(d *dialog, op *kindOp) {
@@ -338,22 +378,59 @@ func (m *model) fillKindForm(d *dialog, op *kindOp) {
 		{key: "editcfg", label: "edit config", input: helmFieldInput("", ""), action: true},
 		{key: "image", label: "image", input: helmFieldInput(op.image, "kindest/node:…")},
 	}
+	fields = append(fields, m.kindChartFields(op)...)
+	idx := 0
+	if op.valuesChart != "" {
+		idx = kindFocusField(fields, "c:"+op.valuesChart)
+	}
+	if len(fields) > 0 {
+		helmFocus(&fields[idx])
+	}
+	d.hfields = fields
+	d.idx = idx
+}
+
+func (m model) kindChartFields(op *kindOp) []helmField {
 	selected := map[string]bool{}
 	for _, n := range op.charts {
 		selected[n] = true
 	}
+	var fields []helmField
 	for _, c := range m.cfg.Charts() {
+		label := c.Name
+		if op.values != nil && op.values[c.Name] != "" {
+			label += " (values)"
+		}
 		fields = append(fields, helmField{
 			key:    "c:" + c.Name,
-			label:  c.Name,
+			label:  label,
 			input:  helmFieldInput("", ""),
 			toggle: true,
 			on:     selected[c.Name],
 		})
 	}
-	helmFocus(&fields[0])
-	d.hfields = fields
-	d.idx = 0
+	return fields
+}
+
+func kindFocusField(fields []helmField, key string) int {
+	for i, f := range fields {
+		if f.key == key {
+			return i
+		}
+	}
+	return 0
+}
+
+func (m *model) fillKindChartsForm(d *dialog, op *kindOp) {
+	fields := m.kindChartFields(op)
+	idx := 0
+	if op.valuesChart != "" {
+		idx = kindFocusField(fields, "c:"+op.valuesChart)
+	}
+	if len(fields) > 0 {
+		helmFocus(&fields[idx])
+	}
+	d.hfields, d.idx = fields, idx
 }
 
 func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -375,6 +452,12 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.moveHelmField(1), nil
 	case key == "shift+tab" || key == "up" || km.ScrollUp.Has(key):
 		return m.moveHelmField(-1), nil
+	case km.HelmValues.Has(key) && strings.HasPrefix(d.hfields[d.idx].key, "c:"):
+		return m.editKindChartValues()
+	case (key == "left" || key == "right") && d.hfields[d.idx].key == "image":
+		if m.cycleKindImage(key == "right") {
+			return m, nil
+		}
 	case (key == " " || key == "c") && d.hfields[d.idx].toggle:
 		d.hfields[d.idx].on = !d.hfields[d.idx].on
 		return m, nil
@@ -387,6 +470,34 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	d.hfields[d.idx].input, cmd = d.hfields[d.idx].input.Update(msg)
 	d.msg = ""
 	return m, cmd
+}
+
+func (m model) cycleKindImage(next bool) bool {
+	if m.dlg == nil || len(m.kindNodeImages) == 0 {
+		return false
+	}
+	cur := helmFieldValue(m.dlg, "image")
+	picks := append(append([]string{}, m.kindNodeImages...), "")
+	found := -1
+	for i, p := range picks {
+		if p == cur {
+			found = i
+			break
+		}
+	}
+	if found < 0 {
+		return false
+	}
+	if next {
+		found = (found + 1) % len(picks)
+	} else {
+		found = (found - 1 + len(picks)) % len(picks)
+	}
+	setHelmField(m.dlg, "image", picks[found])
+	if m.vs.kop != nil {
+		m.vs.kop.image = picks[found]
+	}
+	return true
 }
 
 func (m model) completeKindPath() (tea.Model, tea.Cmd, bool) {
@@ -711,15 +822,47 @@ func lastNonEmpty(text string) string {
 	return strings.TrimSpace(text)
 }
 
+type kindChartWork struct {
+	parent  string
+	steps   []config.Chart
+	upgrade bool
+}
+
+func kindChartValueFiles(step config.Chart, custom string) (files, temps []string, err error) {
+	if len(step.Values) > 0 {
+		path, err := config.WriteValuesFile(step.Values)
+		if err != nil {
+			return nil, nil, err
+		}
+		files = append(files, path)
+		temps = append(temps, path)
+	}
+	if custom != "" {
+		files = append(files, custom)
+	}
+	return files, temps, nil
+}
+
 func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 	charts := m.cfg.Charts()
-	var install []config.Chart
+	var work []kindChartWork
 	for _, name := range op.charts {
 		c, ok := config.LookupChart(charts, name)
 		if !ok {
 			continue
 		}
-		install = append(install, c.InstallSteps()...)
+		work = append(work, kindChartWork{parent: name, steps: c.InstallSteps()})
+	}
+	for _, name := range op.upgrade {
+		c, ok := config.LookupChart(charts, name)
+		if !ok {
+			continue
+		}
+		work = append(work, kindChartWork{parent: name, steps: c.InstallSteps(), upgrade: true})
+	}
+	var install []config.Chart
+	for _, w := range work {
+		install = append(install, w.steps...)
 	}
 	var uninstall []config.Chart
 	for i := len(op.uninstall) - 1; i >= 0; i-- {
@@ -751,6 +894,22 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 	return func() tea.Msg {
 		ch := make(chan tea.Msg, 32)
 		go func() {
+			var temps []string
+			defer func() {
+				seen := map[string]bool{}
+				for _, p := range temps {
+					if p != "" && !seen[p] {
+						seen[p] = true
+						_ = os.Remove(p)
+					}
+				}
+				for _, p := range op.values {
+					if p != "" && !seen[p] {
+						seen[p] = true
+						_ = os.Remove(p)
+					}
+				}
+			}()
 			var log strings.Builder
 			if prefix != "" {
 				log.WriteString(prefix)
@@ -785,30 +944,46 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 				fail(err)
 				return
 			}
-			for _, step := range install {
-				values := ""
-				if len(step.Values) > 0 {
-					path, err := config.WriteValuesFile(step.Values)
+			for _, w := range work {
+				verb := "installing "
+				if w.upgrade {
+					verb = "upgrading "
+				}
+				custom := ""
+				if op.values != nil {
+					custom = op.values[w.parent]
+				}
+				for _, step := range w.steps {
+					files, extra, err := kindChartValueFiles(step, custom)
 					if err != nil {
 						fail(err)
 						return
 					}
-					values = path
-				}
-				args := kube.HelmApplyArgs(false, step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, step.CreatesNamespace(), values, kc, ctx)
-				emit("$ helm "+strings.Join(args, " "), "installing "+step.HelmRelease())
-				_, err := kindCmdOut(run, bin, args, "", func(line string) { emit(line, "installing "+step.HelmRelease()) })
-				if err != nil {
-					fail(err)
-					return
-				}
-				if newMetal && (strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb")) {
-					n, w := setupMetalLB(run, docker, kc, ctx, step.Namespace, func(line string) { emit(line, "configuring metallb") })
-					if n != "" {
-						notes = append(notes, n)
+					temps = append(temps, extra...)
+					values := ""
+					if len(files) > 0 {
+						values = files[0]
 					}
-					if w != "" {
-						notes = append(notes, w)
+					args := kube.HelmApplyArgs(w.upgrade, step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, step.CreatesNamespace(), values, kc, ctx)
+					if len(files) > 1 {
+						for _, f := range files[1:] {
+							args = append(args, "-f", f)
+						}
+					}
+					emit("$ helm "+strings.Join(args, " "), verb+step.HelmRelease())
+					_, err = kindCmdOut(run, bin, args, "", func(line string) { emit(line, verb+step.HelmRelease()) })
+					if err != nil {
+						fail(err)
+						return
+					}
+					if !w.upgrade && newMetal && (strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb")) {
+						n, wnote := setupMetalLB(run, docker, kc, ctx, step.Namespace, func(line string) { emit(line, "configuring metallb") })
+						if n != "" {
+							notes = append(notes, n)
+						}
+						if wnote != "" {
+							notes = append(notes, wnote)
+						}
 					}
 				}
 			}
@@ -1012,7 +1187,32 @@ func (m *model) applyKindDeleted(msg kindDeleteMsg) tea.Cmd {
 			}
 		}
 		m.vs.kindNames = names
-		if msg.gone {
+		wasActive := msg.gone || m.context == kube.KindContext(msg.name)
+		if wasActive {
+			var usable []string
+			for _, n := range names {
+				if _, ok := m.kindKubeconfigFor(n); ok {
+					usable = append(usable, n)
+				}
+			}
+			if len(usable) == 1 {
+				path, _ := m.kindKubeconfigFor(usable[0])
+				m.kubeconfig = path
+				m.context = kube.KindContext(usable[0])
+				m.namespace = m.k.NamespaceOf(path, m.context)
+				m.clearHist()
+				m.save()
+				if m.stage != "kindlog" {
+					m.stage = "kind"
+				} else if m.vs.kindLog == msg.name {
+					m.stage = "kind"
+					m.vs.kindLog = ""
+				}
+				m.showKind(usable[0])
+				m.status = "deleted " + msg.name + " · using " + m.context
+				cmd = tea.Batch(m.notify(toneOK, m.status), m.kindRefreshCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+				return
+			}
 			m.kubeconfig, m.context, m.namespace = "", "", ""
 			m.save()
 		}
@@ -1151,30 +1351,15 @@ func (m model) openKindCharts(name string) (tea.Model, tea.Cmd) {
 			selected = append(selected, c.Name)
 		}
 	}
-	op := kindOp{name: name, kubeconfig: path, charts: selected}
+	op := kindOp{name: name, kubeconfig: path, charts: selected, form: "kindcharts"}
 	d := m.newDialog("kindcharts", kindIconCharts+" charts · "+name, "kind", "", name)
 	m.dlgSeq++
 	d.seq = m.dlgSeq
-	fields := []helmField{}
-	on := map[string]bool{}
-	for _, n := range selected {
-		on[n] = true
-	}
-	for _, c := range m.cfg.Charts() {
-		fields = append(fields, helmField{
-			key:    "c:" + c.Name,
-			label:  c.Name,
-			input:  helmFieldInput("", ""),
-			toggle: true,
-			on:     on[c.Name],
-		})
-	}
-	if len(fields) == 0 {
+	m.fillKindChartsForm(d, &op)
+	if len(d.hfields) == 0 {
 		m.status = "no catalog charts configured"
 		return m, m.notify(toneWarn, m.status)
 	}
-	helmFocus(&fields[0])
-	d.hfields, d.idx = fields, 0
 	if err != nil {
 		d.msg = "could not list installed charts: " + err.Error()
 	}
@@ -1204,10 +1389,12 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 			wantSet[n] = true
 		}
 	}
-	var install, uninstall []string
+	var install, uninstall, upgrade []string
 	for _, n := range want {
 		if !had[n] {
 			install = append(install, n)
+		} else if op.values != nil && op.values[n] != "" {
+			upgrade = append(upgrade, n)
 		}
 	}
 	for _, n := range op.charts {
@@ -1215,16 +1402,19 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 			uninstall = append(uninstall, n)
 		}
 	}
-	if len(install) == 0 && len(uninstall) == 0 {
+	if len(install) == 0 && len(uninstall) == 0 && len(upgrade) == 0 {
 		m.dlg = nil
 		m.status = "no chart changes"
 		return m, nil
 	}
-	op.charts, op.uninstall = install, uninstall
+	op.charts, op.uninstall, op.upgrade = install, uninstall, upgrade
 	m.vs.kop = &op
 	var details []string
 	if len(install) > 0 {
 		details = append(details, "install "+strings.Join(install, ", "))
+	}
+	if len(upgrade) > 0 {
+		details = append(details, "upgrade "+strings.Join(upgrade, ", ")+" (values)")
 	}
 	if len(uninstall) > 0 {
 		details = append(details, "uninstall "+strings.Join(uninstall, ", "))
@@ -1238,7 +1428,9 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 				m.kindJobs = map[string]*kindJob{}
 			}
 			step := "installing charts"
-			if len(install) == 0 {
+			if len(install) == 0 && len(upgrade) > 0 {
+				step = "upgrading charts"
+			} else if len(install) == 0 {
 				step = "uninstalling charts"
 			}
 			j := m.ensureKindJob(op.name, "deploying", step)
@@ -1299,10 +1491,78 @@ func (m model) editKindConfig() (tea.Model, tea.Cmd) {
 		func(error) tea.Msg { return kindConfigDoneMsg{} })
 }
 
+func (m model) editKindChartValues() (tea.Model, tea.Cmd) {
+	if m.dlg == nil || m.dlg.idx < 0 || m.dlg.idx >= len(m.dlg.hfields) {
+		return m, nil
+	}
+	key := m.dlg.hfields[m.dlg.idx].key
+	if !strings.HasPrefix(key, "c:") {
+		return m, nil
+	}
+	name := strings.TrimPrefix(key, "c:")
+	m.dlg.hfields[m.dlg.idx].on = true
+	m.stashKindForm()
+	if m.vs.kop == nil {
+		return m, nil
+	}
+	op := *m.vs.kop
+	if op.values == nil {
+		op.values = map[string]string{}
+	}
+	path := op.values[name]
+	if path == "" {
+		seed := "# custom values for " + name + "\n"
+		if c, ok := config.LookupChart(m.cfg.Charts(), name); ok {
+			if text, err := config.ValuesFileYAML(c.Values); err == nil && text != "" {
+				seed = text
+			}
+		}
+		f, err := os.CreateTemp("", "k2-"+name+"-values-*.yaml")
+		if err != nil {
+			m.dlg.msg = err.Error()
+			return m, nil
+		}
+		if _, err := f.WriteString(seed); err != nil {
+			f.Close()
+			m.dlg.msg = err.Error()
+			return m, nil
+		}
+		f.Close()
+		path = f.Name()
+		op.values[name] = path
+	}
+	if op.form == "" {
+		if m.dlg != nil && m.dlg.act == "kindcharts" {
+			op.form = "kindcharts"
+		} else {
+			op.form = "kindcreate"
+		}
+	}
+	op.valuesChart = name
+	m.vs.kop = &op
+	m.status = "opening editor…"
+	return m.runEditor("kindvalues", "vim "+filepath.Base(path), filepath.Base(path), "",
+		func() *exec.Cmd { return vimCommand(path) },
+		func(error) tea.Msg { return kindValuesDoneMsg{} })
+}
+
 func (m *model) reopenKindForm() {
 	op := kindOp{name: "k2", planes: 1}
 	if m.vs.kop != nil {
 		op = *m.vs.kop
+	}
+	if op.form == "kindcharts" {
+		title := kindIconCharts + " charts"
+		if op.name != "" {
+			title += " · " + op.name
+		}
+		d := m.newDialog("kindcharts", title, "kind", "", op.name)
+		m.dlgSeq++
+		d.seq = m.dlgSeq
+		m.fillKindChartsForm(d, &op)
+		m.vs.kop = &op
+		m.dlg = d
+		return
 	}
 	d := m.newDialog("kindcreate", "✚ kind create", "kind", "", op.name)
 	m.dlgSeq++

@@ -15,6 +15,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+func init() {
+	fetchKindNodeImages = func() ([]string, error) { return nil, nil }
+}
+
 func withKindCLIs(t *testing.T) {
 	t.Helper()
 	lookPath = func(name string) (string, error) {
@@ -392,6 +396,9 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 	if _, err := os.Stat(def); err != nil {
 		t.Fatalf("~/.kube/config was removed: %v", err)
 	}
+	if m.kubeconfig != "" || m.context != "" {
+		t.Fatalf("kubeconfig should clear when no cluster remains: %s %s", m.kubeconfig, m.context)
+	}
 }
 
 func TestKindReadOnlyBlocksCreateAndDelete(t *testing.T) {
@@ -710,11 +717,11 @@ func TestKindSelectedBorderDiffersFromActive(t *testing.T) {
 	if !strings.Contains(view, "ACTIVE") || strings.Contains(view, kindIconSel+"  k2") {
 		t.Fatalf("ACTIVE should stay on k2 without the cursor mark:\n%s", view)
 	}
-	if !strings.Contains(view, "┏") && !strings.Contains(view, "╔") {
-		t.Fatalf("selected tile lacks a thick/double border:\n%s", view)
+	if strings.ContainsAny(view, "┏┓┗┛╔╗╚╝") {
+		t.Fatalf("tiles should use rounded corners like the rest of k2:\n%s", view)
 	}
 	if !strings.Contains(view, "╭") {
-		t.Fatalf("unselected ACTIVE tile should keep a rounded muted border:\n%s", view)
+		t.Fatalf("tiles should use a rounded border:\n%s", view)
 	}
 }
 
@@ -743,7 +750,7 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	m.kindCatalog = map[string][]string{"k2": {"metallb", "argocd"}}
 	m.stage = "kind"
 	view := ansi.Strip(m.kindBody(80))
-	for _, want := range []string{kindIconRunning, "running · up 2h", "CPU  4.2%", "RAM 1.4 GiB", "■■□□□", kindIconCharts + "  metallb, argocd"} {
+	for _, want := range []string{kindIconRunning, "running · up 2h", "CPU  4.2%", "■□□□□", "RAM  1.4 GiB (40%)", "■■□□□", kindIconCharts + "  metallb, argocd"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tile lacks %q:\n%s", want, view)
 		}
@@ -756,7 +763,331 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	m.vs.kindNodes["k2"] = kube.KindNodes{Planes: 1, Running: 0, Total: 1, Version: "v1.33.1"}
 	m.kindUsage = nil
 	view = ansi.Strip(m.kindBody(80))
-	if !strings.Contains(view, kindIconStopped) || !strings.Contains(view, "stopped") || !strings.Contains(view, "CPU  —") {
+	if !strings.Contains(view, kindIconStopped) || !strings.Contains(view, "stopped") || !strings.Contains(view, "CPU  —") || !strings.Contains(view, "RAM  —") {
 		t.Fatalf("stopped tile:\n%s", view)
 	}
+}
+
+func focusKindField(t *testing.T, m model, key string) model {
+	t.Helper()
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	for i, f := range m.dlg.hfields {
+		if f.key == key {
+			m.dlg.idx = i
+			return m
+		}
+	}
+	t.Fatalf("no field %s", key)
+	return m
+}
+
+func TestKindChartsWrapAndEqualRowHeight(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2", "dev"})
+	m := appModel(t, f)
+	m.vs.kindNames = []string{"k2", "dev"}
+	nodes := kube.KindNodes{Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 2h"}
+	m.vs.kindNodes = map[string]kube.KindNodes{"k2": nodes, "dev": nodes}
+	u := kube.KindUsage{CPU: 4.2, MemUsed: 1503238554, MemPct: 40, OK: true}
+	m.kindUsage = map[string]kube.KindUsage{"k2": u, "dev": u}
+	charts := []string{"istio", "sealed-secrets", "metallb", "argocd", "cert-manager", "metrics-server", "kube-prometheus-stack", "kafbat"}
+	m.kindCatalog = map[string][]string{"k2": charts, "dev": {"metallb"}}
+	m.stage = "kind"
+	tiles := m.kindTiles()
+	if len(tiles) != 2 {
+		t.Fatalf("tiles %d", len(tiles))
+	}
+	cols := 2
+	tileW := kindTileWidth(80, cols)
+	inner := max(8, tileW-2)
+	c1 := m.kindTileContent(tiles[0], false, inner)
+	c2 := m.kindTileContent(tiles[1], false, inner)
+	if len(c1) <= len(c2) {
+		t.Fatalf("expected wrapped charts to add lines: k2=%d dev=%d\n%q\n%q", len(c1), len(c2), c1, c2)
+	}
+	h := len(c1)
+	if h < kindTileMinContent {
+		h = kindTileMinContent
+	}
+	left := m.renderKindTile(tiles[0], false, tileW, h, c1)
+	right := m.renderKindTile(tiles[1], false, tileW, h, c2)
+	if strings.Count(left, "\n") != strings.Count(right, "\n") {
+		t.Fatalf("row height left=%d right=%d", strings.Count(left, "\n"), strings.Count(right, "\n"))
+	}
+	view := ansi.Strip(m.kindBody(80))
+	for _, name := range charts {
+		if !strings.Contains(view, name) {
+			t.Fatalf("wrapped tile missing %q:\n%s", name, view)
+		}
+	}
+	if strings.Contains(view, "…") {
+		t.Fatalf("catalog list should wrap, not ellipsize:\n%s", view)
+	}
+}
+
+func TestKindDeleteSwitchesToRemainingCluster(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab", "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	labKC := kube.KindKubeconfig("lab", home)
+	devKC := kube.KindKubeconfig("dev", home)
+	for _, p := range []string{labKC, devKC} {
+		if err := os.WriteFile(p, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, "enter")
+	if m.kubeconfig != labKC || m.context != "kind-lab" {
+		t.Fatalf("switch %s %s", m.kubeconfig, m.context)
+	}
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, "ctrl+d", "y")
+	if m.kubeconfig != devKC || m.context != "kind-dev" {
+		t.Fatalf("auto-switch %s %s status %q", m.kubeconfig, m.context, m.status)
+	}
+	if name, ok := m.selectedKind(); !ok || name != "dev" {
+		t.Fatalf("selected %q %v", name, ok)
+	}
+	if _, err := os.Stat(labKC); !os.IsNotExist(err) {
+		t.Fatalf("lab kubeconfig still there: %v", err)
+	}
+	if _, err := os.Stat(devKC); err != nil {
+		t.Fatalf("dev kubeconfig gone: %v", err)
+	}
+}
+
+func TestKindChartValuesInCreateAndInstall(t *testing.T) {
+	withKindCLIs(t)
+	metalRetryWait, metalRetryN = 0, 1
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	m = focusKindField(t, m, "c:metallb")
+	var opened string
+	old := vimCommand
+	vimCommand = func(path string) *exec.Cmd { opened = path; return exec.Command("true") }
+	t.Cleanup(func() { vimCommand = old })
+	m = pressSettle(t, m, "v")
+	if opened == "" {
+		t.Fatal("editor was not opened")
+	}
+	raw, err := os.ReadFile(opened)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "custom values for metallb") {
+		t.Fatalf("seed:\n%s", raw)
+	}
+	if err := os.WriteFile(opened, append(raw, []byte("replicaCount: 2\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	next, cmd := m.Update(kindValuesDoneMsg{})
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.act != "kindcreate" {
+		t.Fatalf("form %+v", m.dlg)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "metallb (values)") {
+		t.Fatalf("missing values badge:\n%s", view)
+	}
+	on := false
+	for _, field := range m.dlg.hfields {
+		if field.key == "c:metallb" {
+			on = field.on
+		}
+	}
+	if !on {
+		t.Fatal("metallb should be checked")
+	}
+	if m.vs.kop == nil || m.vs.kop.values["metallb"] != opened {
+		t.Fatalf("values path %+v", m.vs.kop)
+	}
+	next, cmd = m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "y")
+	var got string
+	for _, c := range helmCalls(f) {
+		if strings.HasPrefix(c, "install metallb ") {
+			got = c
+		}
+	}
+	if got == "" || !strings.Contains(got, "-f "+opened) {
+		t.Fatalf("install should pass custom values, got %v", helmCalls(f))
+	}
+	if _, err := os.Stat(opened); !os.IsNotExist(err) {
+		t.Fatalf("values file should be cleaned up: %v", err)
+	}
+}
+
+func TestKindChartValuesUpgradeOnExisting(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig("lab", home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	vf, err := os.CreateTemp("", "k2-metallb-values-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := vf.WriteString("replicaCount: 3\n"); err != nil {
+		t.Fatal(err)
+	}
+	vf.Close()
+	m = open(t, m, "kind")
+	op := kindOp{
+		name: "lab", kubeconfig: path, charts: []string{"metallb"}, form: "kindcharts",
+		values: map[string]string{"metallb": vf.Name()},
+	}
+	d := m.newDialog("kindcharts", "charts · lab", "kind", "", "lab")
+	m.fillKindChartsForm(d, &op)
+	m.vs.kop = &op
+	m.dlg = d
+	next, cmd := m.submitKindCharts()
+	m = settle(t, next.(model), cmd)
+	view := ansi.Strip(m.View())
+	if m.dlg == nil || !strings.Contains(view, "upgrade metallb (values)") {
+		t.Fatalf("confirm:\n%s", view)
+	}
+	m = pressSettle(t, m, "y")
+	var got string
+	for _, c := range helmCalls(f) {
+		if strings.HasPrefix(c, "upgrade metallb ") {
+			got = c
+		}
+	}
+	if got == "" || !strings.Contains(got, "-f "+vf.Name()) {
+		t.Fatalf("upgrade should pass values, got %v", helmCalls(f))
+	}
+	if _, err := os.Stat(vf.Name()); !os.IsNotExist(err) {
+		t.Fatalf("values file should be cleaned up: %v", err)
+	}
+}
+
+func TestKindChartValuesInChartsForm(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig("lab", home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, "e")
+	if m.dlg == nil || m.dlg.act != "kindcharts" {
+		t.Fatalf("form %+v", m.dlg)
+	}
+	m = focusKindField(t, m, "c:metallb")
+	var opened string
+	old := vimCommand
+	vimCommand = func(p string) *exec.Cmd { opened = p; return exec.Command("true") }
+	t.Cleanup(func() { vimCommand = old })
+	m = pressSettle(t, m, "v")
+	if opened == "" {
+		t.Fatal("editor was not opened")
+	}
+	next, cmd := m.Update(kindValuesDoneMsg{})
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.act != "kindcharts" {
+		t.Fatalf("reopen %+v", m.dlg)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "metallb (values)") || !strings.Contains(view, "v values") {
+		t.Fatalf("charts form:\n%s", view)
+	}
+}
+
+func TestKindNodeImagePicker(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	images := []string{"kindest/node:v1.34.0", "kindest/node:v1.33.1", "kindest/node:v1.32.2", "kindest/node:v1.31.4", "kindest/node:v1.30.10"}
+	m.kindNodeImages = images
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	if helmFieldValue(m.dlg, "image") != images[0] {
+		t.Fatalf("default image %q", helmFieldValue(m.dlg, "image"))
+	}
+	m = focusKindField(t, m, "image")
+	m = pressSettle(t, m, "right")
+	if helmFieldValue(m.dlg, "image") != images[1] {
+		t.Fatalf("next %q", helmFieldValue(m.dlg, "image"))
+	}
+	m = pressSettle(t, m, "left")
+	if helmFieldValue(m.dlg, "image") != images[0] {
+		t.Fatalf("prev %q", helmFieldValue(m.dlg, "image"))
+	}
+	for i := 0; i < len(images); i++ {
+		m = pressSettle(t, m, "right")
+	}
+	if helmFieldValue(m.dlg, "image") != "" {
+		t.Fatalf("blank default %q", helmFieldValue(m.dlg, "image"))
+	}
+	m = pressSettle(t, m, "right")
+	if helmFieldValue(m.dlg, "image") != images[0] {
+		t.Fatalf("wrap %q", helmFieldValue(m.dlg, "image"))
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "←→") || !strings.Contains(view, "image") {
+		t.Fatalf("footer:\n%s", view)
+	}
+}
+
+func TestKindNodeImagesFillEmptyField(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	if helmFieldValue(m.dlg, "image") != "" {
+		t.Fatalf("offline default %q", helmFieldValue(m.dlg, "image"))
+	}
+	next, cmd := m.Update(kindNodeImagesMsg{images: []string{"kindest/node:v1.34.0", "kindest/node:v1.33.1"}})
+	m = settle(t, next.(model), cmd)
+	if helmFieldValue(m.dlg, "image") != "kindest/node:v1.34.0" {
+		t.Fatalf("filled %q", helmFieldValue(m.dlg, "image"))
+	}
+}
+
+func TestKindChartValueFilesOrder(t *testing.T) {
+	custom, err := os.CreateTemp("", "k2-custom-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom.Close()
+	t.Cleanup(func() { os.Remove(custom.Name()) })
+	files, temps, err := kindChartValueFiles(config.Chart{Values: map[string]any{"foo": "bar"}}, custom.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || files[1] != custom.Name() || len(temps) != 1 || temps[0] == custom.Name() {
+		t.Fatalf("files %v temps %v", files, temps)
+	}
+	raw, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "foo:") {
+		t.Fatalf("catalog values:\n%s", raw)
+	}
+	os.Remove(files[0])
 }

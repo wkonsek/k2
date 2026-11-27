@@ -13,23 +13,23 @@ import (
 )
 
 const (
-	kindIconRunning = "■"
-	kindIconStopped = "□"
-	kindIconDeploy  = "◧"
-	kindIconDelete  = "◨"
-	kindIconFailed  = "×"
-	kindIconActive  = "◆"
-	kindIconNodes   = "▣"
-	kindIconKube    = "⊚"
-	kindIconCharts  = "▦"
-	kindIconStep    = "›"
-	kindIconSel     = "▸"
-	kindTileMinW    = 28
-	kindTileMaxW    = 44
-	kindTileGap     = 1
-	kindTileSafe    = 1
-	kindTileRows    = 8
-	kindBarCells    = 5
+	kindIconRunning    = "■"
+	kindIconStopped    = "□"
+	kindIconDeploy     = "◧"
+	kindIconDelete     = "◨"
+	kindIconFailed     = "×"
+	kindIconActive     = "◆"
+	kindIconNodes      = "▣"
+	kindIconKube       = "⊚"
+	kindIconCharts     = "▦"
+	kindIconStep       = "›"
+	kindIconSel        = "▸"
+	kindTileMinW       = 28
+	kindTileMaxW       = 44
+	kindTileGap        = 1
+	kindTileSafe       = 1
+	kindTileMinContent = 7
+	kindBarCells       = 5
 )
 
 var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
@@ -68,6 +68,12 @@ type kindLineMsg struct {
 }
 
 type kindConfigDoneMsg struct{}
+
+type kindValuesDoneMsg struct{}
+
+type kindNodeImagesMsg struct {
+	images []string
+}
 
 type kindInstalledMsg struct {
 	pane, name, text, notes string
@@ -285,41 +291,60 @@ func (m model) kindBody(innerW int) string {
 	if sel < 0 || sel >= len(tiles) {
 		sel = 0
 	}
-	var rows [][]string
-	var row []string
-	for i, t := range tiles {
-		row = append(row, m.renderKindTile(t, i == sel, tileW))
+	var rows [][]kindTile
+	var row []kindTile
+	for _, t := range tiles {
+		row = append(row, t)
 		if len(row) == cols {
 			rows = append(rows, row)
 			row = nil
 		}
 	}
 	if len(row) > 0 {
-		for len(row) < cols {
-			row = append(row, strings.Repeat(" ", tileW))
-		}
 		rows = append(rows, row)
 	}
+	inner := max(8, tileW-2)
 	gap := strings.Repeat(" ", kindTileGap)
 	var b strings.Builder
-	for r, cells := range rows {
+	for r, tilesInRow := range rows {
 		if r > 0 {
 			b.WriteByte('\n')
 		}
-		lines := make([][]string, kindTileRows)
-		for _, cell := range cells {
-			cs := strings.Split(strings.TrimRight(cell, "\n"), "\n")
-			for i := 0; i < kindTileRows; i++ {
+		var contents [][]string
+		maxH := kindTileMinContent
+		for i, t := range tilesInRow {
+			ls := m.kindTileContent(t, r*cols+i == sel, inner)
+			if len(ls) > maxH {
+				maxH = len(ls)
+			}
+			contents = append(contents, ls)
+		}
+		var cells []string
+		for i, t := range tilesInRow {
+			cells = append(cells, m.renderKindTile(t, r*cols+i == sel, tileW, maxH, contents[i]))
+		}
+		for len(cells) < cols {
+			cells = append(cells, strings.Repeat(" ", tileW))
+		}
+		rowH := 0
+		csplit := make([][]string, len(cells))
+		for i, cell := range cells {
+			csplit[i] = strings.Split(strings.TrimRight(cell, "\n"), "\n")
+			if len(csplit[i]) > rowH {
+				rowH = len(csplit[i])
+			}
+		}
+		for i := 0; i < rowH; i++ {
+			var parts []string
+			for _, cs := range csplit {
 				s := ""
 				if i < len(cs) {
 					s = cs[i]
 				}
-				lines[i] = append(lines[i], padPlain(s, tileW))
+				parts = append(parts, padPlain(s, tileW))
 			}
-		}
-		for i, parts := range lines {
 			b.WriteString(strings.Join(parts, gap))
-			if i < len(lines)-1 || r < len(rows)-1 {
+			if i < rowH-1 || r < len(rows)-1 {
 				b.WriteByte('\n')
 			}
 		}
@@ -327,18 +352,7 @@ func (m model) kindBody(innerW int) string {
 	return b.String()
 }
 
-func (m model) renderKindTile(t kindTile, selected bool, width int) string {
-	inner := max(8, width-2)
-	border := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(th.Muted).
-		Width(inner)
-	if selected {
-		border = border.Border(lipgloss.ThickBorder()).BorderForeground(th.Accent)
-	} else if t.status == "failed" {
-		border = border.BorderForeground(th.Danger)
-	}
-
+func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
 	name := t.name
 	if selected {
 		name = kindLabel(kindIconSel, t.name)
@@ -368,7 +382,7 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 	case busy && t.last != "":
 		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
 	default:
-		lines = append(lines, clipLine(m.kindUsageLine(t, inner), inner))
+		lines = append(lines, m.kindUsageLines(t, inner)...)
 	}
 	switch {
 	case busy && t.last != "" && t.step != "":
@@ -376,18 +390,38 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 	case t.status == "failed" && t.last != "" && t.err != nil:
 		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
 	default:
-		lines = append(lines, clipLine(m.kindChartsLine(t), inner))
+		lines = append(lines, m.kindChartsLines(t, inner)...)
 	}
 	kc := config.HomePath(t.kubeconfig)
 	if kc == "" {
 		kc = "—"
 	}
 	lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconKube, kc)), inner))
-	for len(lines) < kindTileRows-2 {
+	return lines
+}
+
+func (m model) renderKindTile(t kindTile, selected bool, width, contentH int, lines []string) string {
+	inner := max(8, width-2)
+	if lines == nil {
+		lines = m.kindTileContent(t, selected, inner)
+	}
+	if contentH < kindTileMinContent {
+		contentH = kindTileMinContent
+	}
+	for len(lines) < contentH {
 		lines = append(lines, "")
 	}
-	if len(lines) > kindTileRows-2 {
-		lines = lines[:kindTileRows-2]
+	if len(lines) > contentH {
+		lines = lines[:contentH]
+	}
+	border := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(th.Muted).
+		Width(inner)
+	if selected {
+		border = border.BorderForeground(th.Accent)
+	} else if t.status == "failed" {
+		border = border.BorderForeground(th.Danger)
 	}
 	return border.Render(strings.Join(lines, "\n"))
 }
@@ -452,41 +486,97 @@ func kindMiniBar(pct float64, n int) string {
 	return strings.Repeat("■", filled) + strings.Repeat("□", n-filled)
 }
 
-func (m model) kindUsageLine(t kindTile, width int) string {
-	if t.status == "stopped" || !t.usageOK {
-		return dimStyle.Render("CPU  —    RAM —")
-	}
-	cpu := kube.FormatCPU(t.usage.CPU)
-	mem := kube.FormatBytes(t.usage.MemUsed)
-	bar := kindMiniBar(t.usage.MemPct, kindBarCells)
-	if t.usage.MemPct <= 0 && t.nodes.Running > 0 {
-		bar = kindMiniBar(t.usage.CPU/float64(100*t.nodes.Running)*100, kindBarCells)
-	}
+func kindMetricStyle(m model, pct float64) lipgloss.Style {
 	st := okStyle
 	switch {
-	case t.usage.MemPct >= float64(max(1, m.cfg.UI.MetricsCrit)):
+	case pct >= float64(max(1, m.cfg.UI.MetricsCrit)):
 		st = errStyle
-	case t.usage.MemPct >= float64(max(1, m.cfg.UI.MetricsWarn)):
+	case pct >= float64(max(1, m.cfg.UI.MetricsWarn)):
 		st = warnStyle
 	}
-	full := "CPU  " + cpu + "  " + st.Render(bar) + "  RAM " + mem
-	if lipgloss.Width(full) <= width {
-		return full
-	}
-	return cpu + "  " + st.Render(bar) + "  " + mem
+	return st
 }
 
-func (m model) kindChartsLine(t kindTile) string {
+func (m model) kindUsageLines(t kindTile, width int) []string {
+	if t.status == "stopped" || !t.usageOK {
+		return []string{
+			clipLine(dimStyle.Render("CPU  —"), width),
+			clipLine(dimStyle.Render("RAM  —"), width),
+		}
+	}
+	cpuBar := kindMiniBar(t.usage.CPU, kindBarCells)
+	ramBar := kindMiniBar(t.usage.MemPct, kindBarCells)
+	cpu := "CPU  " + kube.FormatCPU(t.usage.CPU) + "  " + kindMetricStyle(m, t.usage.CPU).Render(cpuBar)
+	ram := "RAM  " + kube.FormatBytes(t.usage.MemUsed) + " (" + kube.FormatCPU(t.usage.MemPct) + ")  " + kindMetricStyle(m, t.usage.MemPct).Render(ramBar)
+	return []string{clipLine(cpu, width), clipLine(ram, width)}
+}
+
+func (m model) kindChartsLines(t kindTile, inner int) []string {
 	if !t.chartsOK {
 		if t.status != "running" {
-			return ""
+			return nil
 		}
-		return dimStyle.Render(kindLabel(kindIconCharts, "—"))
+		return []string{dimStyle.Render(kindLabel(kindIconCharts, "—"))}
 	}
 	if len(t.charts) == 0 {
-		return dimStyle.Render(kindLabel(kindIconCharts, "none"))
+		return []string{dimStyle.Render(kindLabel(kindIconCharts, "none"))}
 	}
-	return dimStyle.Render(kindLabel(kindIconCharts, "")) + itemStyle.Render(strings.Join(t.charts, ", "))
+	prefix := kindLabel(kindIconCharts, "")
+	padW := lipgloss.Width(prefix)
+	room := inner - padW
+	if room < 8 {
+		room = 8
+	}
+	parts := wrapCSV(t.charts, room)
+	indent := strings.Repeat(" ", padW)
+	var lines []string
+	for i, p := range parts {
+		head := prefix
+		if i > 0 {
+			head = indent
+		}
+		lines = append(lines, clipLine(dimStyle.Render(head)+itemStyle.Render(p), inner))
+	}
+	return lines
+}
+
+func wrapCSV(items []string, width int) []string {
+	width = max(width, 2)
+	var lines []string
+	var cur string
+	flush := func() {
+		if cur != "" {
+			lines = append(lines, cur)
+			cur = ""
+		}
+	}
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		cand := item
+		if cur != "" {
+			cand = cur + ", " + item
+		}
+		if lipgloss.Width(cand) <= width {
+			cur = cand
+			continue
+		}
+		flush()
+		if lipgloss.Width(item) <= width {
+			cur = item
+			continue
+		}
+		parts := wrapLine(item, width)
+		if len(parts) == 0 {
+			continue
+		}
+		lines = append(lines, parts[:len(parts)-1]...)
+		cur = parts[len(parts)-1]
+	}
+	flush()
+	return lines
 }
 
 func (m *model) applyKindLine(msg kindLineMsg) {

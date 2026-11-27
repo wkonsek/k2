@@ -30,7 +30,7 @@ func TestParseDockerStatsAndSum(t *testing.T) {
 	if lab.MemUsed < wantMem-1024 || lab.MemUsed > wantMem+1024 {
 		t.Fatalf("lab mem %d want ~%d", lab.MemUsed, wantMem)
 	}
-	if lab.MemPct < 3.0 || lab.MemPct > 3.1 {
+	if lab.MemPct < 6.0 || lab.MemPct > 6.2 {
 		t.Fatalf("lab mem pct %v", lab.MemPct)
 	}
 }

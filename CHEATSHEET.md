@@ -297,26 +297,31 @@ Needs the kind CLI (`kind.binary`, default `kind`) and docker. Starter
 charts also need helm. Read-only mode (`R`) blocks create, delete and
 chart edits. Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
 `~/.kube/k2-<name>`. `ctrl+d` removes only that file, never
-`~/.kube/config`. After MetalLB installs on a `kind-*` cluster, k2
-applies an IPAddressPool + L2Advertisement from the kind Docker network
-subnet.
+`~/.kube/config`. If that cluster was the pane's active one and exactly
+one other kind cluster still has a kubeconfig, the pane switches to it.
+After MetalLB installs on a `kind-*` cluster, k2 applies an
+IPAddressPool + L2Advertisement from the kind Docker network subnet.
 
-Clusters show as a tile grid (name, square status, uptime, nodes, CPU/RAM,
-installed catalog charts, kubeconfig). A new
-cluster appears as a `deploying` tile as soon as create starts; `enter`
-opens a live log (auto-scrolls unless you move up; `esc` returns to the
-tiles while the job keeps running). On success the tile turns `running`
-and the pane switches to that cluster. Failed jobs stay on the grid;
-`enter` still opens the log.
+Clusters show as a tile grid (name, square status, uptime, nodes, CPU
+percent + bar, RAM usage + percent + bar, installed catalog charts
+wrapped across lines, kubeconfig). Tiles in the same row share a height.
+A new cluster appears as a `deploying` tile as soon as create starts;
+`enter` opens a live log (auto-scrolls unless you move up; `esc` returns
+to the tiles while the job keeps running). On success the tile turns
+`running` and the pane switches to that cluster. Failed jobs stay on the
+grid; `enter` still opens the log.
 
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
-optional config YAML, optional node image, starter-chart checkboxes).
-`edit config` opens the generated `kind.x-k8s.io/v1alpha4` YAML (or an
-existing path) in `$EDITOR`. Enter asks in a red popup, then streams
-`kind create cluster`. On a running tile, `e` opens a checklist of the
-catalog charts (already-installed ones are checked); enter confirms
-installs and uninstalls (istio in reverse: istiod, then istio-base) with
-the same live tile and log.
+optional config YAML, node image, starter-chart checkboxes). The image
+field lists the five latest stable `kindest/node` tags (`←` `→` cycle,
+or type a custom image; blank keeps kind's default). `edit config`
+opens the generated `kind.x-k8s.io/v1alpha4` YAML (or an existing path)
+in `$EDITOR`. `v` on a catalog chart edits its values in `$EDITOR` and
+passes them to Helm. Enter asks in a red popup, then streams `kind
+create cluster`. On a running tile, `e` opens a checklist of the catalog
+charts (already-installed ones are checked); `v` edits values the same
+way, and enter confirms installs, value upgrades, and uninstalls (istio
+in reverse: istiod, then istio-base) with the same live tile and log.
 
 | Key | Config | What it does |
 |---|---|---|

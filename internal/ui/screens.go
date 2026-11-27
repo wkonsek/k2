@@ -104,6 +104,15 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.status = "config " + config.HomePath(m.vs.kop.config)
 		}
 		return m, nil, true
+	case kindValuesDoneMsg:
+		m.reopenKindForm()
+		if m.vs.kop != nil && m.vs.kop.valuesChart != "" {
+			m.status = "values " + m.vs.kop.valuesChart
+		}
+		return m, nil, true
+	case kindNodeImagesMsg:
+		m.applyKindNodeImages(msg)
+		return m, nil, true
 	case kindInstalledMsg:
 		cmd := m.applyKindInstalled(msg)
 		return m, cmd, true

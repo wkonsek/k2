@@ -431,8 +431,13 @@ func (m model) dialogBox(width int) string {
 	case d.msg != "":
 		lines = append(lines, errStyle.Render(d.msg))
 	case (d.act == "kindcreate" || d.act == "kindcharts") && len(d.hfields) > 0:
-		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render("space")+dimStyle.Render(" toggle  ")+
-			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" confirm  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+		foot := keyStyle.Render("tab/↑↓") + dimStyle.Render(" move  ") + keyStyle.Render("space") + dimStyle.Render(" toggle  ")
+		if d.act == "kindcreate" {
+			foot += keyStyle.Render("←→") + dimStyle.Render(" image  ")
+		}
+		foot += keyStyle.Render(k.HelmValues.Short()) + dimStyle.Render(" values  ") +
+			keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" confirm  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		lines = append(lines, foot)
 	case d.act == "helminstall" && len(d.hfields) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Complete.Short())+dimStyle.Render(" complete  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" preview  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

@@ -167,18 +167,10 @@ func ContainerIDMatch(have, want string) bool {
 
 func SumDockerStats(stats []DockerStat) KindUsage {
 	var u KindUsage
-	var pctSum float64
-	var pctN int
 	for _, s := range stats {
 		u.CPU += s.CPU
 		u.MemUsed += s.MemUsed
-		if s.MemPct > 0 || s.MemLimit > 0 {
-			pctSum += s.MemPct
-			pctN++
-		}
-	}
-	if pctN > 0 {
-		u.MemPct = pctSum / float64(pctN)
+		u.MemPct += s.MemPct
 	}
 	u.OK = len(stats) > 0
 	return u

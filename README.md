@@ -195,15 +195,20 @@ revision history. Mark two revisions and diff them per resource. Install,
 upgrade or roll back uses the helm CLI, when it's installed.
 
 **Kind clusters.** `:kind` (or `~`) shows local kind clusters as a tile
-grid, with square status, uptime, CPU/RAM and installed catalog charts. `A` (or `:kind create`) opens a form: name, control-planes, workers,
-optional config and node image, plus checkboxes for starter charts. `edit
-config` opens the generated Kind YAML in `$EDITOR`. A red popup confirms,
-then a `deploying` tile appears immediately and k2 streams
-`kind create cluster` into a live log (`enter` to watch, `esc` back to the
-tiles). The kubeconfig is written to `~/.kube/k2` (or `~/.kube/k2-<name>`).
-Enter on a ready tile uses that cluster in the pane; `e` manages catalog
-charts. `ctrl+d` deletes the cluster and only that k2 kubeconfig file,
-never `~/.kube/config`. After MetalLB lands on a kind cluster, k2 picks an
+grid, with square status, uptime, CPU and RAM bars, and installed catalog
+charts wrapped across lines. `A` (or `:kind create`) opens a form: name,
+control-planes, workers, optional config, a node image picker (the five
+latest stable `kindest/node` tags, or kind's default if offline), plus
+checkboxes for starter charts. `v` on a chart edits its values in
+`$EDITOR`. `edit config` opens the generated Kind YAML in `$EDITOR`. A
+red popup confirms, then a `deploying` tile appears immediately and k2
+streams `kind create cluster` into a live log (`enter` to watch, `esc`
+back to the tiles). The kubeconfig is written to `~/.kube/k2` (or
+`~/.kube/k2-<name>`). Enter on a ready tile uses that cluster in the
+pane; `e` manages catalog charts. `ctrl+d` deletes the cluster and only
+that k2 kubeconfig file, never `~/.kube/config`. If that cluster was the
+active one and exactly one other kind cluster still has a kubeconfig, the
+pane switches to it. After MetalLB lands on a kind cluster, k2 picks an
 address pool from the kind Docker network.
 
 ![Helm history, diff and rollback](docs/demo/helm.gif)
@@ -444,30 +449,44 @@ blocks all four.
 
 **Kind** (`:kind`, `~`, `:kind create [name]`). A tile grid of clusters
 from `kind get clusters`, plus node counts and Kubernetes version from
-`docker ps` (control-plane / worker labels), uptime, CPU and RAM from
-`docker stats`, installed catalog charts, and the kubeconfig path. Status
-uses square icons (`■` running, `□` stopped). The active cluster gets an
-`ACTIVE` badge. `A` opens the create form
-(defaults: name `k2`, one control-plane, no workers). Optional custom
-kind config YAML wins over the generated topology; `edit config` opens
-that YAML (generated from the form, or an existing path) in `$EDITOR`.
-Optional node image, plus checkboxes for starter charts from the Helm
-catalog. Enter asks in a red popup, then a `deploying` tile appears at
-once and k2 streams `kind create cluster --kubeconfig ~/.kube/k2` (or
+`docker ps` (control-plane / worker labels), uptime, CPU percent and bar
+plus RAM usage, percent and bar from `docker stats` (cluster `MemPerc`
+is the sum of the node containers), installed catalog charts (wrapped
+onto extra lines, with every tile in a row sharing the same height), and
+the kubeconfig path. Status uses square icons (`■` running, `□`
+stopped). The active cluster gets an `ACTIVE` badge. `A` opens the
+create form (defaults: name `k2`, one control-plane, no workers). The
+image field defaults to the newest of the five latest stable
+`kindest/node` tags fetched from Docker Hub; `←` `→` cycle those tags or
+a blank kind default, and you can still type a custom image (offline, the
+field stays blank and kind uses its own default). Optional custom kind
+config YAML wins over the generated topology; `edit config` opens that
+YAML (generated from the form, or an existing path) in `$EDITOR`.
+Checkboxes pick starter charts from the Helm catalog; `v` on a chart row
+opens its values in `$EDITOR` (catalog defaults, or a `# custom values`
+stub), marks the row `(values)`, checks the chart, and passes those
+files to Helm (`-f` catalog defaults first, then custom values). Enter
+asks in a red popup, then a `deploying` tile appears at once and k2
+streams `kind create cluster --kubeconfig ~/.kube/k2` (or
 `~/.kube/k2-<name>`) into a job log. `enter` on a deploying or failed
 tile opens that log (it follows the bottom unless you scroll up; `esc`
 returns to the grid without cancelling the job). On success the pane
 switches to `kind-<name>` and selected charts install one after another
 (Helm repos added first; MetalLB gets an IPAddressPool from the kind
-Docker network). Enter on a ready tile uses that cluster if its kubeconfig exists. `e` opens a checklist of catalog charts (already
-installed ones are checked); a red popup confirms installs and
-uninstalls, with the same live tile and log (istio uninstalls istiod
-first, then istio-base). `ctrl+d` deletes the cluster and the k2-managed
-kubeconfig only; it is blocked while that cluster is still deploying or
-deleting. `r` refreshes the grid without dropping in-flight jobs. Also
-listed on the home screen. Needs the kind CLI (`kind.binary`, default
-`kind`) and docker; starter charts also need helm. Read-only mode (`R`)
-blocks create, delete and chart edits.
+Docker network). Enter on a ready tile uses that cluster if its
+kubeconfig exists. `e` opens a checklist of catalog charts
+(already-installed ones are checked); `v` edits values the same way, and
+a red popup confirms installs, value upgrades of already-installed
+charts, and uninstalls, with the same live tile and log (istio
+uninstalls istiod first, then istio-base). `ctrl+d` deletes the cluster
+and the k2-managed kubeconfig only; it is blocked while that cluster is
+still deploying or deleting. If the deleted cluster was the pane's
+active one and exactly one remaining kind cluster has a usable
+kubeconfig, the pane switches to that cluster. `r` refreshes the grid
+without dropping in-flight jobs. Also listed on the home screen. Needs
+the kind CLI (`kind.binary`, default `kind`) and docker; starter charts
+also need helm. Read-only mode (`R`) blocks create, delete and chart
+edits.
 
 ### Favorites, pulse, Kustomize, kubectl, viewers
 
