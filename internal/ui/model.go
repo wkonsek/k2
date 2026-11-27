@@ -298,6 +298,9 @@ type model struct {
 	shHint             string
 	shCycle            []string
 	shCycleAt          int
+	shHist             []string
+	shHistAt           int
+	shDraft            string
 	jqOn               bool
 	panes              []paneSnap
 	focus              int

@@ -388,7 +388,7 @@ func (m model) legend() string {
 			parts = append(parts, pair(k.LogMark.Short(), "mark"), pair(k.LogFilter.Short(), "filter"))
 		}
 	} else if m.stage == "kcmd" {
-		parts = append(parts, pair(k.Complete.Short(), "complete"), pair(k.Output.Short(), "output"), pair(k.JQ.Short(), "jq"))
+		parts = append(parts, pair(k.Complete.Short(), "complete"), pair("↑↓", "history"), pair(k.Output.Short(), "output"), pair(k.JQ.Short(), "jq"))
 	} else if m.stage == "kdir" || m.stage == "kust" {
 		parts = append(parts, pair(k.Apply.Short(), "apply"), pair(k.KustomizeDelete.Short(), "delete"), pair(k.Diff.Short(), "diff"), pair(k.Edit.Short(), "vim"), pair(k.KustomizePath.Short(), "path"), pair(k.OpenFolder.Short(), m.folderApp()))
 	} else if m.stage == "fwds" {

@@ -28,7 +28,7 @@ func (m model) shellBody(innerW int) string {
 	hint := m.shHint
 	if hint == "" {
 		k := m.cfg.Keys
-		hint = k.Complete.Label() + " completes    " + k.Output.Label() + " output    " + k.JQ.Label() + " jq"
+		hint = k.Complete.Label() + " completes    " + k.Output.Label() + " output    " + k.JQ.Label() + " jq    ↑↓ history"
 	}
 	jq := m.jq.View()
 	if !m.jqOn && strings.TrimSpace(m.jq.Value()) == "" {
@@ -110,6 +110,12 @@ func (m *model) updateShell(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.completeShell()
 		}
 		return *m, nil
+	case !m.jqOn && shellHistKey(key, true):
+		m.shellHistUp()
+		return *m, nil
+	case !m.jqOn && shellHistKey(key, false):
+		m.shellHistDown()
+		return *m, nil
 	case km.Submit.Has(key):
 		if next, cmd, blocked := m.readOnlyBlock("kubectl"); blocked {
 			return next, cmd
@@ -122,6 +128,9 @@ func (m *model) updateShell(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.status = "select kubeconfig and context first"
 			return *m, nil
 		}
+		m.shHist = rememberShellLine(m.shHist, line)
+		m.shHistAt = 0
+		m.shDraft = ""
 		m.subject = "kubectl"
 		m.kback = "kcmd"
 		m.ran = runInfo{}
@@ -282,8 +291,105 @@ func (m model) runKubectl(line string) tea.Cmd {
 	}
 	jqExpr := strings.TrimSpace(m.jq.Value())
 	pane := m.logID
+	line = expandKubectlLine(line)
 	return func() tea.Msg {
 		text, code := m.k.RunLine(line, kc, ctx, ns, format, jqExpr)
 		return kOutMsg{id: pane, text: text, code: code, line: line, ctx: ctx}
 	}
+}
+
+const shHistCap = 100
+
+func shellHistKey(key string, up bool) bool {
+	if len([]rune(key)) <= 1 {
+		return false
+	}
+	if up {
+		return key == "up"
+	}
+	return key == "down"
+}
+
+func rememberShellLine(hist []string, line string) []string {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return hist
+	}
+	if n := len(hist); n > 0 && hist[n-1] == line {
+		return hist
+	}
+	hist = append(hist, line)
+	if len(hist) > shHistCap {
+		return append([]string(nil), hist[len(hist)-shHistCap:]...)
+	}
+	return hist
+}
+
+func (m *model) shellHistUp() {
+	if len(m.shHist) == 0 {
+		return
+	}
+	if m.shHistAt == 0 {
+		m.shDraft = m.sh.Value()
+	}
+	if m.shHistAt < len(m.shHist) {
+		m.shHistAt++
+		m.sh.SetValue(m.shHist[len(m.shHist)-m.shHistAt])
+		m.sh.CursorEnd()
+	}
+}
+
+func (m *model) shellHistDown() {
+	if m.shHistAt == 0 {
+		return
+	}
+	m.shHistAt--
+	if m.shHistAt == 0 {
+		m.sh.SetValue(m.shDraft)
+	} else {
+		m.sh.SetValue(m.shHist[len(m.shHist)-m.shHistAt])
+	}
+	m.sh.CursorEnd()
+}
+
+func expandKubectlLine(line string) string {
+	if !strings.Contains(line, "~") {
+		return line
+	}
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return line
+	}
+	changed := false
+	for i, f := range fields {
+		if e := expandKubectlArg(f); e != f {
+			fields[i] = e
+			changed = true
+		}
+	}
+	if !changed {
+		return line
+	}
+	return strings.Join(fields, " ")
+}
+
+func expandKubectlArg(arg string) string {
+	if quotedArg(arg) {
+		return arg
+	}
+	if arg == "~" || strings.HasPrefix(arg, "~/") {
+		return expandPath(arg, "")
+	}
+	key, val, ok := strings.Cut(arg, "=")
+	if !ok || !strings.HasPrefix(key, "-") || quotedArg(val) {
+		return arg
+	}
+	if val == "~" || strings.HasPrefix(val, "~/") {
+		return key + "=" + expandPath(val, "")
+	}
+	return arg
+}
+
+func quotedArg(s string) bool {
+	return len(s) >= 2 && (s[0] == '\'' || s[0] == '"')
 }

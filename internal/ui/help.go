@@ -391,6 +391,7 @@ func (m model) viewSection() []helpSection {
 		return []helpSection{{"kubectl", []helpRow{
 			r(k.Submit, "run"),
 			r(k.Complete, "complete"),
+			{"↑/↓", "previous / next command"},
 			r(k.Output, "output format"),
 			r(k.JQ, "jq filter"),
 			r(k.ShellBack, "back"),

@@ -466,7 +466,10 @@ the bottom unless `ui.copy_mode_hint: false`.
 | `ctrl+o` | `keys.output` | cycle the output: default, wide, yaml, json, name |
 | `ctrl+j` | `keys.jq` | toggle the jq filter field |
 | `tab` | `keys.complete` | complete the line |
+| `↑` `↓` | | previous / next command you ran; `↓` past the newest brings back what you were typing |
 | `esc`, `q` | `keys.shell_back` | leave the jq field / the kubectl view |
+
+`~` and `~/` in file paths expand to your home directory before kubectl runs, e.g. `apply -f ~/secrets/master.yml` or `--kubeconfig=~/.kube/config`. Quoted values are left alone.
 
 ## Kustomize browser (`K`)
 

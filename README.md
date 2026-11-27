@@ -569,8 +569,12 @@ and the cursor stays on the same entry across runs and rescans.
 **kubectl view** (`U`). Runs any kubectl line against the pane's target.
 The prompt shows `◉ context · namespace` (red with ☠ on production) and
 colors the line as you type. `tab` completes, `ctrl+o` cycles the output
-(default, wide, yaml, json, name), `ctrl+j` adds a jq filter. The result
-header shows exit code, outcome and duration.
+(default, wide, yaml, json, name), `ctrl+j` adds a jq filter. `↑` and
+`↓` walk commands you already ran (`↓` past the newest brings back what
+you were typing). `~` in paths expands to your home directory
+(`apply -f ~/secrets/master.yml`, `--kubeconfig=~/.kube/config`); quoted
+values stay as typed. The result header shows exit code, outcome and
+duration.
 
 **Text viewers** (logs, describe, YAML, events, command output). `w`
 toggles wrap (`ui.wrap`), `/` searches, `g` / `G` go to top / bottom
