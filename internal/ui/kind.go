@@ -51,16 +51,14 @@ type kindListMsg struct {
 }
 
 type kindRunMsg struct {
-	pane  string
-	token int
-	text  string
-	err   error
-	op    kindOp
+	pane string
+	text string
+	err  error
+	op   kindOp
 }
 
 type kindChartsMsg struct {
 	pane, name, text, notes string
-	token                   int
 	err                     error
 }
 
@@ -1016,48 +1014,6 @@ func (m model) kindCreateStream(op kindOp) tea.Cmd {
 	return m.kindStream(op.name, run, bin, args, "", func(text string, err error) tea.Msg {
 		return kindRunMsg{pane: pane, text: text, err: err, op: op}
 	})
-}
-
-func (m model) streamExec(run shell.Runner, bin string, args []string, stdin, what string, done func(string, error) tea.Msg) tea.Cmd {
-	pane, token := m.logID, m.load.token
-	if token == 0 {
-		m.loadSeq++
-		m.load = load{token: m.loadSeq, what: what, from: m.stage, start: now()}
-		token = m.load.token
-	} else {
-		m.load.what = what
-	}
-	return func() tea.Msg {
-		ch := make(chan tea.Msg, 32)
-		go func() {
-			var buf strings.Builder
-			req := shell.Request{Name: bin, Args: args, Stdin: stdin, Combined: true, Stream: true, OnLine: func(line string) {
-				if strings.TrimSpace(line) == "" {
-					return
-				}
-				buf.WriteString(line)
-				if !strings.HasSuffix(line, "\n") {
-					buf.WriteByte('\n')
-				}
-				ch <- progressMsg{id: pane, token: token, line: line, what: what, ch: ch}
-			}}
-			res := run.Run(req)
-			text := strings.TrimSpace(buf.String())
-			if text == "" {
-				text = strings.TrimSpace(string(res.Stdout) + "\n" + string(res.Stderr))
-			}
-			var err error
-			if res.Err != nil {
-				msg := text
-				if msg == "" {
-					msg = res.Err.Error()
-				}
-				err = fmt.Errorf("%s", msg)
-			}
-			ch <- done(text, err)
-		}()
-		return <-ch
-	}
 }
 
 func (m model) kindStream(name string, run shell.Runner, bin string, args []string, stdin string, done func(string, error) tea.Msg) tea.Cmd {

@@ -147,13 +147,6 @@ func (m model) kindBusy() bool {
 	return false
 }
 
-func (m *model) kindJob(name string) *kindJob {
-	if m.kindJobs == nil {
-		m.kindJobs = map[string]*kindJob{}
-	}
-	return m.kindJobs[name]
-}
-
 func (m *model) ensureKindJob(name, status, step string) *kindJob {
 	if m.kindJobs == nil {
 		m.kindJobs = map[string]*kindJob{}
@@ -568,7 +561,8 @@ func kindNodeUptime(n kube.KindNodes) string {
 }
 
 func (m model) kindStatusLine(t kindTile, _ int) string {
-	icon, st, label := m.kindStatusIcon(t.status), okStyle, t.status
+	icon, label := m.kindStatusIcon(t.status), t.status
+	var st lipgloss.Style
 	switch t.status {
 	case "stopped":
 		st = dimStyle

@@ -493,9 +493,7 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, errStyle.Render(d.msg))
 	case (d.act == "kindcreate" || d.act == "kindcharts") && len(d.hfields) > 0:
 		foot := m.kindFormFooter(d)
-		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
-			lines = append(lines, l)
-		}
+		lines = append(lines, strings.Split(ansi.Wordwrap(foot, inner, ""), "\n")...)
 	case d.act == "helminstall" && len(d.hfields) > 0:
 		foot := keyStyle.Render("tab") + dimStyle.Render(" move / complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
 			keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
@@ -511,9 +509,7 @@ func (m model) dialogBox(width int) string {
 			foot = keyStyle.Render("ctrl+e") + dimStyle.Render(" edit  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
 				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
 		}
-		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
-			lines = append(lines, l)
-		}
+		lines = append(lines, strings.Split(ansi.Wordwrap(foot, inner, ""), "\n")...)
 	case len(d.images) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" apply  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

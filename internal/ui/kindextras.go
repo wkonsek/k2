@@ -51,17 +51,6 @@ func cloneKindNodes(in map[string]kube.KindNodes) map[string]kube.KindNodes {
 	return out
 }
 
-func cloneKindKC(in map[string]string) map[string]string {
-	if in == nil {
-		return nil
-	}
-	out := make(map[string]string, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-	return out
-}
-
 func (m *model) storeKindSnap() {
 	m.kindSnap.names = append([]string{}, m.vs.kindNames...)
 	m.kindSnap.nodes = cloneKindNodes(m.vs.kindNodes)

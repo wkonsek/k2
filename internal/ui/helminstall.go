@@ -9,7 +9,6 @@ import (
 
 	"k2/internal/config"
 	"k2/internal/kube"
-	"k2/internal/shell"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -939,21 +938,6 @@ func (m model) askHelmApply() (tea.Model, tea.Cmd) {
 		kind: "helm", ns: op.ns, name: op.name, running: running,
 		cmd: m.helmApplySteps(what, *op, bin, steps),
 	}), nil
-}
-
-func (m model) helmApplyAction(what, ns, name, bin string, args []string) tea.Cmd {
-	run := m.run
-	return func() tea.Msg {
-		out, err := shell.Combined(run, bin, args...)
-		if err != nil {
-			text := strings.TrimSpace(string(out))
-			if text == "" {
-				text = err.Error()
-			}
-			return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: ns, helmName: name}
-		}
-		return editDoneMsg{what: what, helmNS: ns, helmName: name, helmNotes: helmNotesFrom(string(out))}
-	}
 }
 
 func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config.Chart) tea.Cmd {
