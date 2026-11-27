@@ -138,6 +138,12 @@ func (m model) tableAction(key string) (tea.Model, tea.Cmd, bool) {
 		}
 		next, cmd := m.approvePlan(it, kind, ns, name)
 		return next, cmd, true
+	case km.CopySecret.Has(key) && m.stage == "res" && kube.IsSecretKind(m.kind):
+		if next, cmd, blocked := m.readOnlyBlock("copy secret"); blocked {
+			return next, cmd, true
+		}
+		next, cmd := m.startSecretCopy(ns, name)
+		return next, cmd, true
 	case km.Label.Has(key), km.Annotate.Has(key):
 		if next, cmd, blocked := m.readOnlyBlock("label"); blocked {
 			return next, cmd, true

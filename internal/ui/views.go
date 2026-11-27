@@ -345,13 +345,13 @@ func (m model) legend() string {
 		parts = append(parts, m.kindLegend()...)
 		parts = append(parts, pair(k.Edit.Short(), "edit"), pair(k.Delete.Short(), "delete"))
 		if kube.IsSecretKind(m.kind) {
-			parts = append(parts, pair(k.Decode.Short(), "decode"))
+			parts = append(parts, pair(k.Decode.Short(), "decode"), pair(k.CopySecret.Short(), "copy to ns"))
 		}
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "xray" {
 
 		parts = append(parts, m.xrayFoot(), pair(k.Describe.Short(), "describe"), pair(k.Yaml.Short(), "yaml"),
-			pair(k.MultiLogs.Short(), "logs"), pair(k.CopyName.Short(), "copy"))
+			pair(k.MultiLogs.Short(), "logs"), pair(k.CopyName.Short(), "copy name"))
 	} else if m.stage == "helmhist" {
 		parts = append(parts, pair(keyName(k.HelmMark.Short()), "mark"), pair(k.HelmDiff.Short(), "diff"), pair(k.HelmValues.Short(), "values"), pair(k.HelmManifest.Short(), "manifest"))
 		if m.helmCLI() != "" {
@@ -475,7 +475,7 @@ func (m model) kindLegend() []string {
 
 func (m model) tableLegend() []string {
 	k := m.cfg.Keys
-	return []string{pair("/", "filter"), pair(k.SortNext.Short()+k.SortPrev.Short(), "sort"), pair(k.CopyName.Short(), "copy")}
+	return []string{pair("/", "filter"), pair(k.SortNext.Short()+k.SortPrev.Short(), "sort"), pair(k.CopyName.Short(), "copy name")}
 }
 
 func podForwardKey(k config.Keys) string {

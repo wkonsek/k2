@@ -148,10 +148,11 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 | `>` | `keys.sort_next` | sort by the next column |
 | `<` | `keys.sort_prev` | sort by the previous column |
 | `=` | `keys.sort_reverse` | flip ascending / descending |
-| `w` | `keys.copy_name` | copy the name to the clipboard (`ui.clipboard`) |
+| `w` | `keys.copy_name` | copy the name to the clipboard (`ui.clipboard`); legend `copy name` |
 | `W` | `keys.copy_ref` | copy `kind/name -n ns` to the clipboard |
 | `L` | `keys.label` | label popup (`key=value` or `key-`) |
 | `A` | `keys.annotate` | annotate popup |
+| `T` | `keys.copy_secret` | secrets: copy the selected secret to another namespace (legend `copy to ns`): pick the namespace (type to filter), keep or change the name, `y` to copy. An existing target asks to overwrite (red). uid, resourceVersion, timestamps, managedFields, ownerReferences, last-applied and Helm ownership (`meta.helm.sh/*`, `helm.sh/*`, `managed-by: Helm`) are dropped; type, data and other labels / annotations stay. Blocked in read-only (`R`) |
 | `x` | `keys.decode` | secrets: decode the selected secret; in the secret's viewer it cycles encoded (YAML), decoded and, for x509 values, a parsed certificate view (subject, issuer, validity with days left, alt names, key, usages, SHA-256); without a certificate it toggles encoded / decoded; `r` watches any of them |
 | `X` | `keys.xray` | owner tree (xray) of the selected row: deployments, statefulsets, daemonsets, replicasets, jobs, cronjobs, pods, services (k9s xray) |
 | `M` | `keys.multi_logs` | logs of all pods of the selected workload / service (its selector) or of a pod's siblings, stern-like |

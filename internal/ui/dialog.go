@@ -46,6 +46,8 @@ type dialog struct {
 	hfields   []helmField
 	formFocus int
 	hcreate   bool
+	pool      []string
+	dest      string
 }
 
 func (m model) newDialog(act, title, kind, ns, name string) *dialog {
@@ -136,6 +138,10 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if d.act == "fpath" && d.onBack != nil {
 			return d.onBack(m)
 		}
+		if d.act == "secretcopy" && d.dest != "" {
+			m.dlg = m.secretPickDialog(d.ns, d.name, d.pool, d.dest)
+			return m, nil
+		}
 		m.dlg = nil
 		m.status = "cancelled"
 		return m, nil
@@ -160,6 +166,8 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case d.act == "setimage":
 		return m.setImageKey(msg)
+	case d.act == "secretcopy":
+		return m.secretCopyKey(msg)
 	case d.act == "helminstall":
 		return m.helmFormKey(msg)
 	case d.act == "kindcreate", d.act == "kindcharts":
@@ -207,6 +215,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		return m.submitSearch()
 	case "setimage":
 		return m.submitSetImage()
+	case "secretcopy":
+		return m.submitSecretCopy()
 	case "helminstall":
 		return m.submitHelmForm()
 	case "kindcreate":
@@ -517,6 +527,11 @@ func (m model) dialogBox(width int) string {
 	case d.act == "cmdfavs":
 		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" run  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" close"))
+	case d.act == "secretcopy" && d.dest == "":
+		lines = append(lines, dimStyle.Render("type to filter  ")+keyStyle.Render("↑↓")+dimStyle.Render(" move  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+	case d.act == "secretcopy":
+		lines = append(lines, keyStyle.Render(k.Submit.Short())+dimStyle.Render(" ok  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" back"))
 	case len(d.options) > 0:
 		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

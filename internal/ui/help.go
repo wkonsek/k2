@@ -299,7 +299,7 @@ func (m model) viewSection() []helpSection {
 		rows = append(rows, m.kindRows()...)
 		rows = append(rows, r(k.Edit, "edit in vim"), r(k.Delete, "delete"))
 		if kube.IsSecretKind(m.kind) {
-			rows = append(rows, r(k.Decode, "decode the secret"))
+			rows = append(rows, r(k.Decode, "decode the secret"), r(k.CopySecret, "copy to another namespace"))
 		}
 		return []helpSection{{"Resources · " + or(m.kind, "list"), append(rows, m.tableRows()...)}}
 	case "logs", "mlogs":

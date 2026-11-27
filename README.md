@@ -353,9 +353,9 @@ Every table live-refreshes, with a counting AGE column. `/` filters;
 `>` / `<` sort by the next / previous column, `=` flips the direction.
 `0` toggles all namespaces (the selected object stays selected;
 remembered per pane). `pgdown` / `}` and `pgup` / `{` page. `w` / `W`
-copy the name / `kind/name -n ns`. `L` / `A` label / annotate, `d`
-describes (warning events colored), `e` edits, `ctrl+d` deletes, `enter`
-shows the YAML (on a pod: its containers).
+copy the name / `kind/name -n ns` (legend `copy name`). `L` / `A` label /
+annotate, `d` describes (warning events colored), `e` edits, `ctrl+d`
+deletes, `enter` shows the YAML (on a pod: its containers).
 
 STATUS is colored by meaning; names turn the warning color only for real
 trouble (not ready, Pending, CrashLoopBackOff, Terminating …). RESTARTS
@@ -646,6 +646,12 @@ and DER ones: subject, issuer, serial, validity with the days left
 size, signature algorithm, CA flag, key and extended key usage and the
 SHA-256 fingerprint. Other values stay decoded text; private keys are
 never expanded. Without a certificate, `x` toggles encoded and decoded.
+
+`T` in a secrets list (all namespaces too) copies the selected secret to
+another namespace: pick it from a filterable list, keep or change the
+name, confirm with `y`. An existing target asks to overwrite. Server
+fields, last-applied and Helm ownership labels / annotations are
+dropped; type, data and the rest stay. Blocked in read-only mode.
 
 `y` enters copy mode: only the text at full screen, so the terminal's own
 mouse selection copies cleanly (k2 never captures the mouse). There `v`

@@ -228,6 +228,7 @@ type editDoneMsg struct {
 	token int
 
 	helmNS, helmName, helmNotes string
+	status                      string
 }
 
 type tickMsg time.Time

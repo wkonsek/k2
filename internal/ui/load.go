@@ -350,7 +350,7 @@ func (m *model) applyEditDone(msg editDoneMsg) {
 		}
 		return
 	}
-	m.status = "done"
+	m.status = or(msg.status, "done")
 	if msg.helmName != "" {
 		m.applyHelmDone(msg)
 		return

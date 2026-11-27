@@ -198,6 +198,22 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.withPane(msg.id, func() { cmd = m.showOutput(msg) })
 		}
 		return m, cmd
+	case secretNSMsg:
+		var cmd tea.Cmd
+		m.withPane(msg.pane, func() {
+			var next tea.Model
+			next, cmd = m.applySecretNS(msg)
+			m = next.(model)
+		})
+		return m, cmd
+	case secretCheckMsg:
+		var cmd tea.Cmd
+		m.withPane(msg.pane, func() {
+			var next tea.Model
+			next, cmd = m.applySecretCheck(msg)
+			m = next.(model)
+		})
+		return m, cmd
 	case nsCreatedMsg:
 		var cmd tea.Cmd
 		apply := func() {

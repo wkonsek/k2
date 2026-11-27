@@ -90,6 +90,7 @@ type Keys struct {
 	Trigger                                                      Binding
 	Label, Annotate                                              Binding
 	CopyName, CopyRef                                            Binding
+	CopySecret                                                   Binding
 	SortNext, SortPrev, SortReverse                              Binding
 	Approve                                                      Binding
 	KustomizePath                                                Binding
@@ -182,7 +183,7 @@ func DefaultKeys() Keys {
 		DeleteAll: Binding{"D"}, PfRestart: Binding{"r"}, PfAuto: Binding{"a"}, Scan: Binding{"s"}, Vim: Binding{"v"}, Wrap: Binding{"w"},
 		CopyMode: Binding{"y"}, LogMark: Binding{"m"}, CopySelect: Binding{"v"}, CopyYank: Binding{"y"}, CopyAll: Binding{"Y"},
 		Shell: Binding{"s"}, Previous: Binding{"p"}, Log30: Binding{"1"}, Log60: Binding{"2"}, Scale: Binding{"S"}, SetImage: Binding{"i"}, Restart: Binding{"r"}, Trigger: Binding{"t"},
-		Label: Binding{"L"}, Annotate: Binding{"A"}, CopyName: Binding{"w"}, CopyRef: Binding{"W"},
+		Label: Binding{"L"}, Annotate: Binding{"A"}, CopyName: Binding{"w"}, CopyRef: Binding{"W"}, CopySecret: Binding{"T"},
 		SortNext: Binding{">"}, SortPrev: Binding{"<"}, SortReverse: Binding{"="}, Approve: Binding{"a"}, KustomizePath: Binding{"p"},
 		OpenFolder: Binding{"."},
 
@@ -264,6 +265,7 @@ var keyFields = []keyField{
 	{"annotate", func(k *Keys) *Binding { return &k.Annotate }},
 	{"copy_name", func(k *Keys) *Binding { return &k.CopyName }},
 	{"copy_ref", func(k *Keys) *Binding { return &k.CopyRef }},
+	{"copy_secret", func(k *Keys) *Binding { return &k.CopySecret }},
 	{"sort_next", func(k *Keys) *Binding { return &k.SortNext }},
 	{"sort_prev", func(k *Keys) *Binding { return &k.SortPrev }},
 	{"sort_reverse", func(k *Keys) *Binding { return &k.SortReverse }},
@@ -427,7 +429,7 @@ var screenKeys = func() map[string][]string {
 	}
 	return map[string][]string{
 		"tables": with("describe", "port_forward", "delete", "edit", "decode",
-			"shell", "scale", "set_image", "restart", "trigger", "label", "annotate", "copy_name", "copy_ref",
+			"shell", "scale", "set_image", "restart", "trigger", "label", "annotate", "copy_name", "copy_ref", "copy_secret",
 			"sort_next", "sort_prev", "sort_reverse", "approve", "xray", "multi_logs", "all_namespaces", "mark"),
 
 		"xray": with("describe", "yaml", "xray_toggle", "xray_expand_all", "xray_collapse_all", "xray_filter", "multi_logs", "copy_name", "copy_ref", "all_namespaces"),

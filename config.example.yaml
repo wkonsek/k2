@@ -124,6 +124,7 @@
 #   annotate: A
 #   copy_name: w
 #   copy_ref: W
+#   copy_secret: T            # secrets: copy the selected secret to another namespace (legend: copy to ns)
 #   sort_next: ">"
 #   sort_prev: "<"
 #   sort_reverse: "="
