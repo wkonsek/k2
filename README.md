@@ -454,7 +454,7 @@ plus RAM usage, percent and bar from `docker stats` (cluster `MemPerc`
 is the sum of the node containers), installed catalog charts (wrapped
 onto extra lines, with every tile in a row sharing the same height), and
 the kubeconfig path. Status uses square icons (`■` running, `□`
-stopped). The active cluster gets an `ACTIVE` badge. `A` opens the
+stopped). The active cluster shows a filled hexagon (`⬢`) in the top-right corner with `active` on the line below; other tiles show an empty hexagon (`⬡`). `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The
 image field defaults to the newest of the five latest stable
 `kindest/node` tags fetched from Docker Hub; `←` `→` cycle those tags or

@@ -18,7 +18,9 @@ const (
 	kindIconDeploy     = "◧"
 	kindIconDelete     = "◨"
 	kindIconFailed     = "×"
-	kindIconActive     = "◆"
+	kindIconActive     = "⬢"
+	kindIconIdle       = "⬡"
+	kindActiveWord     = "active"
 	kindIconNodes      = "▣"
 	kindIconKube       = "⊚"
 	kindIconCharts     = "▦"
@@ -36,6 +38,43 @@ var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
 
 func kindLabel(icon, text string) string {
 	return icon + "  " + text
+}
+
+func kindActiveIconCol(icon string) string {
+	w := lipgloss.Width(kindActiveWord)
+	iw := lipgloss.Width(icon)
+	if iw < 1 {
+		iw = 1
+	}
+	safe := iw + kindTileSafe
+	left := (w - safe) / 2
+	if left < 0 {
+		left = 0
+	}
+	return strings.Repeat(" ", left) + icon
+}
+
+func kindJoinRight(left, right string, inner, reserve int) string {
+	if inner < 1 {
+		return ""
+	}
+	rw := lipgloss.Width(right)
+	if reserve < rw {
+		reserve = rw
+	}
+	if reserve >= inner {
+		return clipLine(right, inner)
+	}
+	room := inner - reserve - 1
+	if room < 1 {
+		room = 1
+	}
+	left = clipLine(left, room)
+	pad := inner - lipgloss.Width(left) - reserve
+	if pad < 1 {
+		pad = 1
+	}
+	return left + strings.Repeat(" ", pad) + right
 }
 
 func kindTileWidth(innerW, cols int) int {
@@ -358,12 +397,16 @@ func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
 		name = kindLabel(kindIconSel, t.name)
 	}
 	title := titleStyle.Render(name)
-	if t.active {
-		title += " " + keyStyle.Render(kindLabel(kindIconActive, "ACTIVE"))
-	}
 	status := m.kindStatusLine(t, inner)
+	badgeW := lipgloss.Width(kindActiveWord)
+	icon, iconSt, word := kindIconIdle, dimStyle, ""
+	if t.active {
+		icon, iconSt, word = kindIconActive, keyStyle, kindActiveWord
+	}
+	title = kindJoinRight(title, iconSt.Render(kindActiveIconCol(icon)), inner, badgeW)
+	status = kindJoinRight(status, keyStyle.Render(word), inner, badgeW)
 	var lines []string
-	lines = append(lines, clipLine(title, inner), clipLine(status, inner))
+	lines = append(lines, title, status)
 	if sum := t.nodes.Summary(); sum != "" {
 		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, ""))+itemStyle.Render(sum), inner))
 	} else if t.status == "deploying" || t.status == "deleting" {

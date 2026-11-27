@@ -304,7 +304,7 @@ IPAddressPool + L2Advertisement from the kind Docker network subnet.
 
 Clusters show as a tile grid (name, square status, uptime, nodes, CPU
 percent + bar, RAM usage + percent + bar, installed catalog charts
-wrapped across lines, kubeconfig). Tiles in the same row share a height.
+wrapped across lines, kubeconfig). The active cluster has a filled hexagon (`⬢`) in the top-right corner with `active` under it; other tiles show an empty hexagon (`⬡`). Tiles in the same row share a height.
 A new cluster appears as a `deploying` tile as soon as create starts;
 `enter` opens a live log (auto-scrolls unless you move up; `esc` returns
 to the tiles while the job keeps running). On success the tile turns

@@ -168,7 +168,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "up 1h", "1 cp", "0 workers", "v1.33.1", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconSel} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "active", "running", "up 1h", "1 cp", "0 workers", "v1.33.1", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconIdle, kindIconSel} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
@@ -177,6 +177,9 @@ func TestKindListView(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("icon spacing lacks %q:\n%s", want, view)
 		}
+	}
+	if strings.Contains(view, "ACTIVE") {
+		t.Fatalf("active label should be lowercase:\n%s", view)
 	}
 	if strings.Contains(view, "●") || strings.Contains(view, "○") {
 		t.Fatalf("still using round status dots:\n%s", view)
@@ -714,8 +717,11 @@ func TestKindSelectedBorderDiffersFromActive(t *testing.T) {
 	if !strings.Contains(view, kindIconSel+"  dev") {
 		t.Fatalf("missing selection marker:\n%s", view)
 	}
-	if !strings.Contains(view, "ACTIVE") || strings.Contains(view, kindIconSel+"  k2") {
-		t.Fatalf("ACTIVE should stay on k2 without the cursor mark:\n%s", view)
+	if !strings.Contains(view, "active") || !strings.Contains(view, kindIconActive) || strings.Contains(view, kindIconSel+"  k2") {
+		t.Fatalf("active badge should stay on k2 without the cursor mark:\n%s", view)
+	}
+	if !strings.Contains(view, kindIconIdle) {
+		t.Fatalf("unselected tile should show the idle hexagon:\n%s", view)
 	}
 	if strings.ContainsAny(view, "┏┓┗┛╔╗╚╝") {
 		t.Fatalf("tiles should use rounded corners like the rest of k2:\n%s", view)
@@ -1090,4 +1096,90 @@ func TestKindChartValueFilesOrder(t *testing.T) {
 		t.Fatalf("catalog values:\n%s", raw)
 	}
 	os.Remove(files[0])
+}
+
+func widthSuffix(s string, n int) string {
+	s = ansi.Strip(s)
+	w := ansi.StringWidth(s)
+	if w <= n {
+		return s
+	}
+	skip := w - n
+	var b strings.Builder
+	seen := 0
+	for _, r := range s {
+		rw := ansi.StringWidth(string(r))
+		if seen < skip {
+			seen += rw
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func TestKindActiveBadgeCorner(t *testing.T) {
+	withKindCLIs(t)
+	longName := "this-is-a-very-long-kind-cluster-name"
+	f := kindFake(t, []string{longName, "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig(longName, home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig, m.context = path, kube.KindContext(longName)
+	m.vs.kindNames = []string{longName, "dev"}
+	nodes := kube.KindNodes{Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 2h"}
+	m.vs.kindNodes = map[string]kube.KindNodes{longName: nodes, "dev": nodes}
+	m.stage = "kind"
+	tiles := m.kindTiles()
+	if len(tiles) != 2 || !tiles[0].active || tiles[1].active {
+		t.Fatalf("tiles %+v", tiles)
+	}
+	tileW := kindTileWidth(80, 2)
+	inner := max(8, tileW-2)
+	active := m.kindTileContent(tiles[0], true, inner)
+	idle := m.kindTileContent(tiles[1], false, inner)
+	if len(active) < 2 || len(idle) < 2 {
+		t.Fatalf("content %d %d", len(active), len(idle))
+	}
+	a0, a1 := padPlain(ansi.Strip(active[0]), inner), padPlain(ansi.Strip(active[1]), inner)
+	i0, i1 := padPlain(ansi.Strip(idle[0]), inner), padPlain(ansi.Strip(idle[1]), inner)
+	for _, line := range []string{a0, a1, i0, i1} {
+		if ansi.StringWidth(line) != inner {
+			t.Fatalf("line width %d want %d: %q", ansi.StringWidth(line), inner, line)
+		}
+	}
+	badgeW := ansi.StringWidth(kindActiveWord)
+	if widthSuffix(a1, badgeW) != kindActiveWord {
+		t.Fatalf("active word not under the icon:\n%q\n%q", a0, a1)
+	}
+	if !strings.Contains(widthSuffix(a0, badgeW), kindIconActive) {
+		t.Fatalf("filled hexagon not in the top-right:\n%q", a0)
+	}
+	if strings.Contains(a0, longName) {
+		t.Fatalf("long name should truncate to leave room for the badge:\n%q", a0)
+	}
+	if !strings.Contains(a0, "…") {
+		t.Fatalf("long name should show an ellipsis:\n%q", a0)
+	}
+	if !strings.Contains(widthSuffix(i0, badgeW), kindIconIdle) {
+		t.Fatalf("idle hexagon not in the top-right:\n%q", i0)
+	}
+	if strings.Contains(i1, kindActiveWord) || strings.Contains(i0, kindIconActive) {
+		t.Fatalf("idle tile should not show the active badge:\n%q\n%q", i0, i1)
+	}
+	view := ansi.Strip(m.kindBody(80))
+	if strings.Contains(view, "ACTIVE") {
+		t.Fatalf("uppercase ACTIVE:\n%s", view)
+	}
+	for i, line := range strings.Split(view, "\n") {
+		if got := ansi.StringWidth(line); got > 80 {
+			t.Fatalf("body line %d is %d wide:\n%s", i, got, line)
+		}
+	}
 }
