@@ -12,7 +12,7 @@ import (
 
 const (
 	kWarn = "# Warning: 'vars' is deprecated. Please use 'replacements' instead. [EXPERIMENTAL] Run 'kustomize edit fix' to update your Kustomization automatically."
-	kErr  = `# error: accumulating components: accumulateDirectory: "recursed accumulation of path '/home/u/git/audi/kustomize-base/components/ksql': accumulating resources: accumulation err='accumulating resources from 'client': evalsymlink failure on '/home/u/git/audi/kustomize-base/components/ksql/client' : lstat /home/u/git/audi/kustomize-base/components/ksql/client: no such file or directory': must build at directory: not a valid directory THE-END"`
+	kErr  = `# error: accumulating components: accumulateDirectory: "recursed accumulation of path '/home/u/git/shop/kustomize-base/components/ksql': accumulating resources: accumulation err='accumulating resources from 'client': evalsymlink failure on '/home/u/git/shop/kustomize-base/components/ksql/client' : lstat /home/u/git/shop/kustomize-base/components/ksql/client: no such file or directory': must build at directory: not a valid directory THE-END"`
 )
 
 var kLong = "plain output line that is long " + strings.Repeat("filler ", 30) + "and goes on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on TAIL"
