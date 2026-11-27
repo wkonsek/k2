@@ -14,6 +14,7 @@ import (
 	"k2/internal/shell"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -166,6 +167,15 @@ func kindJobLog(m model, name string) string {
 	return ""
 }
 
+func kindViewHasSpin(view string) bool {
+	for _, f := range kindSpinFrames() {
+		if strings.Contains(view, f) {
+			return true
+		}
+	}
+	return false
+}
+
 func kindCalls(f *shell.Fake, verb string) []string {
 	var out []string
 	for _, c := range f.Calls() {
@@ -300,7 +310,7 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 		t.Fatalf("status %q log %s", m.status, kindJobLog(m, "k2"))
 	}
 	view = ansi.Strip(m.View())
-	if !strings.Contains(view, "k2") || (!strings.Contains(view, kindIconRunning) && !strings.Contains(view, kindIconDeploy)) {
+	if !strings.Contains(view, "k2") || (!strings.Contains(view, kindIconRunning) && !kindViewHasSpin(view)) {
 		t.Fatalf("tile missing after create:\n%s", view)
 	}
 }
@@ -1492,6 +1502,132 @@ func TestKindDetailAlignsConfirmRows(t *testing.T) {
 	}
 	if kindDetail("will remove", "~/.kube/k2-lab") != "will remove  ~/.kube/k2-lab" {
 		t.Fatalf("will remove %q", kindDetail("will remove", "~/.kube/k2-lab"))
+	}
+}
+
+func TestKindDetailWrapsConfirmValue(t *testing.T) {
+	charts := "sealed-secrets, metallb, cert-manager, metrics-server, kafbat"
+	line := kindDetail("charts", charts)
+	const width = 52
+	got := wrapKindDetail(line, width)
+	if len(got) < 2 {
+		t.Fatalf("expected wrap, got %q", got)
+	}
+	prefix, first, ok := kindDetailParts(got[0])
+	if !ok {
+		t.Fatalf("first line lost the label column: %q", got[0])
+	}
+	if !strings.HasPrefix(strings.TrimSpace(prefix), "charts") || !strings.Contains(first, "sealed-secrets") {
+		t.Fatalf("first line %q", got[0])
+	}
+	pad := strings.Repeat(" ", len(prefix))
+	for i, row := range got {
+		if lipgloss.Width(row) > width {
+			t.Fatalf("line %d wider than %d: %q", i, width, row)
+		}
+		if i == 0 {
+			continue
+		}
+		if !strings.HasPrefix(row, pad) {
+			t.Fatalf("continuation should align under the value column:\n%s", strings.Join(got, "\n"))
+		}
+		rest := strings.TrimSpace(row)
+		if rest == "" || strings.HasPrefix(rest, "metrics-server") && strings.HasPrefix(row, "metrics-server") {
+			t.Fatalf("continuation started at column 0: %q", row)
+		}
+		if strings.HasPrefix(row, "metrics-server") || strings.HasPrefix(row, "kafbat") {
+			t.Fatalf("wrapped charts look like a label: %q", row)
+		}
+	}
+	joined := strings.Join(got, " ")
+	for _, name := range []string{"sealed-secrets", "metallb", "cert-manager", "metrics-server", "kafbat"} {
+		if !strings.Contains(joined, name) {
+			t.Fatalf("missing %q in %q", name, got)
+		}
+	}
+}
+
+func TestKindCreateConfirmWrapsCharts(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	setHelmField(m.dlg, "name", "k2")
+	want := []string{"sealed-secrets", "metallb", "cert-manager", "metrics-server", "kafbat"}
+	on := map[string]bool{}
+	for _, n := range want {
+		on["c:"+n] = true
+	}
+	for i := range m.dlg.hfields {
+		if on[m.dlg.hfields[i].key] {
+			m.dlg.hfields[i].on = true
+		}
+	}
+	next, cmd := m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.ask == "" {
+		t.Fatalf("confirm %+v", m.dlg)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "charts") || !strings.Contains(view, "sealed-secrets") {
+		t.Fatalf("confirm lacks charts:\n%s", view)
+	}
+	var hit string
+	for _, row := range strings.Split(view, "\n") {
+		trim := strings.TrimSpace(row)
+		if strings.Contains(trim, "metrics-server") || (strings.Contains(trim, "kafbat") && !strings.Contains(trim, "charts")) {
+			hit = row
+			idx := strings.Index(row, "metrics-server")
+			if idx < 0 {
+				idx = strings.Index(row, "kafbat")
+			}
+			chartsIdx := -1
+			for _, r := range strings.Split(view, "\n") {
+				if strings.Contains(r, "sealed-secrets") && strings.Contains(r, "charts") {
+					chartsIdx = strings.Index(r, "sealed-secrets")
+					break
+				}
+			}
+			if idx == 0 || strings.HasPrefix(trim, "metrics-server") || strings.HasPrefix(trim, "kafbat") {
+				t.Fatalf("wrapped charts look like a label:\n%s", view)
+			}
+			if chartsIdx > 0 && idx > 0 && idx != chartsIdx {
+				t.Fatalf("continuation at col %d, want %d under sealed-secrets:\n%s", idx, chartsIdx, view)
+			}
+			break
+		}
+	}
+	if hit == "" {
+		t.Fatalf("expected charts to wrap in the popup:\n%s", view)
+	}
+}
+
+func TestKindStatusIconUsesMiniDot(t *testing.T) {
+	m := model{cfg: testEnv(t)}
+	m.cfg.UI.Animations = true
+	m.beat = 0
+	if got, want := m.kindStatusIcon("deploying"), kindSpinGlyph(0); got != want {
+		t.Fatalf("deploying %q want %q", got, want)
+	}
+	m.beat = 3
+	if got, want := m.kindStatusIcon("deploying"), kindSpinGlyph(3); got != want {
+		t.Fatalf("deploying beat 3 %q want %q", got, want)
+	}
+	if got, want := m.kindStatusIcon("deleting"), kindSpinGlyph(5); got != want {
+		t.Fatalf("deleting %q want %q", got, want)
+	}
+	m.cfg.UI.Animations = false
+	if got := m.kindStatusIcon("deploying"); got != kindSpinGlyph(0) {
+		t.Fatalf("static deploying %q", got)
+	}
+	for _, ch := range []string{"◧", "◨", "◩", "◪"} {
+		if m.kindStatusIcon("deploying") == ch || m.kindStatusIcon("deleting") == ch {
+			t.Fatalf("still using square spinner %s", ch)
+		}
+	}
+	if m.kindStatusIcon("running") != kindIconRunning || m.kindStatusIcon("stopped") != kindIconStopped || m.kindStatusIcon("failed") != kindIconFailed {
+		t.Fatal("steady status icons changed")
 	}
 }
 

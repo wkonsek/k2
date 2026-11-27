@@ -325,7 +325,7 @@ func (m model) dialogBox(width int) string {
 
 	var det []string
 	for _, l := range d.details {
-		det = append(det, wrapLine(l, inner)...)
+		det = append(det, wrapKindDetail(l, inner)...)
 	}
 	room := max(3, m.height-10)
 	if d.act == "error" {

@@ -804,8 +804,10 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 	return m.askKindCreate(*op)
 }
 
+const kindDetailCol = 12
+
 func kindDetail(label, value string) string {
-	return fmt.Sprintf("%-12s %s", label, value)
+	return fmt.Sprintf("%-*s %s", kindDetailCol, label, value)
 }
 
 func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {

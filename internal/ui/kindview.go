@@ -11,6 +11,7 @@ import (
 	"k2/internal/config"
 	"k2/internal/kube"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -18,8 +19,6 @@ import (
 const (
 	kindIconRunning = "■"
 	kindIconStopped = "□"
-	kindIconDeploy  = "◧"
-	kindIconDelete  = "◨"
 	kindIconFailed  = "×"
 	kindIconActive  = "⬢"
 	kindIconIdle    = "⬡"
@@ -33,7 +32,20 @@ const (
 	kindStatGap     = 3
 )
 
-var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
+func kindSpinFrames() []string {
+	return spinner.MiniDot.Frames
+}
+
+func kindSpinGlyph(beat int) string {
+	frames := kindSpinFrames()
+	if len(frames) == 0 {
+		return "⠋"
+	}
+	if beat < 0 {
+		beat = -beat
+	}
+	return frames[beat%len(frames)]
+}
 
 func kindLabel(icon, text string) string {
 	return icon + "  " + text
@@ -514,15 +526,15 @@ func (m model) kindStatusIcon(status string) string {
 	case "stopped":
 		return kindIconStopped
 	case "deploying":
-		if m.cfg.UI.Animations && len(kindSpinSquares) > 0 {
-			return kindSpinSquares[m.beat%len(kindSpinSquares)]
+		if m.cfg.UI.Animations {
+			return kindSpinGlyph(m.beat)
 		}
-		return kindIconDeploy
+		return kindSpinGlyph(0)
 	case "deleting":
-		if m.cfg.UI.Animations && len(kindSpinSquares) > 0 {
-			return kindSpinSquares[(m.beat+2)%len(kindSpinSquares)]
+		if m.cfg.UI.Animations {
+			return kindSpinGlyph(m.beat + 2)
 		}
-		return kindIconDelete
+		return kindSpinGlyph(0)
 	case "failed":
 		return kindIconFailed
 	default:
@@ -689,6 +701,42 @@ func wrapCSV(items []string, width int) []string {
 	}
 	flush()
 	return lines
+}
+
+func kindDetailParts(line string) (prefix, value string, ok bool) {
+	if len(line) < kindDetailCol+1 || line[kindDetailCol] != ' ' {
+		return "", "", false
+	}
+	return line[:kindDetailCol+1], line[kindDetailCol+1:], true
+}
+
+func wrapKindDetail(line string, width int) []string {
+	prefix, value, ok := kindDetailParts(line)
+	if !ok {
+		return wrapLine(line, width)
+	}
+	width = max(width, 2)
+	if lipgloss.Width(line) <= width {
+		return []string{line}
+	}
+	padW := lipgloss.Width(prefix)
+	vw := max(width-padW, 2)
+	var parts []string
+	if strings.Contains(value, ", ") {
+		parts = wrapCSV(strings.Split(value, ", "), vw)
+	} else {
+		parts = wrapLine(value, vw)
+	}
+	if len(parts) == 0 {
+		return []string{strings.TrimRight(prefix, " ")}
+	}
+	pad := strings.Repeat(" ", padW)
+	out := make([]string, len(parts))
+	out[0] = prefix + parts[0]
+	for i := 1; i < len(parts); i++ {
+		out[i] = pad + parts[i]
+	}
+	return out
 }
 
 func (m *model) applyKindLine(msg kindLineMsg) {
