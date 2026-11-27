@@ -125,6 +125,9 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case kindPodsMsg:
 		m.applyKindPods(msg)
 		return m, nil, true
+	case kindLiveLogDoneMsg:
+		m.applyKindLiveLog(msg)
+		return m, nil, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
 		return m, cmd, true

@@ -205,8 +205,8 @@ edits its values in `$EDITOR`. A
 red popup confirms, then a `deploying` tile appears immediately and k2
 streams `kind create cluster` into a live log (`enter` to watch, `esc`
 back to the tiles). The kubeconfig is written to `~/.kube/k2` (or
-`~/.kube/k2-<name>`). `enter` or `space` on a ready card uses that cluster in the
-pane; `e` manages catalog charts. `ctrl+d` deletes the cluster and only
+`~/.kube/k2-<name>`). `space` on a ready card uses that cluster in the
+pane; `enter` opens live control-plane logs. `e` manages catalog charts. `ctrl+d` deletes the cluster and only
 that k2 kubeconfig file, never `~/.kube/config`. If that cluster was the
 active one and exactly one other kind cluster still has a kubeconfig, the
 pane switches to it. After MetalLB lands on a kind cluster, k2 picks an
@@ -469,8 +469,12 @@ lines) and the kubeconfig path. Status uses square icons (`■` running, `□`
 stopped). The active cluster shows `⬢ active` next to its name on the left
 of the name line, and a filled hexagon (`⬢`) in the top-right corner, one
 space from the border; other cards show just the name on the left and an
-empty hexagon (`⬡`) on the right. `enter` or `space` uses a ready cluster in the pane
-(or opens logs of a deploying / failed one). `A` opens the
+empty hexagon (`⬡`) on the right. `space` uses a ready cluster in the pane;
+`enter` opens live control-plane logs (`docker logs --tail 200 -f
+<name>-control-plane`; `esc` returns to the tiles), or the job log of a
+deploying / failed / deleting cluster. Re-opening this view shows the last
+snapshot at once; stats, pod counts and catalog charts refresh about every
+15 seconds while the view is open, and `r` refreshes immediately. `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The config field is prefilled with a generated Kind YAML the cluster will
 use; `ctrl+e` opens it in `$EDITOR`, or type another path (a custom file
 wins over the generated topology). The image field defaults to the newest
@@ -488,8 +492,9 @@ tile opens that log (it follows the bottom unless you scroll up; `esc`
 returns to the grid without cancelling the job). On success the pane
 switches to `kind-<name>` and selected charts install one after another
 (Helm repos added first; MetalLB gets an IPAddressPool from the kind
-Docker network). `enter` or `space` on a ready card uses that cluster if its
-kubeconfig exists. `e` opens a checklist of catalog charts
+Docker network). `space` on a ready card uses that cluster if its
+kubeconfig exists; `enter` follows the control-plane container logs.
+`e` opens a checklist of catalog charts
 (already-installed ones are checked); `v` edits values the same way, and
 a red popup confirms installs, value upgrades of already-installed
 charts, and uninstalls, with the same live tile and log (istio

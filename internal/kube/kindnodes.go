@@ -18,6 +18,10 @@ func DockerKindNodesArgs() []string {
 	}
 }
 
+func DockerControlPlaneLogsArgs(cluster string) []string {
+	return []string{"logs", "--tail", "200", "-f", cluster + "-control-plane"}
+}
+
 func ParseKindNodes(out string) map[string]KindNodes {
 	got := map[string]KindNodes{}
 	for _, line := range strings.Split(out, "\n") {

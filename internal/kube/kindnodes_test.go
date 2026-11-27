@@ -78,3 +78,10 @@ func TestDockerKindNodesArgs(t *testing.T) {
 		t.Fatalf("%v", args)
 	}
 }
+
+func TestDockerControlPlaneLogsArgs(t *testing.T) {
+	args := DockerControlPlaneLogsArgs("lab")
+	if len(args) != 5 || args[0] != "logs" || args[1] != "--tail" || args[2] != "200" || args[3] != "-f" || args[4] != "lab-control-plane" {
+		t.Fatalf("%v", args)
+	}
+}

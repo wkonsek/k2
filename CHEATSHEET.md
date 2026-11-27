@@ -313,14 +313,17 @@ a narrow pane stacks those rows. The list scrolls if more cards are open
 than fit. The active cluster shows `⬢ active` next to its name on the left of
 the name line, and a filled hexagon (`⬢`) in the top-right corner, one
 space from the border; other cards show just the name on the left and an
-empty hexagon (`⬡`) on the right. `r` refreshes the list, including pod counts.
+empty hexagon (`⬡`) on the right. `r` refreshes the list immediately, including pod counts. Re-opening the
+view shows the last snapshot at once; stats, pod counts and catalog
+charts otherwise refresh about every 15 seconds while the view is open.
 A new cluster appears as a `deploying` card as soon as create starts;
-`enter` or `space` on a ready card uses that cluster in the pane, or
-opens a live log of a deploying / failed / deleting one (auto-scrolls
-unless you move up; `esc` returns to the cards while the job keeps
-running). On success the card turns `running` and the pane switches to
-that cluster. Failed jobs stay in the list; `enter` or `space` still
-opens the log.
+`space` on a ready card uses that cluster in the pane. `enter` follows
+live control-plane logs (`docker logs --tail 200 -f
+<name>-control-plane`), or opens the job log of a deploying / failed /
+deleting cluster (auto-scrolls unless you move up; `esc` returns to the
+cards while a create or delete job keeps running). On success the card
+turns `running` and the pane switches to that cluster. Failed jobs stay
+in the list; `enter` still opens the log.
 
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
 a prefilled generated config path, node image, starter-chart checkboxes).
@@ -338,7 +341,8 @@ in reverse: istiod, then istio-base) with the same live tile and log.
 |---|---|---|
 | `~` | `keys.kind` | open this view from anywhere |
 | `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move up and down between cards |
-| `enter` or `space` | `keys.select` (and `space`) | use a ready cluster in the pane, or open logs of a deploying / failed / deleting one |
+| `space` | `space` | use a ready cluster in the pane, or open the job log of a deploying / failed / deleting one |
+| `enter` | `keys.select` | live control-plane logs of a ready cluster, or the job log of a deploying / failed / deleting one |
 | `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
 | `e` | `keys.edit` | manage catalog charts on the selected cluster |
 | `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |

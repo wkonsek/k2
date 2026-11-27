@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"k2/internal/config"
 	"k2/internal/kube"
 	"k2/internal/shell"
@@ -16,6 +18,15 @@ type kindCatalogMsg struct {
 	charts map[string][]string
 }
 
+const kindExtrasEvery = 15 * time.Second
+
+type kindSnap struct {
+	names []string
+	nodes map[string]kube.KindNodes
+	kc    map[string]string
+	sel   int
+}
+
 func (m model) kindVisible() bool {
 	if m.stage == "kind" || m.stage == "kindlog" {
 		return true
@@ -28,7 +39,66 @@ func (m model) kindVisible() bool {
 	return false
 }
 
+func cloneKindNodes(in map[string]kube.KindNodes) map[string]kube.KindNodes {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]kube.KindNodes, len(in))
+	for k, v := range in {
+		v.Containers = append([]string{}, v.Containers...)
+		out[k] = v
+	}
+	return out
+}
+
+func cloneKindKC(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func (m *model) storeKindSnap() {
+	m.kindSnap.names = append([]string{}, m.vs.kindNames...)
+	m.kindSnap.nodes = cloneKindNodes(m.vs.kindNodes)
+	m.kindSnap.sel = m.vs.kindSel
+	if m.kindSnap.kc == nil {
+		m.kindSnap.kc = map[string]string{}
+	}
+}
+
+func (m *model) restoreKindSnap() {
+	if m.kindSnap.names == nil && m.kindSnap.nodes == nil {
+		return
+	}
+	m.vs.kindNames = append([]string{}, m.kindSnap.names...)
+	m.vs.kindNodes = cloneKindNodes(m.kindSnap.nodes)
+	if m.kindSnap.sel >= 0 {
+		m.vs.kindSel = m.kindSnap.sel
+	}
+}
+
+func (m model) kindExtrasDue() bool {
+	if m.kindExtrasForce {
+		return true
+	}
+	if !m.kindVisible() {
+		return false
+	}
+	if m.kindExtrasAt.IsZero() {
+		return true
+	}
+	return now().Sub(m.kindExtrasAt) >= kindExtrasEvery
+}
+
 func (m *model) kindExtrasCmds() tea.Cmd {
+	if !m.kindExtrasDue() {
+		return nil
+	}
 	var cmds []tea.Cmd
 	if !m.kindUsageBusy {
 		m.kindUsageBusy = true
@@ -45,6 +115,8 @@ func (m *model) kindExtrasCmds() tea.Cmd {
 	if len(cmds) == 0 {
 		return nil
 	}
+	m.kindExtrasAt = now()
+	m.kindExtrasForce = false
 	return tea.Batch(cmds...)
 }
 

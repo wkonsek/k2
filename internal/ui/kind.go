@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -37,11 +38,12 @@ type kindJob struct {
 }
 
 type kindListMsg struct {
-	pane  string
-	token int
-	names []string
-	nodes map[string]kube.KindNodes
-	err   error
+	pane        string
+	token       int
+	names       []string
+	nodes       map[string]kube.KindNodes
+	kubeconfigs map[string]string
+	err         error
 }
 
 type kindRunMsg struct {
@@ -107,16 +109,27 @@ func (m model) needDockerCLI(act string) (string, tea.Model, tea.Cmd, bool) {
 }
 
 func (m model) openKind() (tea.Model, tea.Cmd) {
+	if m.stage == "kindlog" {
+		m.stopKindLiveLog()
+	}
 	if m.stage != "kind" && m.stage != "kindlog" {
 		m.rememberView()
 	}
 	m.stage = "kind"
+	m.restoreKindSnap()
+	m.showKind("")
 	_, next, cmd, ok := m.needKindCLI("kind")
 	if !ok {
 		nm := next.(model)
 		nm.stage = "kind"
+		nm.restoreKindSnap()
 		nm.showKind("")
 		return nm, cmd
+	}
+	if m.status == "" || strings.HasPrefix(m.status, "no kind clusters") {
+		if len(m.kindTiles()) > 0 {
+			m.status = m.kindHint()
+		}
 	}
 	if m.status == "" {
 		m.status = m.kindHint()
@@ -141,6 +154,7 @@ func kindListCmd(bin, docker string, run shell.Runner, pane string, token int) t
 				msg.nodes = kube.ParseKindNodes(string(nout))
 			}
 		}
+		msg.kubeconfigs = kindKubeconfigMap(msg.names, run)
 		return msg
 	}
 }
@@ -162,6 +176,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 		}
 		if msg.err != nil {
 			m.status = m.errLine(msg.err)
+			m.restoreKindSnap()
 			m.showKind("")
 			cmd = m.notify(toneErr, "could not list kind clusters")
 			return
@@ -170,6 +185,27 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 		if msg.nodes != nil {
 			m.vs.kindNodes = msg.nodes
 		}
+		if msg.kubeconfigs != nil {
+			if m.kindSnap.kc == nil {
+				m.kindSnap.kc = map[string]string{}
+			}
+			for name, path := range msg.kubeconfigs {
+				m.kindSnap.kc[name] = path
+			}
+			for name := range m.kindSnap.kc {
+				keep := false
+				for _, n := range msg.names {
+					if n == name {
+						keep = true
+						break
+					}
+				}
+				if !keep {
+					delete(m.kindSnap.kc, name)
+				}
+			}
+		}
+		m.storeKindSnap()
 		m.showKind("")
 		if len(m.kindTiles()) == 0 {
 			m.status = "no kind clusters — " + m.cfg.Keys.HelmInstall.Label() + " creates one"
@@ -178,14 +214,16 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 		if m.stage == "kind" {
 			m.status = m.kindHint()
 		}
-		cmd = tea.Batch(cmd, m.kindExtrasCmds())
+		if m.kindExtrasDue() {
+			cmd = tea.Batch(cmd, m.kindExtrasCmds())
+		}
 	})
 	return cmd
 }
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + "/space use / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
+	return "space use, " + k.Select.Label() + " logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
 }
 
 func (m *model) showKind(pick string) {
@@ -212,21 +250,51 @@ func (m model) kindKubeconfigFor(name string) (string, bool) {
 	if st, err := os.Stat(path); err == nil && !st.IsDir() {
 		return path, true
 	}
-	def := filepath.Join(home, ".kube", "config")
-	if st, err := os.Stat(def); err != nil || st.IsDir() {
-		return "", false
-	}
-	ctx := kube.KindContext(name)
-	contexts, err := m.k.Contexts(def)
-	if err != nil {
-		return "", false
-	}
-	for _, c := range contexts {
-		if c == ctx {
-			return def, true
-		}
+	if path, ok := m.kindSnap.kc[name]; ok && path != "" {
+		return path, true
 	}
 	return "", false
+}
+
+func kindKubeconfigMap(names []string, run shell.Runner) map[string]string {
+	home, _ := os.UserHomeDir()
+	out := map[string]string{}
+	var missing []string
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		path := kube.KindKubeconfig(name, home)
+		if st, err := os.Stat(path); err == nil && !st.IsDir() {
+			out[name] = path
+			continue
+		}
+		missing = append(missing, name)
+	}
+	if len(missing) == 0 {
+		return out
+	}
+	def := filepath.Join(home, ".kube", "config")
+	if st, err := os.Stat(def); err != nil || st.IsDir() {
+		return out
+	}
+	raw, err := shell.Combined(run, "kubectl", "config", "get-contexts", "-o", "name", "--kubeconfig", def)
+	if err != nil {
+		return out
+	}
+	have := map[string]bool{}
+	for _, c := range strings.Split(string(raw), "\n") {
+		c = strings.TrimSpace(c)
+		if c != "" {
+			have[c] = true
+		}
+	}
+	for _, name := range missing {
+		if have[kube.KindContext(name)] {
+			out[name] = def
+		}
+	}
+	return out
 }
 
 func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
@@ -274,12 +342,17 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 		}
 		next, cmd := m.askKindDelete(name)
 		return next, cmd, true
-	case key == " " || (km.Select.Has(key) && key != "l" && key != "right"):
+	case key == " ":
+		next, cmd := m.useKindTile()
+		return next, cmd, true
+	case km.Select.Has(key) && key != "l" && key != "right":
 		next, cmd := m.enterKindTile()
 		return next, cmd, true
 	case km.Watch.Has(key):
+		m.kindExtrasForce = true
 		next, cmd := m.openKind()
-		return next, cmd, true
+		nm := next.(model)
+		return nm, tea.Batch(cmd, nm.kindExtrasCmds()), true
 	}
 	return m, nil, false
 }
@@ -863,12 +936,16 @@ func (m model) streamExec(run shell.Runner, bin string, args []string, stdin, wh
 }
 
 func (m model) kindStream(name string, run shell.Runner, bin string, args []string, stdin string, done func(string, error) tea.Msg) tea.Cmd {
+	return m.kindStreamCtx(name, run, bin, args, stdin, nil, done)
+}
+
+func (m model) kindStreamCtx(name string, run shell.Runner, bin string, args []string, stdin string, ctx context.Context, done func(string, error) tea.Msg) tea.Cmd {
 	pane := m.logID
 	return func() tea.Msg {
 		ch := make(chan tea.Msg, 32)
 		go func() {
 			var buf strings.Builder
-			req := shell.Request{Name: bin, Args: args, Stdin: stdin, Combined: true, Stream: true, OnLine: func(line string) {
+			req := shell.Request{Name: bin, Args: args, Stdin: stdin, Combined: true, Stream: true, Ctx: ctx, OnLine: func(line string) {
 				if strings.TrimSpace(line) == "" {
 					return
 				}

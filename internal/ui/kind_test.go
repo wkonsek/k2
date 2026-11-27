@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"k2/internal/config"
 	"k2/internal/kube"
@@ -92,6 +93,9 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 					b.WriteString("id" + name + "aaaaaaaa\t" + name + "-control-plane\t4.20%\t1.400GiB / 8.000GiB\t17.50%\n")
 				}
 				return shell.OK(b.String())
+			}
+			if len(r.Args) > 0 && r.Args[0] == "logs" {
+				return shell.OK("I0000 starting kubelet\nI0001 apiserver is ready\n")
 			}
 			return shell.OK("")
 		case "helm":
@@ -219,7 +223,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("still using round status dots:\n%s", view)
 	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter/space use / logs", "^d delete", "e charts", "r refresh"} {
+	for _, want := range []string{"A create", "enter logs", "space use", "^d delete", "e charts", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -415,12 +419,12 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 	m.kubeconfig, m.context = "/kc", "kind-dev"
 	m = open(t, m, "kind")
 	m = selectKindTile(t, m, "lab")
-	m = pressSettle(t, m, "enter")
+	m = pressSettle(t, m, " ")
 	if m.kubeconfig != managed || m.context != "kind-lab" {
 		t.Fatalf("switch %s %s status %q", m.kubeconfig, m.context, m.status)
 	}
 	if m.stage != "kind" {
-		t.Fatalf("enter should stay on kind, stage %s status %q", m.stage, m.status)
+		t.Fatalf("space should stay on kind, stage %s status %q", m.stage, m.status)
 	}
 	m = pressSettle(t, m, "ctrl+d")
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "delete kind cluster lab?") {
@@ -892,7 +896,7 @@ func TestKindDeleteSwitchesToRemainingCluster(t *testing.T) {
 	}
 	m = open(t, m, "kind")
 	m = selectKindTile(t, m, "lab")
-	m = pressSettle(t, m, "enter")
+	m = pressSettle(t, m, " ")
 	if m.kubeconfig != labKC || m.context != "kind-lab" {
 		t.Fatalf("switch %s %s", m.kubeconfig, m.context)
 	}
@@ -1568,5 +1572,142 @@ func TestKindCreateFooterFollowsFocus(t *testing.T) {
 	}
 	if strings.Contains(view, "cycle images") || strings.Contains(view, "ctrl+e") {
 		t.Fatalf("chart footer leaked other hints:\n%s", view)
+	}
+}
+
+func dockerCalls(f *shell.Fake, verb string) []string {
+	var out []string
+	for _, c := range f.Calls() {
+		if c.Name != "docker" {
+			continue
+		}
+		line := strings.Join(c.Args, " ")
+		if verb == "" || strings.HasPrefix(line, verb) {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func TestKindEnterOpensControlPlaneLogs(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	labKC := kube.KindKubeconfig("lab", home)
+	if err := os.WriteFile(labKC, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, "enter")
+	if m.stage != "kindlog" {
+		t.Fatalf("enter stage %s status %q", m.stage, m.status)
+	}
+	if m.kubeconfig != "/kc" {
+		t.Fatalf("enter should not switch the cluster, kubeconfig %s", m.kubeconfig)
+	}
+	if !strings.Contains(m.logText, "apiserver is ready") {
+		t.Fatalf("control-plane log %q", m.logText)
+	}
+	got := dockerCalls(f, "logs")
+	if len(got) == 0 || !strings.Contains(got[0], "logs --tail 200 -f lab-control-plane") {
+		t.Fatalf("docker logs calls %v", got)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.stage != "kind" {
+		t.Fatalf("esc stage %s", m.stage)
+	}
+	if name, ok := m.selectedKind(); !ok || name != "lab" {
+		t.Fatalf("selection after logs %q %v", name, ok)
+	}
+	if m.kindLogCancel != nil {
+		t.Fatal("live log should be cancelled on esc")
+	}
+}
+
+func TestKindCacheRendersBeforeRefresh(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab", "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"lab", "dev"} {
+		path := kube.KindKubeconfig(name, home)
+		if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m = open(t, m, "kind")
+	if !strings.Contains(ansi.Strip(m.View()), "lab") {
+		t.Fatalf("first open should settle with tiles:\n%s", ansi.Strip(m.View()))
+	}
+	m.stage = "nav"
+	m.vs.kindNames = nil
+	m.vs.kindNodes = nil
+	before := len(f.Calls())
+	next, cmd := m.openKind()
+	m = next.(model)
+	if m.stage != "kind" {
+		t.Fatalf("stage %s", m.stage)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "lab") || !strings.Contains(view, "dev") {
+		t.Fatalf("cached tiles missing before refresh:\n%s", view)
+	}
+	if len(f.Calls()) != before {
+		t.Fatalf("openKind ran docker/kubectl on the event loop: +%d calls", len(f.Calls())-before)
+	}
+	if cmd == nil {
+		t.Fatal("openKind should still refresh in the background")
+	}
+}
+
+func TestKindExtrasThrottleAndForceRefresh(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab"})
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	if m.kindExtrasAt.IsZero() {
+		t.Fatal("first open should fetch extras")
+	}
+	m.kindUsageBusy, m.kindCatalogBusy, m.kindPodsBusy = false, false, false
+	t0 := m.kindExtrasAt
+	oldNow := now
+	t.Cleanup(func() { now = oldNow })
+	now = func() time.Time { return t0.Add(5 * time.Second) }
+	if m.kindExtrasCmds() != nil {
+		t.Fatal("extras should stay quiet inside the throttle window")
+	}
+	m.stage = "nav"
+	now = func() time.Time { return t0.Add(2 * kindExtrasEvery) }
+	if m.kindVisible() {
+		t.Fatal("nav should hide kind")
+	}
+	if m.kindExtrasCmds() != nil {
+		t.Fatal("extras should not run while kind is hidden")
+	}
+	m.stage = "kind"
+	now = func() time.Time { return t0.Add(5 * time.Second) }
+	m.kindExtrasForce = true
+	if m.kindExtrasCmds() == nil {
+		t.Fatal("force refresh should start extras at once")
+	}
+	m.kindUsageBusy, m.kindCatalogBusy, m.kindPodsBusy = false, false, false
+	m.kindExtrasAt = t0
+	now = func() time.Time { return t0.Add(kindExtrasEvery) }
+	if m.kindExtrasCmds() == nil {
+		t.Fatal("extras should run again after the throttle")
+	}
+	m.kindUsageBusy, m.kindCatalogBusy, m.kindPodsBusy = false, false, false
+	m = pressSettle(t, m, "r")
+	if m.kindExtrasAt.Equal(t0) {
+		t.Fatal("r should force extras")
 	}
 }

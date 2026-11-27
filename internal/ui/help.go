@@ -331,7 +331,8 @@ func (m model) viewSection() []helpSection {
 		}
 	case "kind":
 		return []helpSection{{"Kind", []helpRow{
-			{k.Select.Label() + " / space", "use this cluster, or open logs if it is still deploying"},
+			{"space", "use this cluster in the pane"},
+			{k.Select.Label(), "live control-plane logs, or the job log if it is still deploying"},
 			r(k.HelmInstall, "create a cluster"),
 			r(k.Edit, "add or remove catalog charts"),
 			r(k.HelmValues, "edit catalog chart values in the create or charts form"),
@@ -343,8 +344,7 @@ func (m model) viewSection() []helpSection {
 		}}}
 	case "kindlog":
 		return []helpSection{{"Kind logs", []helpRow{
-			r(k.Back, "back to the cluster tiles (the job keeps running)"),
-			r(k.Select, "use this cluster when it is ready"),
+			r(k.Back, "back to the cluster tiles (a create or delete job keeps running)"),
 		}}}
 	case "helm":
 		rows := []helpRow{

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -360,6 +361,10 @@ type model struct {
 	kindCatalogBusy    bool
 	kindPodsBusy       bool
 	kindNodeImagesBusy bool
+	kindSnap           kindSnap
+	kindExtrasAt       time.Time
+	kindExtrasForce    bool
+	kindLogCancel      context.CancelFunc
 }
 
 type Options struct {

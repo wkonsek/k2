@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -758,15 +760,49 @@ func (m model) openKindLogs(name string) (tea.Model, tea.Cmd) {
 
 func (m model) backKindLog() (tea.Model, tea.Cmd, bool) {
 	name := m.vs.kindLog
+	m.stopKindLiveLog()
+	if j := m.kindJobs[name]; j != nil && j.status == "logs" {
+		delete(m.kindJobs, name)
+	}
 	m.stage = "kind"
 	m.vs.kindLog = ""
 	m.vs.vback = ""
 	if name != "" {
 		m.selectKind(name)
 	}
+	m.restoreKindSnap()
+	m.showKind("")
 	m.status = m.kindHint()
 	cmd := m.kindRefreshCmd()
 	return m, cmd, true
+}
+
+func (m *model) stopKindLiveLog() {
+	if m.kindLogCancel != nil {
+		m.kindLogCancel()
+		m.kindLogCancel = nil
+	}
+}
+
+type kindLiveLogDoneMsg struct {
+	name, text string
+	err        error
+}
+
+func (m *model) applyKindLiveLog(msg kindLiveLogDoneMsg) {
+	if m.vs.kindLog == msg.name {
+		m.kindLogCancel = nil
+	}
+	if msg.err == nil || errors.Is(msg.err, context.Canceled) {
+		return
+	}
+	if j := m.kindJobs[msg.name]; j != nil && j.status == "logs" {
+		j.last = lastNonEmpty(msg.text)
+	}
+	if m.stage == "kindlog" && m.vs.kindLog == msg.name {
+		m.status = m.errLine(msg.err)
+		m.syncKindLog(msg.name)
+	}
 }
 
 func (m model) kindRefreshCmd() tea.Cmd {
@@ -775,6 +811,22 @@ func (m model) kindRefreshCmd() tea.Cmd {
 		return nil
 	}
 	return kindListCmd(bin, m.dockerCLI(), m.run, m.logID, 0)
+}
+
+func (m model) useKindTile() (tea.Model, tea.Cmd) {
+	name, ok := m.selectedKind()
+	if !ok {
+		return m, nil
+	}
+	t := m.kindTileFor(name)
+	switch t.status {
+	case "deploying", "deleting", "failed":
+		return m.openKindLogs(name)
+	}
+	if j := m.kindJobs[name]; j != nil && j.log != "" && !t.kcOK {
+		return m.openKindLogs(name)
+	}
+	return m.useKindCluster(name)
 }
 
 func (m model) enterKindTile() (tea.Model, tea.Cmd) {
@@ -790,5 +842,30 @@ func (m model) enterKindTile() (tea.Model, tea.Cmd) {
 	if j := m.kindJobs[name]; j != nil && j.log != "" && !t.kcOK {
 		return m.openKindLogs(name)
 	}
-	return m.useKindCluster(name)
+	return m.openKindControlPlaneLogs(name)
+}
+
+func (m model) openKindControlPlaneLogs(name string) (tea.Model, tea.Cmd) {
+	docker, next, cmd, ok := m.needDockerCLI("cluster logs")
+	if !ok {
+		return next, cmd
+	}
+	m.stopKindLiveLog()
+	ctx, cancel := context.WithCancel(context.Background())
+	m.kindLogCancel = cancel
+	j := m.ensureKindJob(name, "logs", "control-plane")
+	j.status, j.step, j.log, j.last, j.err, j.started = "logs", "control-plane", "", "", nil, now()
+	if m.stage != "kindlog" {
+		m.rememberView()
+	}
+	m.stage = "kindlog"
+	m.vs.kindLog = name
+	m.vs.vback = "kind"
+	m.subject = "kind " + name
+	m.logText = ""
+	m.logStick, m.logAt = true, 0
+	m.status = name + " control-plane · " + m.cfg.Keys.Back.Label() + " back to tiles"
+	return m, m.kindStreamCtx(name, m.run, docker, kube.DockerControlPlaneLogsArgs(name), "", ctx, func(text string, err error) tea.Msg {
+		return kindLiveLogDoneMsg{name: name, text: text, err: err}
+	})
 }
