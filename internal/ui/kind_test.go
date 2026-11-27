@@ -1461,3 +1461,31 @@ func TestKindDetailAlignsConfirmRows(t *testing.T) {
 		t.Fatalf("will remove %q", kindDetail("will remove", "~/.kube/k2-lab"))
 	}
 }
+
+func TestKindFormTypesJAndK(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	if m.dlg == nil || m.dlg.act != "kindcreate" {
+		t.Fatalf("form %+v", m.dlg)
+	}
+	for i, f := range m.dlg.hfields {
+		if f.key == "name" {
+			m.dlg.idx = i
+			break
+		}
+	}
+	m = m.moveHelmField(0)
+	setHelmField(m.dlg, "name", "")
+	start := m.dlg.idx
+	for _, r := range "k2-jk" {
+		m = pressSettle(t, m, string(r))
+		if m.dlg == nil || m.dlg.idx != start || m.dlg.hfields[m.dlg.idx].key != "name" {
+			t.Fatalf("typing %q into name moved the field", string(r))
+		}
+	}
+	if helmFieldValue(m.dlg, "name") != "k2-jk" {
+		t.Fatalf("name=%q", helmFieldValue(m.dlg, "name"))
+	}
+}

@@ -443,14 +443,14 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		d.idx = 0
 	}
 	switch {
-	case key == "tab" || key == "down" || km.ScrollDown.Has(key):
+	case key == "tab" || key == "down" || (km.ScrollDown.Has(key) && !d.hfields[d.idx].typed()):
 		if key == "tab" && d.hfields[d.idx].key == "config" {
 			if next, cmd, done := m.completeKindPath(); done {
 				return next, cmd
 			}
 		}
 		return m.moveHelmField(1), nil
-	case key == "shift+tab" || key == "up" || km.ScrollUp.Has(key):
+	case key == "shift+tab" || key == "up" || (km.ScrollUp.Has(key) && !d.hfields[d.idx].typed()):
 		return m.moveHelmField(-1), nil
 	case km.HelmValues.Has(key) && strings.HasPrefix(d.hfields[d.idx].key, "c:"):
 		return m.editKindChartValues()

@@ -346,7 +346,7 @@ func walkHelmFields(t *testing.T, m model, kind string) {
 	if unlocked == 0 {
 		t.Fatalf("%s: no movable fields", kind)
 	}
-	for _, key := range []string{"j", "k", "tab", "shift+tab", "down", "up"} {
+	for _, key := range []string{"tab", "shift+tab", "down", "up"} {
 		m.dlg.idx = start
 		m = m.moveHelmField(0)
 		seen := map[int]bool{m.dlg.idx: true}
@@ -379,5 +379,68 @@ func walkHelmFields(t *testing.T, m model, kind string) {
 	last := m.dlg.hfields[n-1].key
 	if last != "defaults" {
 		t.Fatalf("%s last field %s, want defaults", kind, last)
+	}
+}
+
+func TestHelmFormTypesJAndK(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	cases := []struct {
+		key, typed string
+	}{
+		{"name", "kafbat"},
+		{"chart", "kube-prometheus-stack"},
+		{"version", "1.2.3-jk"},
+		{"ns", "jetstack"},
+		{"values", "values-jk.yaml"},
+	}
+	for _, tc := range cases {
+		for i, f := range m.dlg.hfields {
+			if f.key == tc.key {
+				m.dlg.idx = i
+				break
+			}
+		}
+		m = m.moveHelmField(0)
+		start := m.dlg.idx
+		setHelmField(m.dlg, tc.key, "")
+		for _, r := range tc.typed {
+			m = pressSettle(t, m, string(r))
+			if m.dlg == nil {
+				t.Fatalf("%s: form closed while typing %q", tc.key, tc.typed)
+			}
+			if m.dlg.idx != start || m.dlg.hfields[m.dlg.idx].key != tc.key {
+				t.Fatalf("typing %q into %s moved to %s", string(r), tc.key, m.dlg.hfields[m.dlg.idx].key)
+			}
+		}
+		if got := helmFieldValue(m.dlg, tc.key); got != tc.typed {
+			t.Fatalf("%s: got %q want %q", tc.key, got, tc.typed)
+		}
+	}
+	for _, f := range m.dlg.hfields {
+		if !f.toggle && !f.action {
+			continue
+		}
+		for i, hf := range m.dlg.hfields {
+			if hf.key == f.key {
+				m.dlg.idx = i
+				break
+			}
+		}
+		m = m.moveHelmField(0)
+		start := m.dlg.idx
+		m = pressSettle(t, m, "j")
+		if m.dlg == nil || m.dlg.idx != start {
+			t.Fatalf("j on %s moved the field (idx %d -> %v)", f.key, start, m.dlg)
+		}
+		m = pressSettle(t, m, "k")
+		if m.dlg == nil || m.dlg.idx != start {
+			t.Fatalf("k on %s moved the field (idx %d -> %v)", f.key, start, m.dlg)
+		}
 	}
 }

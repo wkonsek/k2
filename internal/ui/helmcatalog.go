@@ -194,28 +194,74 @@ func catalogChartField(c config.Chart) string {
 	return c.HelmChart()
 }
 
+func helmChartReleaseName(chart string) string {
+	chart = strings.TrimSpace(chart)
+	if i := strings.LastIndex(chart, "/"); i >= 0 {
+		return chart[i+1:]
+	}
+	return chart
+}
+
+func (m *model) applyHelmChartVersion(op *helmOp, pinned, chart string) {
+	cur := helmFieldValue(m.dlg, "version")
+	if cur == "" || op.autoVersion {
+		setHelmField(m.dlg, "version", pinned)
+		op.autoVersion = true
+	}
+	if op.chart != chart {
+		op.versions = nil
+	}
+	op.chart = chart
+}
+
 func (m *model) maybeFillCatalog() {
 	if m.dlg == nil || m.vs.hop == nil || m.vs.hop.act != "install" {
 		return
 	}
 	chart := helmFieldValue(m.dlg, "chart")
-	c, ok := config.LookupChart(m.cfg.Charts(), chart)
-	if !ok {
+	if chart == "" {
 		return
 	}
 	op := *m.vs.hop
+	c, ok := config.LookupChart(m.cfg.Charts(), chart)
+	if !ok {
+		op.catalog = ""
+		if op.autoName {
+			setHelmField(m.dlg, "name", helmChartReleaseName(chart))
+		}
+		if op.autoNS {
+			ns := m.namespace
+			if ns == "" {
+				ns = "default"
+			}
+			setHelmField(m.dlg, "ns", ns)
+		}
+		if op.autoCreate && !op.manualCreate {
+			m.dlg.hcreate = false
+			op.autoCreate = false
+		}
+		if op.autoValues {
+			op.values = ""
+			setHelmField(m.dlg, "values", "")
+		}
+		m.applyHelmChartVersion(&op, "", chart)
+		m.vs.hop = &op
+		return
+	}
 	op.catalog = c.Name
 	if helmFieldValue(m.dlg, "name") == "" || op.autoName {
 		setHelmField(m.dlg, "name", c.HelmRelease())
 		op.autoName = true
 	}
 	setHelmField(m.dlg, "chart", catalogChartField(c))
+	chart = catalogChartField(c)
 	if c.Namespace != "" && (helmFieldValue(m.dlg, "ns") == "" || op.autoNS || helmFieldValue(m.dlg, "ns") == "default" || helmFieldValue(m.dlg, "ns") == m.namespace) {
 		setHelmField(m.dlg, "ns", c.Namespace)
 		op.autoNS = true
 	}
 	if !op.manualCreate {
 		m.dlg.hcreate = c.CreatesNamespace()
+		op.autoCreate = true
 	}
 	if op.values == "" || op.autoValues {
 		if len(c.Values) > 0 && len(c.Steps) == 0 {
@@ -230,6 +276,7 @@ func (m *model) maybeFillCatalog() {
 			setHelmField(m.dlg, "values", "")
 		}
 	}
+	m.applyHelmChartVersion(&op, c.Version, chart)
 	m.vs.hop = &op
 }
 

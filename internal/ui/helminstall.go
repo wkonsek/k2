@@ -17,17 +17,17 @@ import (
 )
 
 type helmOp struct {
-	act                          string
-	name, chart, version         string
-	ns, values                   string
-	createNS                     bool
-	catalog                      string
-	autoName, autoNS, autoValues bool
-	manualCreate                 bool
-	current                      kube.HelmRelease
-	charts                       []kube.HelmChart
-	versions                     []string
-	preview, summary             string
+	act                                                   string
+	name, chart, version                                  string
+	ns, values                                            string
+	createNS                                              bool
+	catalog                                               string
+	autoName, autoNS, autoValues, autoVersion, autoCreate bool
+	manualCreate                                          bool
+	current                                               kube.HelmRelease
+	charts                                                []kube.HelmChart
+	versions                                              []string
+	preview, summary                                      string
 }
 
 type helmField struct {
@@ -289,8 +289,10 @@ func (m model) applyHelmVers(msg helmVersMsg) (tea.Model, tea.Cmd) {
 	op.versions = msg.versions
 	m.vs.hop = &op
 	cur := helmFieldValue(m.dlg, "version")
-	if cur == "" && len(msg.versions) > 0 {
+	if (cur == "" || op.autoVersion) && len(msg.versions) > 0 {
 		setHelmField(m.dlg, "version", msg.versions[0])
+		op.autoVersion = true
+		m.vs.hop = &op
 	}
 	return m, nil
 }
@@ -312,7 +314,7 @@ func helmFocus(f *helmField) {
 }
 
 func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	km, key := m.cfg.Keys, msg.String()
+	key := msg.String()
 	d := m.dlg
 	if d == nil || len(d.hfields) == 0 {
 		return m, nil
@@ -321,7 +323,7 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		d.idx = 0
 	}
 	switch {
-	case key == "tab" || key == "down" || km.ScrollDown.Has(key):
+	case key == "tab" || key == "down":
 		if key == "tab" && d.hfields[d.idx].key == "chart" {
 			return m.cycleHelmChart(1)
 		}
@@ -331,7 +333,7 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m.moveHelmField(1), nil
-	case key == "shift+tab" || key == "up" || km.ScrollUp.Has(key):
+	case key == "shift+tab" || key == "up":
 		if key == "shift+tab" && d.hfields[d.idx].key == "chart" {
 			return m.cycleHelmChart(-1)
 		}
@@ -360,6 +362,8 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.vs.hop.autoName = false
 		case "ns":
 			m.vs.hop.autoNS = false
+		case "version":
+			m.vs.hop.autoVersion = false
 		case "values":
 			m.vs.hop.autoValues = false
 		}

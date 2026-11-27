@@ -362,3 +362,44 @@ func TestHelmChartSearchSuggestions(t *testing.T) {
 		t.Fatalf("unrelated catalog leaked into bit prefix: %v", hits)
 	}
 }
+
+func TestHelmCatalogCycleClearsVersion(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	m = focusHelmChart(t, m)
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "istio" {
+		t.Fatalf("istio %+v", m.vs.hop)
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "sealed-secrets" {
+		t.Fatalf("sealed-secrets %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	chart := helmFieldValue(m.dlg, "chart")
+	next, cmd := m.applyHelmVers(helmVersMsg{seq: m.dlg.seq, chart: chart, versions: []string{"2.22.0", "2.21.0"}})
+	m = settle(t, next.(model), cmd)
+	if helmFieldValue(m.dlg, "version") != "2.22.0" {
+		t.Fatalf("sealed-secrets version=%s", helmFieldValue(m.dlg, "version"))
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "metallb" {
+		t.Fatalf("metallb %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	if got := helmFieldValue(m.dlg, "version"); got == "2.22.0" {
+		t.Fatalf("metallb kept sealed-secrets version %q", got)
+	}
+	if got := helmFieldValue(m.dlg, "version"); got != "" {
+		t.Fatalf("metallb should clear the unpinned version, got %q", got)
+	}
+	setHelmField(m.dlg, "version", "1.0.0")
+	m.vs.hop.autoVersion = false
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "argocd" {
+		t.Fatalf("argocd %+v", m.vs.hop)
+	}
+	if helmFieldValue(m.dlg, "version") != "1.0.0" {
+		t.Fatalf("manual version was overwritten: %s", helmFieldValue(m.dlg, "version"))
+	}
+}
