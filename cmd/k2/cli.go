@@ -37,6 +37,11 @@ Usage:
   k2 --check-config   print every problem in ~/.k2/config.yaml (also --check).
                       exit 1 if something was skipped; k2 still starts with the default
                       for that entry
+  k2 kind-cache clean cache|ca|all
+                      clear the kind registry proxy directory (kind.registry_proxy.cache_dir,
+                      default ~/.k2/kind-cache): cache = cached layers in cache/ (keeps the CA),
+                      ca = the proxy CA in ca/, all = both. Prints what it freed; ca and all
+                      refuse while the proxy container runs (k2 kind-cache --help for more)
 
 On exit k2 takes the FOCUSED pane: it sets current-context and the namespace
 of that pane in the pane's kubeconfig file, then prints a single line,

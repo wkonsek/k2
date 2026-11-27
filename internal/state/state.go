@@ -27,6 +27,8 @@ type State struct {
 	Favorites []Favorite `json:"favorites,omitempty"`
 
 	CommandFavorites []CommandFavorite `json:"commandFavorites,omitempty"`
+
+	SealedMasterKey string `json:"sealedMasterKey,omitempty"`
 }
 
 type CommandFavorite struct {

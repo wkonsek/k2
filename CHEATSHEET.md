@@ -345,7 +345,7 @@ image). A checked chart opens an indented `namespace` row under it
 `--create-namespace`, shown in the red popup). `v` on a catalog chart edits its values in `$EDITOR` and
 passes them to Helm. On `sealed-secrets`, `m` picks a master-key YAML
 (the same file browser as Kustomize `p`; default
-`helm.charts.sealed-secrets.master_key_path`) that k2 applies before
+`helm.charts.sealed-secrets.master_key_path`, else the last picked path, remembered in the state file) that k2 applies before
 `helm install`. Enter asks in a red popup (`esc`/`q` back to the
 form, `n` cancels), then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
@@ -359,12 +359,13 @@ in reverse: istiod, then istio-base) with the same live tile and log.
 | `~` | `keys.kind` | open this view from anywhere; `q` goes back to the view before |
 | `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move up and down between cards |
 | `space` | `space` | use a ready cluster in the pane, or open the job log of a deploying / failed / deleting one |
-| `enter` | `keys.select` | live control-plane logs of a ready cluster, or the job log of a deploying / failed / deleting one |
+| `enter` | `keys.select` | use a running cluster and open its `:pods`; live control-plane logs of a stopped one, or the job log of a deploying / failed / deleting one |
 | `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
 | `e` | `keys.edit` | manage catalog charts on the selected cluster |
 | `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |
-| `r` | `keys.watch` | refresh the grid (in-flight jobs stay) |
+| `r` | `keys.watch` | refresh the grid and node states (in-flight jobs stay, finished and failed job overlays are cleared) |
 | `p` | `keys.kind_proxy` | start the registry proxy (works with no clusters too) |
+| `s` | `keys.kind_toggle` | stop the selected running cluster (`docker stop` on all its nodes, asks first) or start a stopped one; on the proxy card stops / starts the proxy container. Blocked in read-only mode |
 | `enter` / `ctrl+d` | `keys.select` / `keys.delete` | on the registry proxy card: follow its logs / remove the container (cache stays on disk) |
 
 ### Registry proxy (image cache)
@@ -378,6 +379,12 @@ Docker network as `k2-registry-proxy`, with cached layers and its CA in
 cluster: `space` and `e` do nothing there. `ctrl+d` removes only the
 container; deleting a cluster never touches it. Settings live under
 `kind.registry_proxy` (`image`, `container`, `cache_dir`, `registries`).
+
+Clear it from the shell: `k2 kind-cache clean cache` (layers only, keeps
+the CA), `k2 kind-cache clean ca` (CA only), `k2 kind-cache clean all`
+(both). Prints what it freed; `ca` / `all` refuse while the proxy runs
+(stop it with `s` on its card). Root-owned files are removed through
+docker when the host user can't.
 
 In `A`, `registry cache` (`space` toggles) is `yes` when the proxy is
 running. With `yes`, k2 starts the proxy if needed, then on every node

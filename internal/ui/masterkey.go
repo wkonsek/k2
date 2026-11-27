@@ -21,7 +21,39 @@ func (m model) chartMasterKey(name string, stored map[string]string) string {
 			return v
 		}
 	}
-	if c, ok := config.LookupChart(m.cfg.Charts(), name); ok {
+	if c, ok := config.LookupChart(m.cfg.Charts(), name); ok && c.MasterKeyPath != "" {
+		return c.MasterKeyPath
+	}
+	if config.IsSealedSecretsName(name) {
+		return m.sealedKey
+	}
+	return ""
+}
+
+func (m model) prefillSealedMasterKey(chart, catalog string) string {
+	if p := m.defaultSealedMasterKey(chart, catalog); p != "" {
+		return p
+	}
+	return m.sealedKey
+}
+
+func (m *model) rememberSealedKey(path, configured string) {
+	path = strings.TrimSpace(path)
+	next := m.sealedKey
+	switch {
+	case path == "":
+		next = ""
+	case config.ExpandHome(path) != config.ExpandHome(strings.TrimSpace(configured)):
+		next = path
+	}
+	if next != m.sealedKey {
+		m.sealedKey = next
+		m.save()
+	}
+}
+
+func (m model) configuredKindSealedKey() string {
+	if c, ok := config.LookupChart(m.cfg.Charts(), "sealed-secrets"); ok {
 		return c.MasterKeyPath
 	}
 	return ""
@@ -37,6 +69,8 @@ func (m *model) ensureKindMasterKeys(op *kindOp) {
 	if _, ok := op.masterKeys["sealed-secrets"]; !ok {
 		if c, ok := config.LookupChart(m.cfg.Charts(), "sealed-secrets"); ok && c.MasterKeyPath != "" {
 			op.masterKeys["sealed-secrets"] = c.MasterKeyPath
+		} else if m.sealedKey != "" {
+			op.masterKeys["sealed-secrets"] = m.sealedKey
 		}
 	}
 }
@@ -137,6 +171,7 @@ func (m model) openKindMasterKeyPicker() (tea.Model, tea.Cmd) {
 			}
 			op.masterKeys["sealed-secrets"] = path
 			m.vs.kop = &op
+			m.rememberSealedKey(path, m.configuredKindSealedKey())
 			m.reopenKindForm()
 			return m, nil
 		},
@@ -153,7 +188,7 @@ func (m model) openHelmMasterKeyPicker() (tea.Model, tea.Cmd) {
 	}
 	current := strings.TrimSpace(m.vs.hop.masterKey)
 	if current == "" {
-		current = m.defaultSealedMasterKey(m.vs.hop.chart, m.vs.hop.catalog)
+		current = m.prefillSealedMasterKey(m.vs.hop.chart, m.vs.hop.catalog)
 	}
 	return m.openYAMLPath("sealed-secrets master key", yamlPickerStart(current),
 		func(m model, path string) (tea.Model, tea.Cmd) {
@@ -161,6 +196,7 @@ func (m model) openHelmMasterKeyPicker() (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.vs.hop.masterKey = path
+			m.rememberSealedKey(path, m.defaultSealedMasterKey(m.vs.hop.chart, m.vs.hop.catalog))
 			m.reopenHelmForm()
 			return m.focusHelmField("masterkey"), nil
 		},
@@ -227,7 +263,7 @@ func (m *model) syncHelmMasterKeyField() {
 			path = strings.TrimSpace(m.vs.hop.masterKey)
 		}
 		if path == "" {
-			path = m.defaultSealedMasterKey(chart, catalog)
+			path = m.prefillSealedMasterKey(chart, catalog)
 			if m.vs.hop != nil && path != "" {
 				m.vs.hop.masterKey = path
 			}

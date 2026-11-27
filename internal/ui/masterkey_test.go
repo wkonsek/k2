@@ -9,6 +9,7 @@ import (
 	"k2/internal/config"
 	"k2/internal/kube"
 	"k2/internal/shell"
+	"k2/internal/state"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -356,4 +357,50 @@ func focusHelmFormField(t *testing.T, m model, key string) model {
 	}
 	t.Fatalf("no field %s", key)
 	return m
+}
+
+func TestSealedMasterKeyIsRemembered(t *testing.T) {
+	m := appModel(t, kindFake(t, nil))
+	home := os.Getenv("HOME")
+	picked := writeMasterKey(t, filepath.Join(home, "secrets"), "picked.yml")
+	m.rememberSealedKey(picked, m.configuredKindSealedKey())
+	if m.sealedKey != picked {
+		t.Fatalf("remembered %q", m.sealedKey)
+	}
+	if st := state.Load(m.cfg.StateDir); st.SealedMasterKey != picked {
+		t.Fatalf("state %q", st.SealedMasterKey)
+	}
+	reload := appModel(t, kindFake(t, nil))
+	reload.cfg.StateDir = m.cfg.StateDir
+	reload.sealedKey = state.Load(m.cfg.StateDir).SealedMasterKey
+	op := &kindOp{}
+	reload.ensureKindMasterKeys(op)
+	if op.masterKeys["sealed-secrets"] != picked || reload.kindSealedMasterKey(op) != picked {
+		t.Fatalf("kind prefill %v", op.masterKeys)
+	}
+	if got := reload.prefillSealedMasterKey("sealed-secrets", "sealed-secrets"); got != picked {
+		t.Fatalf("helm prefill %q", got)
+	}
+
+	configured := writeMasterKey(t, filepath.Join(home, "secrets"), "config.yml")
+	withSealedMasterKey(t, &reload, configured)
+	op = &kindOp{}
+	reload.ensureKindMasterKeys(op)
+	if op.masterKeys["sealed-secrets"] != configured || reload.prefillSealedMasterKey("sealed-secrets", "sealed-secrets") != configured {
+		t.Fatalf("config must win: %v", op.masterKeys)
+	}
+	reload.rememberSealedKey(configured, configured)
+	if reload.sealedKey != picked {
+		t.Fatalf("picking the configured path must not replace the remembered one: %q", reload.sealedKey)
+	}
+
+	m.rememberSealedKey("", "")
+	if m.sealedKey != "" || state.Load(m.cfg.StateDir).SealedMasterKey != "" {
+		t.Fatal("clearing the picker must forget the path")
+	}
+	op = &kindOp{}
+	m.ensureKindMasterKeys(op)
+	if _, ok := op.masterKeys["sealed-secrets"]; ok {
+		t.Fatalf("nothing to prefill after clearing: %v", op.masterKeys)
+	}
 }

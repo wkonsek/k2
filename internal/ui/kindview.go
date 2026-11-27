@@ -258,8 +258,12 @@ func (m model) kindTileFor(name string) kindTile {
 	if p, ok := m.kindPods[name]; ok {
 		t.pods = p
 	}
-	if j := m.kindJobs[name]; j != nil && (j.status == "deploying" || j.status == "deleting" || j.status == "failed") {
+	if j := m.kindJobs[name]; j != nil && (j.status == "deploying" || j.status == "deleting" || j.status == "failed") && !m.kindJobHidden(name, j) {
 		t.status, t.step, t.last, t.started, t.err = j.status, j.step, j.last, j.started, j.err
+		return t
+	}
+	if s, ok := m.kindToggle[name]; ok {
+		t.status, t.started = s.op, s.at
 		return t
 	}
 	if t.nodes.Total > 0 && t.nodes.Running == 0 {
@@ -544,6 +548,11 @@ func (m model) kindStatusIcon(status string) string {
 			return kindSpinGlyph(m.beat + 2)
 		}
 		return kindSpinGlyph(0)
+	case "stopping", "starting":
+		if m.cfg.UI.Animations {
+			return kindSpinGlyph(m.beat + 1)
+		}
+		return kindSpinGlyph(0)
 	case "failed":
 		return kindIconFailed
 	default:
@@ -566,7 +575,7 @@ func (m model) kindStatusLine(t kindTile, _ int) string {
 	case "deploying":
 		st = warnStyle
 		label = t.status + "  " + elapsed(now().Sub(t.started))
-	case "deleting":
+	case "deleting", "stopping", "starting":
 		st = warnStyle
 		label = t.status + "  " + elapsed(now().Sub(t.started))
 	case "failed":
@@ -922,7 +931,69 @@ func (m model) enterKindTile() (tea.Model, tea.Cmd) {
 	if j := m.kindJobs[name]; j != nil && j.log != "" && !t.kcOK {
 		return m.openKindLogs(name)
 	}
+	if t.status == "running" && t.kcOK {
+		return m.openKindPods(name)
+	}
 	return m.openKindControlPlaneLogs(name)
+}
+
+func (m model) openKindPods(name string) (tea.Model, tea.Cmd) {
+	next, cmd := m.useKindCluster(name)
+	nm := next.(model)
+	if nm.context != kube.KindContext(name) {
+		return nm, cmd
+	}
+	pods, pcmd := nm.openPods()
+	return pods, tea.Batch(cmd, pcmd)
+}
+
+func (m model) kindJobHidden(name string, j *kindJob) bool {
+	return j != nil && j.create && j.status == "failed" && m.vs.kindNodes[name].Total > 0
+}
+
+func (m model) kindClusterExists(name string) bool {
+	for _, n := range m.vs.kindNames {
+		if n != name {
+			continue
+		}
+		j := m.kindJobs[name]
+		if j != nil && j.create && j.status == "failed" && m.vs.kindNodes[name].Total == 0 {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (m model) freeKindName(base string) string {
+	if !m.kindClusterExists(base) {
+		return base
+	}
+	for i := 2; ; i++ {
+		if name := base + "-" + strconv.Itoa(i); !m.kindClusterExists(name) {
+			return name
+		}
+	}
+}
+
+func (m *model) clearStaleKindJobs() {
+	for name, j := range m.kindJobs {
+		if j != nil && (j.status == "failed" || j.status == "running") {
+			delete(m.kindJobs, name)
+		}
+	}
+}
+
+func (m model) kindEnterHint() string {
+	if m.kindProxySelected() {
+		return "logs"
+	}
+	if name, ok := m.selectedKind(); ok {
+		if t := m.kindTileFor(name); t.status == "running" && t.kcOK {
+			return "pods"
+		}
+	}
+	return "logs"
 }
 
 func (m model) openKindControlPlaneLogs(name string) (tea.Model, tea.Cmd) {

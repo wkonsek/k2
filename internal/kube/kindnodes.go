@@ -1,9 +1,13 @@
 package kube
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"k2/internal/shell"
 )
 
 type KindNodes struct {
@@ -252,4 +256,33 @@ func (n KindNodes) Summary() string {
 		parts = append(parts, strconv.Itoa(n.Running)+"/"+strconv.Itoa(n.Total))
 	}
 	return strings.Join(parts, " · ")
+}
+
+func DockerKindClusterIDsArgs(cluster string) []string {
+	return []string{"ps", "-a", "-q", "--filter", "label=io.x-k8s.kind.cluster=" + cluster}
+}
+
+func DockerStopArgs(ids []string) []string { return append([]string{"stop"}, ids...) }
+
+func DockerStartArgs(ids []string) []string { return append([]string{"start"}, ids...) }
+
+func ToggleKindCluster(run shell.Runner, docker, cluster string, start bool) (string, error) {
+	out, err := shell.Combined(run, docker, DockerKindClusterIDsArgs(cluster)...)
+	if err != nil {
+		return strings.TrimSpace(string(out)), errors.New(firstLine(string(out), err.Error()))
+	}
+	ids := strings.Fields(string(out))
+	if len(ids) == 0 {
+		return "", fmt.Errorf("no node containers for kind cluster %s", cluster)
+	}
+	args := DockerStopArgs(ids)
+	if start {
+		args = DockerStartArgs(ids)
+	}
+	res, err := shell.Combined(run, docker, args...)
+	text := strings.TrimSpace(string(res))
+	if err != nil {
+		return text, errors.New(firstLine(text, err.Error()))
+	}
+	return text, nil
 }

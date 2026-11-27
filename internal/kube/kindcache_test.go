@@ -279,3 +279,61 @@ func TestParseKindNodeNames(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestInspectRegistryProxyDuFallback(t *testing.T) {
+	dir := t.TempDir()
+	p := testProxy(dir)
+	locked := filepath.Join(p.CachePath(), "locked")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "blob"), make([]byte, 4096), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	if os.Geteuid() != 0 {
+		if n, ok, denied := DirUsage(p.CachePath()); !ok || !denied || n != 0 {
+			t.Fatalf("usage %d %v %v", n, ok, denied)
+		}
+	}
+	var du []string
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
+		line := strings.Join(r.Args, " ")
+		switch {
+		case r.Args[0] == "inspect":
+			return shell.OK(`[{"State":{"Status":"running","StartedAt":"2026-11-27T08:00:00Z"},"Config":{"Env":[]},"NetworkSettings":{"Networks":{"kind":{}}}}]`)
+		case strings.HasPrefix(line, "exec k2-registry-proxy du -sk /docker_mirror_cache"):
+			du = append(du, line)
+			return shell.OK("1258291\t/docker_mirror_cache\n")
+		}
+		return shell.Fail(1, "unexpected "+line)
+	}}
+	s := InspectRegistryProxy(f, "docker", p)
+	if os.Geteuid() != 0 && len(du) != 1 {
+		t.Fatalf("du calls %v", du)
+	}
+	if len(du) == 1 && (!s.CacheOK || s.CacheBytes != 1258291*1024 || FormatBytes(s.CacheBytes) != "1.2 GiB") {
+		t.Fatalf("%+v %s", s, FormatBytes(s.CacheBytes))
+	}
+	if n, ok := ParseDuK("12\t/x\n"); !ok || n != 12*1024 {
+		t.Fatalf("parse %d %v", n, ok)
+	}
+	if _, ok := ParseDuK("du: nope"); ok {
+		t.Fatal("bad du output must not parse")
+	}
+}
+
+func TestRegistryProxyCleanArgs(t *testing.T) {
+	if got := strings.Join(RegistryProxyCleanExecArgs("k2-registry-proxy"), " "); got != "exec k2-registry-proxy sh -c rm -rf /docker_mirror_cache/..?* /docker_mirror_cache/.[!.]* /docker_mirror_cache/*" {
+		t.Fatal(got)
+	}
+	if got := strings.Join(HostDirCleanArgs("img:1", "/h/ca"), " "); got != "run --rm -v /h/ca:/target --entrypoint sh img:1 -c rm -rf /target/..?* /target/.[!.]* /target/*" {
+		t.Fatal(got)
+	}
+	if got := strings.Join(HostDirDuArgs("img:1", "/h/ca"), " "); got != "run --rm -v /h/ca:/target --entrypoint du img:1 -sk /target" {
+		t.Fatal(got)
+	}
+}

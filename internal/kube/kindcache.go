@@ -102,6 +102,8 @@ func RegistryProxyInspectArgs(container string) []string {
 
 func RegistryProxyStartArgs(container string) []string { return []string{"start", container} }
 
+func RegistryProxyStopArgs(container string) []string { return []string{"stop", container} }
+
 func RegistryProxyRemoveArgs(container string) []string { return []string{"rm", "-f", container} }
 
 func RegistryProxyLogsArgs(container string) []string {
@@ -181,13 +183,20 @@ func ParseRegistryProxyInspect(out string) (ProxyStatus, error) {
 }
 
 func DirSize(path string) (int64, bool) {
+	n, ok, _ := DirUsage(path)
+	return n, ok
+}
+
+func DirUsage(path string) (total int64, ok bool, denied bool) {
 	st, err := os.Stat(path)
 	if err != nil || !st.IsDir() {
-		return 0, false
+		return 0, false, errors.Is(err, fs.ErrPermission)
 	}
-	var total int64
 	_ = filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if errors.Is(err, fs.ErrPermission) {
+				denied = true
+			}
 			if d != nil && d.IsDir() {
 				return fs.SkipDir
 			}
@@ -196,11 +205,59 @@ func DirSize(path string) (int64, bool) {
 		if d.Type().IsRegular() {
 			if info, ierr := d.Info(); ierr == nil {
 				total += info.Size()
+			} else if errors.Is(ierr, fs.ErrPermission) {
+				denied = true
 			}
 		}
 		return nil
 	})
-	return total, true
+	return total, true, denied
+}
+
+const (
+	RegistryProxyCacheMount = "/docker_mirror_cache"
+	RegistryProxyCAMount    = "/ca"
+	cleanMount              = "/target"
+)
+
+func RegistryProxyDuArgs(container string) []string {
+	return []string{"exec", container, "du", "-sk", RegistryProxyCacheMount}
+}
+
+func ParseDuK(out string) (int64, bool) {
+	fields := strings.Fields(out)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	var k int64
+	if _, err := fmt.Sscan(fields[0], &k); err != nil || k < 0 {
+		return 0, false
+	}
+	return k * 1024, true
+}
+
+func emptyDirScript(dir string) string {
+	return "rm -rf " + dir + "/..?* " + dir + "/.[!.]* " + dir + "/*"
+}
+
+func RegistryProxyCleanExecArgs(container string) []string {
+	return []string{"exec", container, "sh", "-c", emptyDirScript(RegistryProxyCacheMount)}
+}
+
+func HostDirDuArgs(image, path string) []string {
+	return []string{"run", "--rm", "-v", path + ":" + cleanMount, "--entrypoint", "du", image, "-sk", cleanMount}
+}
+
+func HostDirCleanArgs(image, path string) []string {
+	return []string{"run", "--rm", "-v", path + ":" + cleanMount, "--entrypoint", "sh", image, "-c", emptyDirScript(cleanMount)}
+}
+
+func ProxyCacheSize(run shell.Runner, docker, container string) (int64, bool) {
+	out, err := shell.Combined(run, docker, RegistryProxyDuArgs(container)...)
+	if err != nil {
+		return 0, false
+	}
+	return ParseDuK(string(out))
 }
 
 func InspectRegistryProxy(run shell.Runner, docker string, p RegistryProxy) ProxyStatus {
@@ -217,7 +274,13 @@ func InspectRegistryProxy(run shell.Runner, docker string, p RegistryProxy) Prox
 	} else {
 		s = parsed
 	}
-	s.CacheBytes, s.CacheOK = DirSize(p.CachePath())
+	size, ok, denied := DirUsage(p.CachePath())
+	s.CacheBytes, s.CacheOK = size, ok
+	if s.Running() && (denied || !ok || size == 0) {
+		if n, dok := ProxyCacheSize(run, docker, p.Container); dok {
+			s.CacheBytes, s.CacheOK = n, true
+		}
+	}
 	return s
 }
 

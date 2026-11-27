@@ -290,6 +290,7 @@ type model struct {
 	repeatOn           bool
 	repeatTok          int
 	kroot              string
+	sealedKey          string
 	kfile              string
 	kback              string
 	sh                 textinput.Model
@@ -371,6 +372,7 @@ type model struct {
 	kindProxy          kube.ProxyStatus
 	kindProxyOp        string
 	kindProxyOpAt      time.Time
+	kindToggle         map[string]kindToggleState
 }
 
 type Options struct {
@@ -547,6 +549,7 @@ func initialModel(opts Options) model {
 		context:     context,
 		namespace:   st.Namespace,
 		kroot:       st.KustomRoot,
+		sealedKey:   st.SealedMasterKey,
 		forwards:    st.Forwards,
 		favs:        st.Favorites,
 		cmdFavs:     st.CommandFavorites,

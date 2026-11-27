@@ -135,6 +135,12 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case kindProxyMsg:
 		m.applyKindProxy(msg)
 		return m, nil, true
+	case kindNodesMsg:
+		m.applyKindNodes(msg)
+		return m, nil, true
+	case kindToggleMsg:
+		cmd := m.applyKindToggle(msg)
+		return m, cmd, true
 	case kindProxyDoneMsg:
 		cmd := m.applyKindProxyDone(msg)
 		return m, cmd, true

@@ -338,15 +338,16 @@ func (m model) viewSection() []helpSection {
 	case "kind":
 		return []helpSection{{"Kind", []helpRow{
 			{"space", "use this cluster in the pane"},
-			{k.Select.Label(), "live control-plane logs, or the job log if it is still deploying"},
+			{k.Select.Label(), "use a running cluster and open its pods; control-plane logs of a stopped one, or the job log if it is still deploying"},
 			r(k.HelmInstall, "create a cluster"),
 			r(k.Edit, "add or remove catalog charts"),
 			r(k.HelmValues, "edit catalog chart values in the create or charts form"),
 			r(k.Delete, "delete the cluster"),
 			r(k.KindProxy, "start the registry proxy (shared image cache for kind nodes)"),
+			r(k.KindToggle, "stop a running cluster (asks) or start a stopped one; on the proxy card stop / start the proxy"),
 			{k.Select.Label() + " / " + k.Delete.Label(), "on the registry proxy card: its logs / remove it (the cache stays on disk)"},
 			{"space", "toggle registry cache or a chart in the create form; a checked chart gets a namespace row to edit"},
-			r(k.Watch, "refresh the list"),
+			r(k.Watch, "refresh the list and node states, clear finished or failed job overlays"),
 			{"↑↓←→ / h j k l / tab", "move between clusters"},
 			{"tab / shift+tab", "cycle node images in the create form"},
 			{"ctrl+e", "edit the kind config file in the create form"},

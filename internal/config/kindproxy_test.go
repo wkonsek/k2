@@ -78,3 +78,20 @@ func TestKindProxyKeyConflicts(t *testing.T) {
 		t.Fatalf("want a conflict with edit, got %v", w)
 	}
 }
+
+func TestKindToggleKey(t *testing.T) {
+	if DefaultKeys().KindToggle.Label() != "s" {
+		t.Fatal(DefaultKeys().KindToggle)
+	}
+	if _, w := Parse([]byte("keys: {}\n")); len(w) != 0 {
+		t.Fatalf("default keys conflict: %v", w)
+	}
+	c, w := Parse([]byte("keys:\n  kind_toggle: S\n"))
+	if len(w) != 0 || c.Keys.KindToggle.Label() != "S" {
+		t.Fatalf("%v %v", w, c.Keys.KindToggle)
+	}
+	_, w = Parse([]byte("keys:\n  kind_toggle: p\n"))
+	if len(w) != 1 || !strings.Contains(w[0], "kind_toggle") {
+		t.Fatalf("want a conflict with kind_proxy, got %v", w)
+	}
+}

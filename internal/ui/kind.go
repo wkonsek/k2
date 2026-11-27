@@ -38,6 +38,7 @@ type kindJob struct {
 	started                       time.Time
 	err                           error
 	op                            kindOp
+	create                        bool
 }
 
 type kindListMsg struct {
@@ -227,7 +228,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return "space use, " + k.Select.Label() + " logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete, " + k.KindProxy.Label() + " registry proxy"
+	return "space use, " + k.Select.Label() + " " + m.kindEnterHint() + ", " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.KindToggle.Label() + " " + m.kindToggleHint() + ", " + k.Delete.Label() + " delete, " + k.KindProxy.Label() + " registry proxy"
 }
 
 func (m *model) showKind(pick string) {
@@ -307,6 +308,10 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.askKindProxyStart()
 		return next, cmd, true
 	}
+	if km.KindToggle.Has(key) {
+		next, cmd := m.kindToggleKey()
+		return next, cmd, true
+	}
 	if m.kindProxySelected() {
 		if next, cmd, ok := m.kindProxyKey(key); ok {
 			return next, cmd, true
@@ -335,7 +340,7 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 		m.moveKind(-1)
 		return m, nil, true
 	case km.HelmInstall.Has(key) || km.Apply.Has(key):
-		next, cmd := m.openKindCreate(kindOp{name: "k2", planes: 1})
+		next, cmd := m.openKindCreate(kindOp{name: m.freeKindName("k2"), planes: 1})
 		return next, cmd, true
 	case km.Edit.Has(key):
 		name, ok := m.selectedKind()
@@ -362,6 +367,7 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.enterKindTile()
 		return next, cmd, true
 	case km.Watch.Has(key):
+		m.clearStaleKindJobs()
 		m.kindExtrasForce = true
 		next, cmd := m.openKind()
 		nm := next.(model)
@@ -851,6 +857,9 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 	case strings.Contains(op.name, " "):
 		m.dlg.msg = "cluster name cannot contain spaces"
 		return m, nil
+	case m.kindClusterExists(op.name):
+		m.dlg.msg = fmt.Sprintf("cluster %q already exists", op.name)
+		return m, nil
 	case op.planes < 1:
 		m.dlg.msg = "need at least one control-plane"
 		return m, nil
@@ -880,6 +889,11 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 		}
 	}
 	if kindSelectsSealedSecrets(op.charts) {
+		if op.masterKeys != nil {
+			if v, ok := op.masterKeys["sealed-secrets"]; ok {
+				m.rememberSealedKey(v, m.configuredKindSealedKey())
+			}
+		}
 		if _, msg := m.validateMasterKeyFile(m.kindSealedMasterKey(op)); msg != "" {
 			m.dlg.msg = msg
 			return m, nil
@@ -948,7 +962,7 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 				m.kindJobs = map[string]*kindJob{}
 			}
 			j := m.ensureKindJob(op.name, "deploying", "creating cluster")
-			j.op, j.err, j.log, j.last, j.started = op, nil, "", "", now()
+			j.op, j.err, j.log, j.last, j.started, j.create = op, nil, "", "", now(), true
 			found := false
 			for _, n := range m.vs.kindNames {
 				if n == op.name {
@@ -1114,6 +1128,9 @@ func (m *model) applyKindCreated(msg kindRunMsg) tea.Cmd {
 	m.withPane(msg.pane, func() {
 		j := m.ensureKindJob(msg.op.name, "", "")
 		j.op = msg.op
+		if msg.err == nil {
+			j.create = false
+		}
 		if msg.err != nil {
 			j.status, j.err = "failed", msg.err
 			if msg.text != "" {

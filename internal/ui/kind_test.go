@@ -234,7 +234,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("still using round status dots:\n%s", view)
 	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter logs", "space use", "^d delete", "e charts", "r refresh"} {
+	for _, want := range []string{"A create", "enter pods", "space use", "^d delete", "e charts", "s stop", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -1774,7 +1774,7 @@ func dockerCalls(f *shell.Fake, verb string) []string {
 	return out
 }
 
-func TestKindEnterOpensControlPlaneLogs(t *testing.T) {
+func TestKindEnterOpensPods(t *testing.T) {
 	withKindCLIs(t)
 	f := kindFake(t, []string{"lab"})
 	m := appModel(t, f)
@@ -1789,29 +1789,49 @@ func TestKindEnterOpensControlPlaneLogs(t *testing.T) {
 	m.kubeconfig, m.context = "/kc", "kind-dev"
 	m = open(t, m, "kind")
 	m = selectKindTile(t, m, "lab")
+	if !strings.Contains(m.kindHint(), "enter pods") {
+		t.Fatalf("hint %q", m.kindHint())
+	}
+	m = pressSettle(t, m, "enter")
+	if m.stage != "workpods" {
+		t.Fatalf("enter stage %s status %q", m.stage, m.status)
+	}
+	if m.kubeconfig != labKC || m.context != "kind-lab" {
+		t.Fatalf("enter should switch to lab, got %s %s", m.kubeconfig, m.context)
+	}
+	if got := dockerCalls(f, "logs"); len(got) != 0 {
+		t.Fatalf("enter must not open docker logs: %v", got)
+	}
+	m = pressSettle(t, m, "q")
+	if m.stage != "kind" {
+		t.Fatalf("back from pods stage %s", m.stage)
+	}
+}
+
+func TestKindEnterOnStoppedClusterOpensLogs(t *testing.T) {
+	withKindCLIs(t)
+	f := kindStateFake(t, map[string]bool{"lab": false})
+	m := appModel(t, f.Fake)
+	writeKindKC(t, "lab")
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	if st := m.kindTileFor("lab").status; st != "stopped" {
+		t.Fatalf("status %s", st)
+	}
+	if !strings.Contains(m.kindHint(), "enter logs") || !strings.Contains(m.kindHint(), "s start") {
+		t.Fatalf("hint %q", m.kindHint())
+	}
 	m = pressSettle(t, m, "enter")
 	if m.stage != "kindlog" {
 		t.Fatalf("enter stage %s status %q", m.stage, m.status)
 	}
-	if m.kubeconfig != "/kc" {
-		t.Fatalf("enter should not switch the cluster, kubeconfig %s", m.kubeconfig)
-	}
-	if !strings.Contains(m.logText, "apiserver is ready") {
-		t.Fatalf("control-plane log %q", m.logText)
-	}
-	got := dockerCalls(f, "logs")
+	got := dockerCalls(f.Fake, "logs")
 	if len(got) == 0 || !strings.Contains(got[0], "logs --tail 200 -f lab-control-plane") {
 		t.Fatalf("docker logs calls %v", got)
 	}
 	m = pressSettle(t, m, "esc")
-	if m.stage != "kind" {
+	if m.stage != "kind" || m.kindLogCancel != nil {
 		t.Fatalf("esc stage %s", m.stage)
-	}
-	if name, ok := m.selectedKind(); !ok || name != "lab" {
-		t.Fatalf("selection after logs %q %v", name, ok)
-	}
-	if m.kindLogCancel != nil {
-		t.Fatal("live log should be cancelled on esc")
 	}
 }
 

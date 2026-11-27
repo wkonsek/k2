@@ -173,7 +173,7 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 	d.hcreate = op.createNS
 	d.idx = focus
 	if op.masterKey == "" {
-		op.masterKey = m.defaultSealedMasterKey(op.chart, op.catalog)
+		op.masterKey = m.prefillSealedMasterKey(op.chart, op.catalog)
 	}
 }
 
@@ -741,9 +741,11 @@ func (m model) submitHelmForm() (tea.Model, tea.Cmd) {
 		c, ok := config.LookupChart(m.cfg.Charts(), or(op.catalog, op.chart))
 		return ok && c.IsSealedSecrets()
 	}()) {
+		configured := m.defaultSealedMasterKey(op.chart, op.catalog)
 		if op.masterKey == "" {
-			op.masterKey = m.defaultSealedMasterKey(op.chart, op.catalog)
+			op.masterKey = configured
 		}
+		m.rememberSealedKey(op.masterKey, configured)
 		p, msg := m.validateMasterKeyFile(op.masterKey)
 		if msg != "" {
 			m.dlg.msg = msg

@@ -38,6 +38,7 @@ func (m *model) save() {
 		Favorites:  m.favs,
 
 		CommandFavorites: m.cmdFavs,
+		SealedMasterKey:  m.sealedKey,
 	}
 	index := map[string]int{}
 	for i, p := range m.panes {

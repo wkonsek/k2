@@ -168,6 +168,7 @@
 #   previous: p
 #   pod_logs: l               # pods list: logs of the pod (enter opens its containers)
 #   kind_proxy: p             # :kind: start the registry proxy
+#   kind_toggle: s            # :kind: stop a running cluster or the proxy, start a stopped one
 #   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
 #   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w

@@ -86,7 +86,7 @@ k2() {
 
 It only evaluates a clean exit: one `export KUBECONFIG=...` line, exit 0.
 With arguments (`k2 --version`, `k2 --help`, `k2 --init-config`,
-`k2 --update`) k2 runs as-is. A crash restores the terminal, writes the
+`k2 --update`, `k2 kind-cache clean …`) k2 runs as-is. A crash restores the terminal, writes the
 stack to `~/.k2/crash.log` and prints one line to stderr.
 
 ## Quick start
@@ -448,7 +448,7 @@ those fields yourself; `↑` `↓` still move between form fields. k2 adds and u
 installs `istio/base` then `istio/istiod` in `istio-system`. The built-in
 catalog (istio, sealed-secrets, metallb, argocd, cert-manager,
 metrics-server, kube-prometheus-stack, kafbat) is overridable under
-`helm.charts` in `~/.k2/config.yaml`. For `sealed-secrets`, the form shows a master-key path (from `helm.charts.sealed-secrets.master_key_path`, or pick one with `ctrl+p`); k2 runs `kubectl apply -f` on that Secret YAML before `helm install`. Preview with `helm template` (for an
+`helm.charts` in `~/.k2/config.yaml`. For `sealed-secrets`, the form shows a master-key path (from `helm.charts.sealed-secrets.master_key_path`, or pick one with `ctrl+p`; the last picked path is remembered in `~/.k2/state.json` and prefilled next time, the config path still wins, and clearing the field forgets it); k2 runs `kubectl apply -f` on that Secret YAML before `helm install`. Preview with `helm template` (for an
 upgrade, a per-resource diff against the current manifest). A red popup
 names the context, release, chart and namespace; on success k2 jumps to
 the release and shows its notes.
@@ -506,7 +506,15 @@ returns to the grid without cancelling the job). On success the pane
 switches to `kind-<name>` and selected charts install one after another
 (Helm repos added first; MetalLB gets an IPAddressPool from the kind
 Docker network). `space` on a ready card uses that cluster if its
-kubeconfig exists; `enter` follows the control-plane container logs.
+kubeconfig exists; `enter` on a running card switches to it and opens
+`:pods` right away (`q` goes back to the cards); on a stopped card it
+follows the control-plane container logs, and on a deploying, deleting or
+failed one it opens the job log. `s` stops a running cluster
+(`docker stop` on all its node containers, after a short `y`/`n`
+confirm) or starts a stopped one, and the card updates as soon as it
+finishes. The create form refuses a name that is already a kind cluster
+(`cluster "k2" already exists`; `A` suggests `k2-2` when `k2` is taken),
+and a failed create never covers a live cluster's card.
 `e` opens a checklist of catalog charts
 (already-installed ones are checked, their `namespace` row shows where they
 live and is read-only); `v` edits values the same way, `m` on `sealed-secrets` picks a master key the same way as create, and
@@ -517,10 +525,13 @@ and the k2-managed kubeconfig only; it is blocked while that cluster is
 still deploying or deleting. If the deleted cluster was the pane's
 active one and exactly one remaining kind cluster has a usable
 kubeconfig, the pane switches to that cluster. `r` refreshes the grid
-without dropping in-flight jobs. Also listed on the home screen. Needs
+and node states without dropping in-flight jobs, and clears finished or
+failed job overlays. The 15s background refresh also re-reads container
+state, so a cluster stopped outside k2 (`docker stop k2-control-plane`)
+turns `stopped` on its own. Also listed on the home screen. Needs
 the kind CLI (`kind.binary`, default `kind`) and docker; starter charts
-also need helm. Read-only mode (`R`) blocks create, delete and chart
-edits.
+also need helm. Read-only mode (`R`) blocks create, delete, start/stop
+and chart edits.
 
 **Registry proxy** (`p` in `:kind`). A shared image cache for every kind
 cluster, built on `rpardini/docker-registry-proxy:0.8.0` (pinned, `:latest`
@@ -532,7 +543,22 @@ survive restarts and new clusters. The proxy gets its own card with a
 `⇄ registry proxy` badge (status, live uptime, cache size on disk,
 registries); `enter` follows `docker logs --tail 200 -f`, `ctrl+d` removes
 the container and keeps the cache dir, and deleting a cluster never
-touches it. The create form has a `registry cache` toggle (`yes` when the
+touches it. `s` on the proxy card stops it (asks) or starts it again.
+The cache size comes from the host directory, or from
+`docker exec k2-registry-proxy du -sk /docker_mirror_cache` when the
+container's root-owned folders can't be read. To clear it from the shell:
+
+```sh
+k2 kind-cache clean cache   # cached layers in cache/ only; the CA stays, wired clusters keep trusting the proxy
+k2 kind-cache clean ca      # the proxy CA in ca/ only (a new one is made on the next proxy start)
+k2 kind-cache clean all     # both
+```
+
+It prints what it cleared and how much it freed (`cleared cache (1.2 GiB)`).
+`ca` and `all` refuse while the proxy runs (stop it with `s` first). Files
+the container wrote as root are removed through docker
+(`docker exec` into the running proxy, or a throwaway `docker run` of the
+proxy image) when the host user can't delete them. The create form has a `registry cache` toggle (`yes` when the
 proxy is running). With `yes`, k2 starts the proxy if needed, then for
 each node copies the CA into the node trust store and writes a containerd
 drop-in with `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` (localhost, cluster
@@ -725,6 +751,7 @@ the binary and also shipped as `/usr/share/k2/config.example.yaml`.
 k2 --init-config            # write ~/.k2/config.yaml if it is missing
 k2 --init-config --force    # write ~/.k2/config.yaml.new beside an existing file
 k2 --check-config           # print every skipped line; exit 1 if there is one
+k2 kind-cache clean cache   # clear the registry proxy cache (also: ca, all)
 ```
 
 A typo or bad value shows a warning and keeps the default. A key that
@@ -910,7 +937,7 @@ make demo        the README GIFs (needs vhs)
 
 ```
 example.go          embeds config.example.yaml (written on first start)
-cmd/k2/             main: runs the UI, prints the export line, --version, --init-config, --update
+cmd/k2/             main: runs the UI, prints the export line, --version, --init-config, --update, kind-cache
 internal/ui/        Bubble Tea model, views and key handling
 internal/config/    ~/.k2/config.yaml, key bindings and key parsing
 internal/theme/     color palettes

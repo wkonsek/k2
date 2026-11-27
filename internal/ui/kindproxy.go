@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"k2/internal/config"
 	"k2/internal/kube"
@@ -177,7 +178,7 @@ func (m model) renderKindProxy(selected bool, width int) string {
 	inner := max(8, width-2)
 	border := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(th.Warn).
+		BorderForeground(th.Muted).
 		Width(inner)
 	if selected {
 		border = border.BorderForeground(th.Accent)
@@ -292,6 +293,14 @@ func (m *model) applyKindProxyDone(msg kindProxyDoneMsg) tea.Cmd {
 		m.status = m.errLine(msg.err)
 		return tea.Batch(m.notify(toneErr, "registry proxy "+msg.op+" failed"), m.kindProxyCmd())
 	}
+	if msg.op == "stop" {
+		m.kindProxy.State, m.kindProxy.StartedAt = "exited", time.Time{}
+		m.status = "stopped " + p.Container + " · " + m.cfg.Keys.KindToggle.Label() + " starts it again"
+		if m.stage == "kind" {
+			m.selectKindProxy()
+		}
+		return tea.Batch(m.notify(toneOK, "stopped "+p.Container), m.kindProxyCmd())
+	}
 	if msg.op == "remove" {
 		m.kindProxy = kube.ProxyStatus{State: "absent"}
 		m.status = "removed " + p.Container + " · cache kept in " + config.HomePath(p.CacheDir)
@@ -359,7 +368,7 @@ func (m model) kindProxyKey(key string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.askKindProxyRemove()
 		return next, cmd, true
 	case key == " " || km.Edit.Has(key):
-		m.status = "that is the registry proxy, not a cluster · " + km.Select.Label() + " logs, " + km.Delete.Label() + " remove"
+		m.status = "that is the registry proxy, not a cluster · " + km.Select.Label() + " logs, " + km.KindToggle.Label() + " " + m.kindToggleHint() + ", " + km.Delete.Label() + " remove"
 		return m, m.notify(toneWarn, "registry proxy is not a cluster"), true
 	case km.Select.Has(key) && key != "l" && key != "right":
 		next, cmd := m.openKindProxyLogs()

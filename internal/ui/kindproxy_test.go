@@ -44,6 +44,9 @@ func kindProxyFake(t *testing.T, clusters []string, state string) *proxyFake {
 		case r.Args[0] == "start":
 			p.state = "running"
 			return shell.OK("k2-registry-proxy")
+		case r.Args[0] == "stop" && strings.Contains(line, "k2-registry-proxy"):
+			p.state = "exited"
+			return shell.OK("k2-registry-proxy")
 		case r.Args[0] == "rm":
 			p.state = ""
 			return shell.OK("k2-registry-proxy")
