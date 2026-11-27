@@ -627,6 +627,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.Mark.Has(key) && !filtering && (m.stage == "workpods" || m.stage == "res"):
 			m.toggleMark()
 			return m, nil
+		case km.Kind.Has(key):
+			if filtering {
+				break
+			}
+			if m.cancelLoad() {
+				return m, nil
+			}
+			return m.openKind()
 		case km.Home.Has(key):
 			if filtering {
 				break

@@ -134,7 +134,10 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if d.act == "helminstall" && d.ask == "" {
 			return m.submitHelmForm()
 		}
-		if d.act == "kindcreate" && d.ask == "" {
+		if (d.act == "kindcreate" || d.act == "kindcharts") && d.ask == "" {
+			if d.act == "kindcharts" {
+				return m.submitKindCharts()
+			}
 			return m.submitKindForm()
 		}
 		if d.act != "theme" && d.act != "help" && d.act != "error" && d.act != "favorites" && d.act != "cmdfavs" {
@@ -150,7 +153,7 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.setImageKey(msg)
 	case d.act == "helminstall":
 		return m.helmFormKey(msg)
-	case d.act == "kindcreate":
+	case d.act == "kindcreate", d.act == "kindcharts":
 		return m.kindFormKey(msg)
 	case d.act == "kpath":
 		if next, done := m.kpathKey(msg); done {
@@ -193,6 +196,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 		return m.submitHelmForm()
 	case "kindcreate":
 		return m.submitKindForm()
+	case "kindcharts":
+		return m.submitKindCharts()
 	case "logs", "prevlogs":
 		m.dlg = nil
 		return m.openLogs(d.ns+"/"+d.name, d.picked(), d.act == "prevlogs")
@@ -390,7 +395,7 @@ func (m model) dialogBox(width int) string {
 	if len(d.images) > 0 && d.ask == "" {
 		lines = append(lines, d.imageRows(inner)...)
 	}
-	if (d.act == "helminstall" || d.act == "kindcreate") && d.ask == "" {
+	if (d.act == "helminstall" || d.act == "kindcreate" || d.act == "kindcharts") && d.ask == "" {
 		lines = append(lines, d.helmFormRows(inner)...)
 	}
 	if d.hasIn {
@@ -402,7 +407,7 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, d.input.View())
 		lines = append(lines, d.candLines()...)
 	}
-	if len(d.options) > 0 || d.hasIn || (len(d.images) > 0 && d.ask == "") || ((d.act == "helminstall" || d.act == "kindcreate") && d.ask == "") {
+	if len(d.options) > 0 || d.hasIn || (len(d.images) > 0 && d.ask == "") || ((d.act == "helminstall" || d.act == "kindcreate" || d.act == "kindcharts") && d.ask == "") {
 		lines = append(lines, "")
 	}
 	k := m.cfg.Keys
@@ -425,7 +430,7 @@ func (m model) dialogBox(width int) string {
 		lines = append(lines, dimStyle.Render(d.msg))
 	case d.msg != "":
 		lines = append(lines, errStyle.Render(d.msg))
-	case d.act == "kindcreate" && len(d.hfields) > 0:
+	case (d.act == "kindcreate" || d.act == "kindcharts") && len(d.hfields) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render("space")+dimStyle.Render(" toggle  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" confirm  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
 	case d.act == "helminstall" && len(d.hfields) > 0:

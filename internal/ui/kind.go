@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,12 +20,22 @@ type kindOp struct {
 	name, config, image, kubeconfig string
 	planes, workers                 int
 	charts                          []string
+	edited                          bool
+	uninstall                       []string
+}
+
+type kindJob struct {
+	name, status, step, last, log string
+	started                       time.Time
+	err                           error
+	op                            kindOp
 }
 
 type kindListMsg struct {
 	pane  string
 	token int
 	names []string
+	nodes map[string]kube.KindNodes
 	err   error
 }
 
@@ -37,18 +48,15 @@ type kindRunMsg struct {
 }
 
 type kindChartsMsg struct {
-	pane  string
-	token int
-	text  string
-	err   error
-	notes string
+	pane, name, text, notes string
+	token                   int
+	err                     error
 }
 
 type kindDeleteMsg struct {
-	name string
-	text string
-	err  error
-	gone bool
+	pane, name, text string
+	err              error
+	gone             bool
 }
 
 var metalRetryWait = 2 * time.Second
@@ -94,9 +102,10 @@ func (m model) needDockerCLI(act string) (string, tea.Model, tea.Cmd, bool) {
 }
 
 func (m model) openKind() (tea.Model, tea.Cmd) {
-	if m.stage != "kind" {
+	if m.stage != "kind" && m.stage != "kindlog" {
 		m.rememberView()
 	}
+	m.stage = "kind"
 	_, next, cmd, ok := m.needKindCLI("kind")
 	if !ok {
 		nm := next.(model)
@@ -104,11 +113,13 @@ func (m model) openKind() (tea.Model, tea.Cmd) {
 		nm.showKind("")
 		return nm, cmd
 	}
-	spin := m.startLoad("loading kind clusters", true)
-	return m, tea.Batch(spin, kindListCmd(m.kindCLI(), m.run, m.logID, m.load.token))
+	if m.status == "" {
+		m.status = m.kindHint()
+	}
+	return m, m.kindRefreshCmd()
 }
 
-func kindListCmd(bin string, run shell.Runner, pane string, token int) tea.Cmd {
+func kindListCmd(bin, docker string, run shell.Runner, pane string, token int) tea.Cmd {
 	return func() tea.Msg {
 		out, err := shell.Combined(run, bin, kube.KindGetArgs()...)
 		if err != nil {
@@ -118,7 +129,14 @@ func kindListCmd(bin string, run shell.Runner, pane string, token int) tea.Cmd {
 			}
 			return kindListMsg{pane: pane, token: token, err: fmt.Errorf("%s", text)}
 		}
-		return kindListMsg{pane: pane, token: token, names: kube.ParseKindClusters(string(out))}
+		msg := kindListMsg{pane: pane, token: token, names: kube.ParseKindClusters(string(out))}
+		if docker != "" {
+			nout, nerr := shell.Combined(run, docker, kube.DockerKindNodesArgs()...)
+			if nerr == nil {
+				msg.nodes = kube.ParseKindNodes(string(nout))
+			}
+		}
+		return msg
 	}
 }
 
@@ -129,67 +147,56 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 			return
 		}
 		m.load = load{}
-		if msg.err != nil {
-			m.status = m.errLine(msg.err)
-			m.stage = "kind"
-			m.showKind("")
-			cmd = m.notify(toneErr, "could not list kind clusters")
-			return
-		}
-		if m.stage != "kind" {
+		if m.stage != "kind" && m.stage != "kindlog" {
 			m.vs.sortCol, m.vs.sortDesc = "", false
 			m.content.ResetFilter()
 			m.content.SetItems(nil)
 		}
-		m.stage = "kind"
+		if m.stage != "kindlog" {
+			m.stage = "kind"
+		}
+		if msg.err != nil {
+			m.status = m.errLine(msg.err)
+			m.showKind("")
+			cmd = m.notify(toneErr, "could not list kind clusters")
+			return
+		}
 		m.vs.kindNames = msg.names
+		if msg.nodes != nil {
+			m.vs.kindNodes = msg.nodes
+		}
 		m.showKind("")
-		if len(msg.names) == 0 {
+		if len(m.kindTiles()) == 0 {
 			m.status = "no kind clusters — " + m.cfg.Keys.HelmInstall.Label() + " creates one"
 			return
 		}
-		m.status = m.kindHint()
+		if m.stage == "kind" {
+			m.status = m.kindHint()
+		}
 	})
 	return cmd
 }
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " use, " + k.HelmInstall.Label() + " create, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + " use / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
 }
 
 func (m *model) showKind(pick string) {
-	home, _ := os.UserHomeDir()
-	t := kube.Table{Headers: []string{"CLUSTER", "KUBECONFIG", "ACTIVE"}, ColorCol: 2}
-	for _, name := range m.vs.kindNames {
-		path, ok := m.kindKubeconfigFor(name)
-		shown := "—"
-		if ok {
-			shown = config.HomePath(path)
-		} else {
-			managed := kube.KindKubeconfig(name, home)
-			if managed != "" {
-				shown = config.HomePath(managed)
-			}
-		}
-		active := "no"
-		if ok && m.kubeconfig == path && (m.context == kube.KindContext(name) || strings.HasPrefix(m.context, "kind-"+name)) {
-			active = "yes"
-		}
-		t.Rows = append(t.Rows, []string{name, shown, active})
-		t.Refs = append(t.Refs, [2]string{"kind", name})
+	if pick != "" {
+		m.selectKind(pick)
 	}
-	header, items, _ := packKube(t, m.tableWidth(), "kind")
-	m.content.SetShowTitle(false)
-	setRows(&m.content, header, items, m.vs, pick)
-}
-
-func (m model) selectedKind() (string, bool) {
-	it, ok := m.selectedItem()
-	if !ok || it.id == "" {
-		return "", false
+	tiles := m.kindTiles()
+	if m.vs.kindSel < 0 {
+		m.vs.kindSel = 0
 	}
-	return it.id, true
+	if len(tiles) == 0 {
+		m.vs.kindSel = 0
+		return
+	}
+	if m.vs.kindSel >= len(tiles) {
+		m.vs.kindSel = len(tiles) - 1
+	}
 }
 
 func (m model) kindKubeconfigFor(name string) (string, bool) {
@@ -217,23 +224,52 @@ func (m model) kindKubeconfigFor(name string) (string, bool) {
 
 func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
+	cols := m.kindColumns(m.tableWidth())
 	switch {
+	case key == "tab":
+		m.moveKind(1, cols)
+		return m, nil, true
+	case key == "shift+tab":
+		m.moveKind(-1, cols)
+		return m, nil, true
+	case km.Left.Has(key) || key == "left" || key == "h":
+		m.moveKind(-1, cols)
+		return m, nil, true
+	case key == "right":
+		m.moveKind(1, cols)
+		return m, nil, true
+	case key == "l" && !km.Submit.Has(key):
+		m.moveKind(1, cols)
+		return m, nil, true
+	case km.ScrollDown.Has(key):
+		m.moveKind(cols, cols)
+		return m, nil, true
+	case km.ScrollUp.Has(key):
+		m.moveKind(-cols, cols)
+		return m, nil, true
 	case km.HelmInstall.Has(key) || km.Apply.Has(key):
 		next, cmd := m.openKindCreate(kindOp{name: "k2", planes: 1})
+		return next, cmd, true
+	case km.Edit.Has(key):
+		name, ok := m.selectedKind()
+		if !ok {
+			return m, nil, true
+		}
+		next, cmd := m.openKindCharts(name)
 		return next, cmd, true
 	case km.Delete.Has(key):
 		name, ok := m.selectedKind()
 		if !ok {
 			return m, nil, true
 		}
+		if j := m.kindJobs[name]; j != nil && (j.status == "deploying" || j.status == "deleting") {
+			m.status = name + " is still " + j.status
+			return m, m.notify(toneWarn, m.status), true
+		}
 		next, cmd := m.askKindDelete(name)
 		return next, cmd, true
-	case km.Select.Has(key):
-		name, ok := m.selectedKind()
-		if !ok {
-			return m, nil, true
-		}
-		next, cmd := m.useKindCluster(name)
+	case km.Select.Has(key) && key != "l" && key != "right":
+		next, cmd := m.enterKindTile()
 		return next, cmd, true
 	case km.Watch.Has(key):
 		next, cmd := m.openKind()
@@ -289,11 +325,16 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) fillKindForm(d *dialog, op *kindOp) {
+	cfgHint := "path to kind config"
+	if op.edited && op.config != "" {
+		cfgHint = "(edited)"
+	}
 	fields := []helmField{
 		{key: "name", label: "name", input: helmFieldInput(op.name, "k2")},
 		{key: "planes", label: "control-planes", input: helmFieldInput(strconv.Itoa(max(1, op.planes)), "1")},
 		{key: "workers", label: "workers", input: helmFieldInput(strconv.Itoa(max(0, op.workers)), "0")},
-		{key: "config", label: "config", input: helmFieldInput(op.config, "path to kind config")},
+		{key: "config", label: "config", input: helmFieldInput(op.config, cfgHint)},
+		{key: "editcfg", label: "edit config", input: helmFieldInput("", ""), action: true},
 		{key: "image", label: "image", input: helmFieldInput(op.image, "kindest/node:…")},
 	}
 	selected := map[string]bool{}
@@ -380,6 +421,9 @@ func (m *model) stashKindForm() {
 }
 
 func (m model) submitKindForm() (tea.Model, tea.Cmd) {
+	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "editcfg" {
+		return m.editKindConfig()
+	}
 	if next, cmd, blocked := m.readOnlyBlock("create cluster"); blocked {
 		return next, cmd
 	}
@@ -454,8 +498,25 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 		title: "✚ kind create", question: "create kind cluster " + op.name + "?", details: details, danger: true,
 		kind: "kind", name: op.name, running: "creating cluster " + op.name + "…",
 		onYes: func(m model) (tea.Model, tea.Cmd) {
-			spin := m.startLoad("creating cluster "+op.name, false)
-			return m, tea.Batch(spin, m.kindCreateStream(op))
+			if m.kindJobs == nil {
+				m.kindJobs = map[string]*kindJob{}
+			}
+			j := m.ensureKindJob(op.name, "deploying", "creating cluster")
+			j.op, j.err, j.log, j.last, j.started = op, nil, "", "", now()
+			found := false
+			for _, n := range m.vs.kindNames {
+				if n == op.name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				m.vs.kindNames = append(m.vs.kindNames, op.name)
+			}
+			m.stage = "kind"
+			m.selectKind(op.name)
+			m.status = "deploying " + op.name
+			return m, m.kindCreateStream(op)
 		},
 	}), nil
 }
@@ -486,7 +547,7 @@ func (m model) kindCreateStream(op kindOp) tea.Cmd {
 		return func() tea.Msg { return kindRunMsg{pane: pane, err: err, op: op} }
 	}
 	args := kube.KindCreateArgs(op.name, op.kubeconfig, configPath, image)
-	return m.streamExec(run, bin, args, "", "creating "+op.name, func(text string, err error) tea.Msg {
+	return m.kindStream(op.name, run, bin, args, "", func(text string, err error) tea.Msg {
 		return kindRunMsg{pane: pane, text: text, err: err, op: op}
 	})
 }
@@ -533,18 +594,86 @@ func (m model) streamExec(run shell.Runner, bin string, args []string, stdin, wh
 	}
 }
 
+func (m model) kindStream(name string, run shell.Runner, bin string, args []string, stdin string, done func(string, error) tea.Msg) tea.Cmd {
+	pane := m.logID
+	return func() tea.Msg {
+		ch := make(chan tea.Msg, 32)
+		go func() {
+			var buf strings.Builder
+			req := shell.Request{Name: bin, Args: args, Stdin: stdin, Combined: true, Stream: true, OnLine: func(line string) {
+				if strings.TrimSpace(line) == "" {
+					return
+				}
+				buf.WriteString(line)
+				if !strings.HasSuffix(line, "\n") {
+					buf.WriteByte('\n')
+				}
+				ch <- kindLineMsg{pane: pane, name: name, line: line, step: kindStep(line), ch: ch}
+			}}
+			res := run.Run(req)
+			text := strings.TrimSpace(buf.String())
+			if text == "" {
+				text = strings.TrimSpace(string(res.Stdout) + "\n" + string(res.Stderr))
+			}
+			var err error
+			if res.Err != nil {
+				msg := text
+				if msg == "" {
+					msg = res.Err.Error()
+				}
+				err = fmt.Errorf("%s", msg)
+			}
+			ch <- done(text, err)
+		}()
+		return <-ch
+	}
+}
+
+func kindCmdOut(run shell.Runner, bin string, args []string, stdin string, emit func(string)) (string, error) {
+	var buf strings.Builder
+	res := run.Run(shell.Request{Name: bin, Args: args, Stdin: stdin, Combined: true, Stream: true, OnLine: func(line string) {
+		if strings.TrimSpace(line) == "" {
+			return
+		}
+		buf.WriteString(line)
+		if !strings.HasSuffix(line, "\n") {
+			buf.WriteByte('\n')
+		}
+		if emit != nil {
+			emit(line)
+		}
+	}})
+	text := strings.TrimSpace(buf.String())
+	if text == "" {
+		text = strings.TrimSpace(string(res.Stdout) + "\n" + string(res.Stderr))
+	}
+	if res.Err != nil {
+		msg := text
+		if msg == "" {
+			msg = res.Err.Error()
+		}
+		return text, fmt.Errorf("%s", msg)
+	}
+	return text, nil
+}
+
 func (m *model) applyKindCreated(msg kindRunMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.withPane(msg.pane, func() {
-		m.load = load{}
+		j := m.ensureKindJob(msg.op.name, "", "")
+		j.op = msg.op
 		if msg.err != nil {
+			j.status, j.err = "failed", msg.err
+			if msg.text != "" {
+				j.last = lastNonEmpty(msg.text)
+			}
+			m.syncKindLog(msg.op.name)
+			if m.stage != "kindlog" {
+				m.stage = "kind"
+				m.selectKind(msg.op.name)
+			}
 			m.status = m.errLine(msg.err)
-			m.subject = "kind create " + msg.op.name
-			m.logText = or(msg.text, msg.err.Error())
-			m.logStick, m.logAt = true, 0
-			m.stage = "view"
-			m.vs.vback = "kind"
-			cmd = tea.Batch(m.notify(toneErr, "kind create failed"), m.openErrCmd())
+			cmd = m.notify(toneErr, "kind create failed")
 			return
 		}
 		m.kubeconfig = msg.op.kubeconfig
@@ -552,96 +681,140 @@ func (m *model) applyKindCreated(msg kindRunMsg) tea.Cmd {
 		m.namespace = m.k.NamespaceOf(m.kubeconfig, m.context)
 		m.clearHist()
 		m.save()
-		if len(msg.op.charts) == 0 {
-			m.showKindResult(msg.op, msg.text, "", nil)
-			cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), fetchResources(m.k, m.kubeconfig, m.context))
+		if len(msg.op.charts) == 0 && len(msg.op.uninstall) == 0 {
+			j.status, j.step, j.err = "running", "", nil
+			m.showKind(msg.op.name)
+			if m.stage == "kindlog" {
+				m.syncKindLog(msg.op.name)
+				m.status = "cluster " + msg.op.name + " ready"
+			} else {
+				m.stage = "kind"
+				m.status = "created " + msg.op.name
+			}
+			cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.kindRefreshCmd(), fetchResources(m.k, m.kubeconfig, m.context))
 			return
 		}
-		cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.startKindCharts(msg.op, msg.text))
+		j.status, j.step = "deploying", "installing charts"
+		cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.startKindCharts(msg.op, ""))
 	})
 	return cmd
 }
 
-func (m *model) showKindResult(op kindOp, text, notes string, err error) {
-	head := "# kind cluster " + op.name + "\n# kubeconfig " + config.HomePath(op.kubeconfig) + "\n# context " + kube.KindContext(op.name) + "\n\n"
-	if notes != "" {
-		head += notes + "\n\n"
+func lastNonEmpty(text string) string {
+	lines := strings.Split(strings.TrimSpace(text), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if s := strings.TrimSpace(lines[i]); s != "" {
+			return s
+		}
 	}
-	m.subject = "kind " + op.name
-	m.logText = head + text
-	if err != nil {
-		m.logText += "\n\n" + err.Error()
-	}
-	m.logStick, m.logAt = true, 0
-	m.stage = "view"
-	m.vs.vback = "kind"
-	m.status = "cluster " + op.name + " · " + m.cfg.Keys.Back.Label() + " back"
-	if err != nil {
-		m.status = m.errLine(err)
-	}
+	return strings.TrimSpace(text)
 }
 
-func (m *model) startKindCharts(op kindOp, prefix string) tea.Cmd {
-	spin := m.startLoad("installing charts", false)
+func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 	charts := m.cfg.Charts()
-	var steps []config.Chart
+	var install []config.Chart
 	for _, name := range op.charts {
 		c, ok := config.LookupChart(charts, name)
 		if !ok {
 			continue
 		}
-		steps = append(steps, c.InstallSteps()...)
+		install = append(install, c.InstallSteps()...)
+	}
+	var uninstall []config.Chart
+	for i := len(op.uninstall) - 1; i >= 0; i-- {
+		c, ok := config.LookupChart(charts, op.uninstall[i])
+		if !ok {
+			continue
+		}
+		steps := c.InstallSteps()
+		for j := len(steps) - 1; j >= 0; j-- {
+			uninstall = append(uninstall, steps[j])
+		}
 	}
 	kc, ctx := op.kubeconfig, kube.KindContext(op.name)
 	bin := m.cfg.Helm.Binary
 	run := m.run
-	k := m.k
 	docker := m.dockerCLI()
-	pane, token := m.logID, m.load.token
-	return tea.Batch(spin, func() tea.Msg {
-		var log strings.Builder
-		if prefix != "" {
-			log.WriteString(prefix)
-			log.WriteString("\n")
+	pane := m.logID
+	newMetal := false
+	for _, name := range op.charts {
+		if strings.EqualFold(name, "metallb") {
+			newMetal = true
 		}
-		var notes []string
-		onLine := func(line string) {
-			log.WriteString(line)
-			if !strings.HasSuffix(line, "\n") {
-				log.WriteByte('\n')
+	}
+	for _, name := range op.uninstall {
+		if strings.EqualFold(name, "metallb") {
+			newMetal = false
+		}
+	}
+	return func() tea.Msg {
+		ch := make(chan tea.Msg, 32)
+		go func() {
+			var log strings.Builder
+			if prefix != "" {
+				log.WriteString(prefix)
+				if !strings.HasSuffix(prefix, "\n") {
+					log.WriteByte('\n')
+				}
 			}
-		}
-		if err := ensureRepos(k, bin, steps, onLine); err != nil {
-			return kindChartsMsg{pane: pane, token: token, text: log.String(), err: err, notes: strings.Join(notes, "\n")}
-		}
-		for _, step := range steps {
-			values := ""
-			if len(step.Values) > 0 {
-				path, err := config.WriteValuesFile(step.Values)
+			var notes []string
+			emit := func(line, step string) {
+				if strings.TrimSpace(line) == "" {
+					return
+				}
+				log.WriteString(line)
+				if !strings.HasSuffix(line, "\n") {
+					log.WriteByte('\n')
+				}
+				ch <- kindLineMsg{pane: pane, name: op.name, line: line, step: step, ch: ch}
+			}
+			fail := func(err error) {
+				ch <- kindChartsMsg{pane: pane, name: op.name, text: log.String(), err: err, notes: strings.Join(notes, "\n")}
+			}
+			for _, step := range uninstall {
+				args := kube.HelmUninstallArgs(step.HelmRelease(), step.Namespace, kc, ctx)
+				emit("$ helm "+strings.Join(args, " "), "uninstalling "+step.HelmRelease())
+				_, err := kindCmdOut(run, bin, args, "", func(line string) { emit(line, "uninstalling "+step.HelmRelease()) })
 				if err != nil {
-					return kindChartsMsg{pane: pane, token: token, text: log.String(), err: err, notes: strings.Join(notes, "\n")}
-				}
-				values = path
-			}
-			args := kube.HelmApplyArgs(false, step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, step.CreatesNamespace(), values, kc, ctx)
-			onLine("$ helm " + strings.Join(args, " "))
-			out, err := k.HelmOut(bin, args...)
-			onLine(out)
-			if err != nil {
-				return kindChartsMsg{pane: pane, token: token, text: log.String(), err: err, notes: strings.Join(notes, "\n")}
-			}
-			if strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb") {
-				n, w := setupMetalLB(run, docker, kc, ctx, step.Namespace, onLine)
-				if n != "" {
-					notes = append(notes, n)
-				}
-				if w != "" {
-					notes = append(notes, w)
+					fail(err)
+					return
 				}
 			}
-		}
-		return kindChartsMsg{pane: pane, token: token, text: log.String(), notes: strings.Join(notes, "\n")}
-	})
+			if err := ensureRepos(kube.Client{Run: run}, bin, install, func(line string) { emit(line, "adding helm repos") }); err != nil {
+				fail(err)
+				return
+			}
+			for _, step := range install {
+				values := ""
+				if len(step.Values) > 0 {
+					path, err := config.WriteValuesFile(step.Values)
+					if err != nil {
+						fail(err)
+						return
+					}
+					values = path
+				}
+				args := kube.HelmApplyArgs(false, step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, step.CreatesNamespace(), values, kc, ctx)
+				emit("$ helm "+strings.Join(args, " "), "installing "+step.HelmRelease())
+				_, err := kindCmdOut(run, bin, args, "", func(line string) { emit(line, "installing "+step.HelmRelease()) })
+				if err != nil {
+					fail(err)
+					return
+				}
+				if newMetal && (strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb")) {
+					n, w := setupMetalLB(run, docker, kc, ctx, step.Namespace, func(line string) { emit(line, "configuring metallb") })
+					if n != "" {
+						notes = append(notes, n)
+					}
+					if w != "" {
+						notes = append(notes, w)
+					}
+				}
+			}
+			ch <- kindChartsMsg{pane: pane, name: op.name, text: log.String(), notes: strings.Join(notes, "\n")}
+		}()
+		return <-ch
+	}
 }
 
 func ensureRepos(k kube.Client, bin string, steps []config.Chart, onLine func(string)) error {
@@ -726,22 +899,51 @@ func setupMetalLB(run shell.Runner, docker, kc, ctx, ns string, onLine func(stri
 func (m *model) applyKindCharts(msg kindChartsMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.withPane(msg.pane, func() {
-		if msg.token != 0 && m.load.token != msg.token {
-			return
+		name := msg.name
+		if name == "" && m.vs.kop != nil {
+			name = m.vs.kop.name
 		}
-		m.load = load{}
-		op := kindOp{}
-		if m.vs.kop != nil {
-			op = *m.vs.kop
+		j := m.ensureKindJob(name, "", "")
+		if msg.notes != "" {
+			if j.log != "" && !strings.HasSuffix(j.log, "\n") {
+				j.log += "\n"
+			}
+			j.log += msg.notes + "\n"
 		}
-		m.showKindResult(op, msg.text, msg.notes, msg.err)
 		if msg.err != nil {
-			cmd = tea.Batch(m.notify(toneErr, "chart install failed"), m.openErrCmd())
+			j.status, j.err = "failed", msg.err
+			if msg.text != "" {
+				j.last = lastNonEmpty(msg.text)
+			}
+			m.syncKindLog(name)
+			if m.stage != "kindlog" {
+				m.stage = "kind"
+				m.selectKind(name)
+			}
+			m.status = m.errLine(msg.err)
+			cmd = m.notify(toneErr, "chart install failed")
 			return
 		}
-		cmd = tea.Batch(m.notify(toneOK, "cluster "+op.name+" ready"), fetchResources(m.k, m.kubeconfig, m.context))
+		j.status, j.step, j.err = "running", "", nil
+		m.syncKindLog(name)
+		m.showKind(name)
+		if m.stage == "kindlog" {
+			m.status = "cluster " + name + " ready"
+		} else {
+			m.stage = "kind"
+			m.status = "cluster " + name + " ready"
+		}
+		if j.op.kubeconfig != "" && m.kubeconfig == j.op.kubeconfig {
+			cmd = tea.Batch(m.notify(toneOK, m.status), m.kindRefreshCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+			return
+		}
+		cmd = tea.Batch(m.notify(toneOK, m.status), m.kindRefreshCmd())
 	})
 	return cmd
+}
+
+func (m *model) applyKindInstalled(msg kindInstalledMsg) tea.Cmd {
+	return m.applyKindCharts(kindChartsMsg{pane: msg.pane, name: msg.name, text: msg.text, notes: msg.notes, err: msg.err})
 }
 
 func (m model) askKindDelete(name string) (tea.Model, tea.Cmd) {
@@ -760,24 +962,24 @@ func (m model) askKindDelete(name string) (tea.Model, tea.Cmd) {
 	}
 	run := m.run
 	kc := m.kubeconfig
+	pane := m.logID
 	return m.ask(askSpec{
 		title: "✗ kind delete", question: "delete kind cluster " + name + "?", details: details, danger: true,
 		kind: "kind", name: name, running: "deleting " + name + "…",
 		onYes: func(m model) (tea.Model, tea.Cmd) {
-			spin := m.startLoad("deleting "+name, false)
-			return m, tea.Batch(spin, func() tea.Msg {
-				out, err := shell.Combined(run, bin, kube.KindDeleteArgs(name)...)
-				if err != nil {
-					text := strings.TrimSpace(string(out))
-					if text == "" {
-						text = err.Error()
-					}
-					return kindDeleteMsg{name: name, text: text, err: fmt.Errorf("%s", text)}
-				}
-				if kube.ManagedKindKubeconfig(managed, name, home) && filepath.Base(managed) != "config" {
+			if m.kindJobs == nil {
+				m.kindJobs = map[string]*kindJob{}
+			}
+			j := m.ensureKindJob(name, "deleting", "deleting cluster")
+			j.err, j.log, j.last, j.started = nil, "", "", now()
+			m.stage = "kind"
+			m.selectKind(name)
+			m.status = "deleting " + name
+			return m, m.kindStream(name, run, bin, kube.KindDeleteArgs(name), "", func(text string, err error) tea.Msg {
+				if err == nil && kube.ManagedKindKubeconfig(managed, name, home) && filepath.Base(managed) != "config" {
 					_ = os.Remove(managed)
 				}
-				return kindDeleteMsg{name: name, text: string(out), gone: kc == managed}
+				return kindDeleteMsg{pane: pane, name: name, text: text, err: err, gone: kc == managed}
 			})
 		},
 	}), nil
@@ -785,21 +987,50 @@ func (m model) askKindDelete(name string) (tea.Model, tea.Cmd) {
 
 func (m *model) applyKindDeleted(msg kindDeleteMsg) tea.Cmd {
 	var cmd tea.Cmd
-	m.load = load{}
-	if msg.err != nil {
-		m.status = m.errLine(msg.err)
-		cmd = tea.Batch(m.notify(toneErr, "kind delete failed"), m.openErrCmd())
-		return cmd
+	apply := func() {
+		j := m.ensureKindJob(msg.name, "", "")
+		if msg.err != nil {
+			j.status, j.err = "failed", msg.err
+			if msg.text != "" {
+				j.last = lastNonEmpty(msg.text)
+			}
+			m.syncKindLog(msg.name)
+			if m.stage != "kindlog" {
+				m.stage = "kind"
+				m.selectKind(msg.name)
+			}
+			m.status = m.errLine(msg.err)
+			cmd = m.notify(toneErr, "kind delete failed")
+			return
+		}
+		delete(m.kindJobs, msg.name)
+		var names []string
+		for _, n := range m.vs.kindNames {
+			if n != msg.name {
+				names = append(names, n)
+			}
+		}
+		m.vs.kindNames = names
+		if msg.gone {
+			m.kubeconfig, m.context, m.namespace = "", "", ""
+			m.save()
+		}
+		if m.stage != "kindlog" {
+			m.stage = "kind"
+		} else if m.vs.kindLog == msg.name {
+			m.stage = "kind"
+			m.vs.kindLog = ""
+		}
+		m.showKind("")
+		m.status = "deleted " + msg.name
+		cmd = tea.Batch(m.notify(toneOK, m.status), m.kindRefreshCmd())
 	}
-	if msg.gone {
-		m.kubeconfig, m.context, m.namespace = "", "", ""
-		m.save()
+	if msg.pane != "" {
+		m.withPane(msg.pane, apply)
+	} else {
+		apply()
 	}
-	next, c := m.openKind()
-	nm := next.(model)
-	*m = nm
-	m.status = "deleted " + msg.name
-	return tea.Batch(c, m.notify(toneOK, m.status))
+	return cmd
 }
 
 func parseKindCmd(rest string) (kindOp, bool, string) {
@@ -870,4 +1101,212 @@ func splitChartList(s string) []string {
 		}
 	}
 	return out
+}
+
+func kindReleaseSet(secrets []kube.Object) map[string]bool {
+	have := map[string]bool{}
+	for _, r := range kube.HelmLatest(secrets) {
+		if r.Name != "" {
+			have[r.Name] = true
+		}
+	}
+	return have
+}
+
+func catalogChartOn(have map[string]bool, c config.Chart) bool {
+	for _, s := range c.InstallSteps() {
+		if have[s.HelmRelease()] {
+			return true
+		}
+	}
+	return false
+}
+
+func (m model) openKindCharts(name string) (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit charts"); blocked {
+		return next, cmd
+	}
+	t := m.kindTileFor(name)
+	if t.status == "deploying" || t.status == "deleting" {
+		m.status = name + " is still " + t.status
+		return m, m.notify(toneWarn, m.status)
+	}
+	path, ok := m.kindKubeconfigFor(name)
+	if !ok {
+		m.status = "no kubeconfig for " + name
+		return m, m.notify(toneWarn, m.status)
+	}
+	if _, next, cmd, ok := m.needHelmCLI("edit charts"); !ok {
+		return next, cmd
+	}
+	secrets, err := m.k.HelmSecrets(path, kube.KindContext(name), "")
+	have := map[string]bool{}
+	if err == nil {
+		have = kindReleaseSet(secrets)
+	}
+	var selected []string
+	for _, c := range m.cfg.Charts() {
+		if catalogChartOn(have, c) {
+			selected = append(selected, c.Name)
+		}
+	}
+	op := kindOp{name: name, kubeconfig: path, charts: selected}
+	d := m.newDialog("kindcharts", kindIconCharts+" charts · "+name, "kind", "", name)
+	m.dlgSeq++
+	d.seq = m.dlgSeq
+	fields := []helmField{}
+	on := map[string]bool{}
+	for _, n := range selected {
+		on[n] = true
+	}
+	for _, c := range m.cfg.Charts() {
+		fields = append(fields, helmField{
+			key:    "c:" + c.Name,
+			label:  c.Name,
+			input:  helmFieldInput("", ""),
+			toggle: true,
+			on:     on[c.Name],
+		})
+	}
+	if len(fields) == 0 {
+		m.status = "no catalog charts configured"
+		return m, m.notify(toneWarn, m.status)
+	}
+	helmFocus(&fields[0])
+	d.hfields, d.idx = fields, 0
+	if err != nil {
+		d.msg = "could not list installed charts: " + err.Error()
+	}
+	m.vs.kop = &op
+	m.dlg = d
+	return m, nil
+}
+
+func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit charts"); blocked {
+		return next, cmd
+	}
+	if m.vs.kop == nil || m.dlg == nil {
+		return m, nil
+	}
+	op := *m.vs.kop
+	had := map[string]bool{}
+	for _, n := range op.charts {
+		had[n] = true
+	}
+	var want []string
+	wantSet := map[string]bool{}
+	for _, f := range m.dlg.hfields {
+		if strings.HasPrefix(f.key, "c:") && f.on {
+			n := strings.TrimPrefix(f.key, "c:")
+			want = append(want, n)
+			wantSet[n] = true
+		}
+	}
+	var install, uninstall []string
+	for _, n := range want {
+		if !had[n] {
+			install = append(install, n)
+		}
+	}
+	for _, n := range op.charts {
+		if !wantSet[n] {
+			uninstall = append(uninstall, n)
+		}
+	}
+	if len(install) == 0 && len(uninstall) == 0 {
+		m.dlg = nil
+		m.status = "no chart changes"
+		return m, nil
+	}
+	op.charts, op.uninstall = install, uninstall
+	m.vs.kop = &op
+	var details []string
+	if len(install) > 0 {
+		details = append(details, "install "+strings.Join(install, ", "))
+	}
+	if len(uninstall) > 0 {
+		details = append(details, "uninstall "+strings.Join(uninstall, ", "))
+	}
+	details = append(details, "cluster "+op.name, "kubeconfig "+config.HomePath(op.kubeconfig))
+	return m.ask(askSpec{
+		title: "▦ charts", question: "apply chart changes on " + op.name + "?", details: details, danger: true,
+		kind: "kind", name: op.name, running: "updating charts on " + op.name + "…",
+		onYes: func(m model) (tea.Model, tea.Cmd) {
+			if m.kindJobs == nil {
+				m.kindJobs = map[string]*kindJob{}
+			}
+			step := "installing charts"
+			if len(install) == 0 {
+				step = "uninstalling charts"
+			}
+			j := m.ensureKindJob(op.name, "deploying", step)
+			j.op, j.err, j.log, j.last, j.started = op, nil, "", "", now()
+			m.stage = "kind"
+			m.selectKind(op.name)
+			m.status = "updating charts on " + op.name
+			return m, m.startKindCharts(op, "")
+		},
+	}), nil
+}
+
+func (m model) editKindConfig() (tea.Model, tea.Cmd) {
+	m.stashKindForm()
+	if m.vs.kop == nil {
+		return m, nil
+	}
+	op := *m.vs.kop
+	path := strings.TrimSpace(op.config)
+	if path != "" {
+		path = expandPath(path, "")
+		if st, err := os.Stat(path); err != nil || st.IsDir() {
+			if m.dlg != nil {
+				m.dlg.msg = "config file not found: " + config.HomePath(path)
+			}
+			return m, nil
+		}
+	} else {
+		text, err := kube.KindConfigYAML(op.planes, op.workers, op.image)
+		if err != nil {
+			if m.dlg != nil {
+				m.dlg.msg = err.Error()
+			}
+			return m, nil
+		}
+		f, err := os.CreateTemp("", "k2-kind-*.yaml")
+		if err != nil {
+			if m.dlg != nil {
+				m.dlg.msg = err.Error()
+			}
+			return m, nil
+		}
+		if _, err := f.WriteString(text); err != nil {
+			f.Close()
+			if m.dlg != nil {
+				m.dlg.msg = err.Error()
+			}
+			return m, nil
+		}
+		f.Close()
+		path = f.Name()
+		op.edited, op.config = true, path
+		m.vs.kop = &op
+	}
+	m.status = "opening editor…"
+	return m.runEditor("kindconfig", "vim "+filepath.Base(path), filepath.Base(path), "",
+		func() *exec.Cmd { return vimCommand(path) },
+		func(error) tea.Msg { return kindConfigDoneMsg{} })
+}
+
+func (m *model) reopenKindForm() {
+	op := kindOp{name: "k2", planes: 1}
+	if m.vs.kop != nil {
+		op = *m.vs.kop
+	}
+	d := m.newDialog("kindcreate", "✚ kind create", "kind", "", op.name)
+	m.dlgSeq++
+	d.seq = m.dlgSeq
+	m.fillKindForm(d, &op)
+	m.vs.kop = &op
+	m.dlg = d
 }

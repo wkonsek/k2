@@ -200,7 +200,8 @@
 #   help: "?"
 #   quit: [Q, ctrl+c]
 #   back: [q, esc, H]
-#   home: "~"
+#   home: []
+#   kind: "~"
 #   left: [left, h]
 #   select: [enter, right, l]
 #   submit: enter

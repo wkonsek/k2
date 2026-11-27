@@ -70,6 +70,9 @@ func (m model) activateNav() (tea.Model, tea.Cmd) {
 		m.status = ""
 		return m, m.showForwards()
 
+	case "kind":
+		return m.openKind()
+
 	case "kust":
 		return m, m.showKDir(m.kroot)
 

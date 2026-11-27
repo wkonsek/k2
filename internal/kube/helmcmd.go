@@ -137,6 +137,12 @@ func HelmApplyArgs(upgrade bool, name, chart, version, namespace string, createN
 	return args
 }
 
+func HelmUninstallArgs(name, namespace, kubeconfig, context string) []string {
+	args := []string{"uninstall", name}
+	args = append(args, HelmArgs(kubeconfig, context, namespace)...)
+	return args
+}
+
 func HelmSearchArgs(query string, versions bool) []string {
 	args := []string{"search", "repo"}
 	if query != "" {

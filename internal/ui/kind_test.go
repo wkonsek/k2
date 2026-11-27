@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -73,6 +74,13 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 			if strings.Contains(line, "network inspect") {
 				return shell.OK("172.18.0.0/16 ")
 			}
+			if len(r.Args) > 0 && r.Args[0] == "ps" {
+				var b strings.Builder
+				for _, name := range list {
+					b.WriteString(name + "\tcontrol-plane\tkindest/node:v1.33.1\trunning\tUp 1 hour\n")
+				}
+				return shell.OK(b.String())
+			}
 			return shell.OK("")
 		case "helm":
 			switch {
@@ -98,6 +106,23 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 		}
 		return parent(r)
 	}}
+}
+
+func selectKindTile(t *testing.T, m model, name string) model {
+	t.Helper()
+	m.selectKind(name)
+	got, ok := m.selectedKind()
+	if !ok || got != name {
+		t.Fatalf("no tile %q (sel=%d got=%q)", name, m.vs.kindSel, got)
+	}
+	return m
+}
+
+func kindJobLog(m model, name string) string {
+	if j := m.kindJobs[name]; j != nil {
+		return j.log
+	}
+	return ""
 }
 
 func kindCalls(f *shell.Fake, verb string) []string {
@@ -132,13 +157,13 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"CLUSTER", "KUBECONFIG", "ACTIVE", "k2", "dev", "~/.kube/k2", "yes", "no"} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "1 cp", "v1.33.1", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive} {
 		if !strings.Contains(view, want) {
-			t.Fatalf("list lacks %q:\n%s", want, view)
+			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
 	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter use", "^d delete", "r refresh"} {
+	for _, want := range []string{"A create", "enter use / logs", "^d delete", "e charts", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -158,7 +183,7 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 		t.Fatalf("form %+v", m.dlg)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"kind create", "name", "control-planes", "workers", "config", "image", "istio", "metallb", "kafbat"} {
+	for _, want := range []string{"kind create", "name", "control-planes", "workers", "config", "edit config", "image", "istio", "metallb", "kafbat"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("form lacks %q:\n%s", want, view)
 		}
@@ -194,8 +219,18 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 	if m.kubeconfig != wantKC || m.context != "kind-k2" {
 		t.Fatalf("switched to %s %s", m.kubeconfig, m.context)
 	}
-	if !strings.Contains(m.logText, "Creating cluster") && !strings.Contains(m.status, "created k2") {
-		t.Fatalf("status %q text %s", m.status, m.logText)
+	if m.stage != "kind" {
+		t.Fatalf("stage %s status %q", m.stage, m.status)
+	}
+	if j := m.kindJobs["k2"]; j == nil || (j.status != "running" && j.status != "deploying") {
+		t.Fatalf("job %+v", j)
+	}
+	if !strings.Contains(kindJobLog(m, "k2"), "Creating cluster") && !strings.Contains(m.status, "created k2") {
+		t.Fatalf("status %q log %s", m.status, kindJobLog(m, "k2"))
+	}
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "k2") || (!strings.Contains(view, kindIconRunning) && !strings.Contains(view, kindIconDeploy)) {
+		t.Fatalf("tile missing after create:\n%s", view)
 	}
 }
 
@@ -280,8 +315,9 @@ func TestKindCreateInstallsCatalogChartsAndMetalLB(t *testing.T) {
 	if !docker || !apply {
 		t.Fatalf("metallb setup docker=%v apply=%v calls=%v", docker, apply, callSummary(f))
 	}
-	if !strings.Contains(m.logText, "172.18.255.200") && !strings.Contains(m.logText, "metallb pool") {
-		t.Fatalf("missing pool in output:\n%s", m.logText)
+	log := m.logText + kindJobLog(m, "k2")
+	if !strings.Contains(log, "172.18.255.200") && !strings.Contains(log, "metallb pool") {
+		t.Fatalf("missing pool in output:\n%s", log)
 	}
 }
 
@@ -311,7 +347,7 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 	}
 	m.kubeconfig, m.context = "/kc", "kind-dev"
 	m = open(t, m, "kind")
-	m = selectRow(t, m, "lab")
+	m = selectKindTile(t, m, "lab")
 	m = pressSettle(t, m, "enter")
 	if m.kubeconfig != managed || m.context != "kind-lab" {
 		t.Fatalf("switch %s %s status %q", m.kubeconfig, m.context, m.status)
@@ -349,7 +385,7 @@ func TestKindReadOnlyBlocksCreateAndDelete(t *testing.T) {
 	if got := press(t, m, "A"); got.dlg != nil || !strings.Contains(got.status, "read-only") {
 		t.Fatalf("create: dlg %v status %q", got.dlg != nil, got.status)
 	}
-	m = selectRow(t, m, "k2")
+	m = selectKindTile(t, m, "k2")
 	if got := press(t, m, "ctrl+d"); got.dlg != nil || !strings.Contains(got.status, "read-only") {
 		t.Fatalf("delete: dlg %v status %q", got.dlg != nil, got.status)
 	}
@@ -447,6 +483,10 @@ func TestKindCreateStreamRunsWithoutCommandContextError(t *testing.T) {
 			if msg.ch != nil {
 				queue = append(queue, listen(msg.ch))
 			}
+		case kindLineMsg:
+			if msg.ch != nil {
+				queue = append(queue, listen(msg.ch))
+			}
 		case kindRunMsg:
 			run, got = msg, true
 			queue = nil
@@ -460,5 +500,157 @@ func TestKindCreateStreamRunsWithoutCommandContextError(t *testing.T) {
 	}
 	if !strings.Contains(run.text, "Creating cluster") {
 		t.Fatalf("output %q", run.text)
+	}
+}
+
+func TestKindEditConfigOpensGeneratedYAML(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	var opened string
+	old := vimCommand
+	vimCommand = func(path string) *exec.Cmd { opened = path; return exec.Command("true") }
+	t.Cleanup(func() { vimCommand = old })
+	found := false
+	for i, field := range m.dlg.hfields {
+		if field.key == "editcfg" {
+			m.dlg.idx = i
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("no edit config field")
+	}
+	next, cmd := m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	if opened == "" {
+		t.Fatal("editor was not opened")
+	}
+	raw, err := os.ReadFile(opened)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "kind.x-k8s.io/v1alpha4") {
+		t.Fatalf("generated config:\n%s", raw)
+	}
+	next, cmd = m.Update(kindConfigDoneMsg{})
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.act != "kindcreate" {
+		t.Fatalf("form %+v", m.dlg)
+	}
+	if helmFieldValue(m.dlg, "config") != opened {
+		t.Fatalf("config %q want %q", helmFieldValue(m.dlg, "config"), opened)
+	}
+	if m.vs.kop == nil || !m.vs.kop.edited {
+		t.Fatalf("edited flag %+v", m.vs.kop)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "(edited)") && !strings.Contains(view, filepath.Base(opened)) {
+		t.Fatalf("missing edited mark:\n%s", view)
+	}
+}
+
+func TestKindChartsEditorAndLiveLogs(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig("lab", home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, "e")
+	if m.dlg == nil || m.dlg.act != "kindcharts" {
+		t.Fatalf("charts form %+v status %q", m.dlg, m.status)
+	}
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"charts", "istio", "metallb"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("charts form lacks %q:\n%s", want, view)
+		}
+	}
+	for i := range m.dlg.hfields {
+		if m.dlg.hfields[i].key == "c:metallb" {
+			m.dlg.hfields[i].on = true
+		}
+	}
+	next, cmd := m.submitKindCharts()
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "apply chart changes") {
+		t.Fatalf("confirm %+v", m.dlg)
+	}
+	if !strings.Contains(ansi.Strip(m.View()), "install metallb") {
+		t.Fatalf("confirm lacks install:\n%s", ansi.Strip(m.View()))
+	}
+	m = pressSettle(t, m, "y")
+	helms := helmCalls(f)
+	var installed bool
+	for _, c := range helms {
+		if strings.HasPrefix(c, "install metallb metallb/metallb") {
+			installed = true
+		}
+	}
+	if !installed {
+		t.Fatalf("helm calls %v", helms)
+	}
+	if j := m.kindJobs["lab"]; j == nil || j.status == "failed" {
+		t.Fatalf("job %+v", j)
+	}
+	if m.kubeconfig == path {
+		t.Fatal("chart edit should not switch the active kubeconfig")
+	}
+
+	m = open(t, m, "kind")
+	m.kindJobs = map[string]*kindJob{"lab": {name: "lab", status: "deploying", step: "creating cluster", last: "Creating cluster lab", log: "Creating cluster lab ...\n", started: now()}}
+	m.selectKind("lab")
+	blocked := pressSettle(t, m, "ctrl+d")
+	if blocked.dlg != nil && blocked.dlg.ask != "" {
+		t.Fatalf("delete during deploy: %+v", blocked.dlg)
+	}
+	if !strings.Contains(blocked.status, "deploying") {
+		t.Fatalf("delete block status %q", blocked.status)
+	}
+	m = pressSettle(t, m, "enter")
+	if m.stage != "kindlog" {
+		t.Fatalf("logs stage %s status %q", m.stage, m.status)
+	}
+	if !strings.Contains(m.logText, "Creating cluster lab") {
+		t.Fatalf("log text %q", m.logText)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.stage != "kind" {
+		t.Fatalf("back stage %s", m.stage)
+	}
+	got, _ := m.selectedKind()
+	if got != "lab" {
+		t.Fatalf("selection after logs %q", got)
+	}
+}
+
+func TestKindTildeOpensKind(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2"})
+	m := appModel(t, f)
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "Kind") {
+		t.Fatalf("home nav lacks Kind:\n%s", view)
+	}
+	if !strings.Contains(view, ":kind") && !strings.Contains(view, "kind clusters") {
+		t.Fatalf("home hint lacks kind:\n%s", view)
+	}
+	m = pressSettle(t, m, "~")
+	if m.stage != "kind" {
+		t.Fatalf("~ stage %s status %q", m.stage, m.status)
+	}
+	if m.cfg.Keys.Kind.Label() != "~" || m.cfg.Keys.Home.Label() != "" {
+		t.Fatalf("defaults kind=%q home=%q", m.cfg.Keys.Kind.Label(), m.cfg.Keys.Home.Label())
 	}
 }

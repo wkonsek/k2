@@ -138,7 +138,7 @@ func (m model) navSection() helpSection {
 		{duo(k.Top, k.Bottom), "top / bottom"},
 		{keyList(k.Select, 1), "open / select"},
 		{keyList(k.Back, 2), "back (previous view, or home)"},
-		{keyList(k.Home, 1), "home (clears the view history)"},
+		{keyList(k.Kind, 1), "kind clusters"},
 		{keyList(k.Command, 1), "command line"},
 		{"/", "filter the list"},
 		{keyList(k.Context, 1) + "/" + keyList(k.Kubeconfig, 1) + "/" + keyList(k.Namespace, 1), "context / kubeconfig / ns"},
@@ -331,10 +331,17 @@ func (m model) viewSection() []helpSection {
 		}
 	case "kind":
 		return []helpSection{{"Kind", []helpRow{
-			r(k.Select, "use this cluster"),
+			r(k.Select, "use this cluster, or open logs if it is still deploying"),
 			r(k.HelmInstall, "create a cluster"),
+			r(k.Edit, "add or remove catalog charts"),
 			r(k.Delete, "delete the cluster"),
 			r(k.Watch, "refresh the list"),
+			{"↑↓←→ / h j k l / tab", "move between tiles"},
+		}}}
+	case "kindlog":
+		return []helpSection{{"Kind logs", []helpRow{
+			r(k.Back, "back to the cluster tiles (the job keeps running)"),
+			r(k.Select, "use this cluster when it is ready"),
 		}}}
 	case "helm":
 		rows := []helpRow{

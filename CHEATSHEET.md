@@ -25,7 +25,7 @@ Press the prefix twice to send a literal `ctrl+a` to vim / the shell.
 | `Q`, `ctrl+c` | `keys.quit` | quit k2 (exports the focused pane's kubeconfig) |
 | `:` | `keys.command` | open the command line |
 | `q`, `esc`, `H` | `keys.back` | back one screen (the previous `:` view or drill, or home), or clear a filter. With rows selected, the first press clears them (`cleared N selections`); another press does the usual back or filter clear |
-| `~` | `keys.home` | go to the home screen and clear the view history |
+| `~` | `keys.kind` | open kind clusters (the home shortcut is unset by default; bind `keys.home` if you want one) |
 | `left`, `h` | `keys.left` | back too, but ignored while filtering |
 | `enter`, `right`, `l` | `keys.select` | open / choose the selected row |
 
@@ -111,7 +111,7 @@ cuts them with `…`).
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace; `:helm install` / `:helm upgrade` prefill the install form) |
-| — | — | kind clusters (`:kind`, `:kind create [name]`) |
+| `~` | `keys.kind` | kind clusters (`:kind`, `:kind create [name]`) |
 | — | — | namespace pulse: health of the pane's namespace (`:pulse`) |
 | — | — | pods (`:pods`, `:pod`, `:po`, `:r`); the pods list to start a forward from (`:forward`, `:p`) |
 | `tab` | `keys.complete` | complete a `:` command (targets, cluster resources, aliases); again cycles |
@@ -291,27 +291,41 @@ the history, back again to the releases.
 | `D` | `keys.helm_diff` | diff the selected revision with the marked one, or with the current one |
 | `v` `V` `M` `N` | `keys.helm_values` … | that revision's values, computed values, manifest, notes |
 
-## Kind clusters (`:kind`)
+## Kind clusters (`:kind`, `~`)
 
 Needs the kind CLI (`kind.binary`, default `kind`) and docker. Starter
-charts also need helm. Read-only mode (`R`) blocks create and delete.
-Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
+charts also need helm. Read-only mode (`R`) blocks create, delete and
+chart edits. Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
 `~/.kube/k2-<name>`. `ctrl+d` removes only that file, never
 `~/.kube/config`. After MetalLB installs on a `kind-*` cluster, k2
 applies an IPAddressPool + L2Advertisement from the kind Docker network
 subnet.
 
+Clusters show as a tile grid (name, status, nodes, kubeconfig). A new
+cluster appears as a `deploying` tile as soon as create starts; `enter`
+opens a live log (auto-scrolls unless you move up; `esc` returns to the
+tiles while the job keeps running). On success the tile turns `running`
+and the pane switches to that cluster. Failed jobs stay on the grid;
+`enter` still opens the log.
+
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
 optional config YAML, optional node image, starter-chart checkboxes).
-Enter asks in a red popup, then streams `kind create cluster`. On
-success the pane switches to that cluster and selected charts install
-one after another.
+`edit config` opens the generated `kind.x-k8s.io/v1alpha4` YAML (or an
+existing path) in `$EDITOR`. Enter asks in a red popup, then streams
+`kind create cluster`. On a running tile, `e` opens a checklist of the
+catalog charts (already-installed ones are checked); enter confirms
+installs and uninstalls (istio in reverse: istiod, then istio-base) with
+the same live tile and log.
 
 | Key | Config | What it does |
 |---|---|---|
-| `enter` | `keys.select` | use this cluster in the pane (if its kubeconfig is present) |
+| `~` | `keys.kind` | open this view from anywhere |
+| `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move between tiles |
+| `enter` | `keys.select` | use a ready cluster, or open logs of a deploying / failed / deleting one |
 | `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
-| `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup) |
+| `e` | `keys.edit` | manage catalog charts on the selected cluster |
+| `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |
+| `r` | `keys.watch` | refresh the grid (in-flight jobs stay) |
 
 ## Multi-pod logs (`M`, `:logs`)
 

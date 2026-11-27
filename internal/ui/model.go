@@ -86,6 +86,9 @@ type viewState struct {
 	hop       *helmOp
 	kop       *kindOp
 	kindNames []string
+	kindSel   int
+	kindLog   string
+	kindNodes map[string]kube.KindNodes
 	search    string
 	searchAt  int
 	nsPrev    string
@@ -347,6 +350,7 @@ type model struct {
 	run         shell.Runner
 	k           kube.Client
 	launch      launcher
+	kindJobs    map[string]*kindJob
 }
 
 type Options struct {
@@ -438,6 +442,7 @@ func initialModel(opts Options) model {
 		navItem{id: "kust", icon: "k", title: "Kustomize", key: cfg.Keys.Kustomize.Short()},
 		navItem{id: "sh", icon: ">", title: "Kubectl", key: cfg.Keys.Kubectl.Short()},
 		navItem{id: "fwds", icon: "=", title: "Forwards", key: cfg.Keys.Forwards.Short()},
+		navItem{id: "kind", icon: "◆", title: "Kind", key: cfg.Keys.Kind.Short()},
 	}
 	nav := list.New(navItems, list.NewDefaultDelegate(), 20, 8)
 	nav.Title = "k2"

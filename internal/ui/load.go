@@ -41,7 +41,7 @@ func (m *model) startLoad(what string, cancel bool) tea.Cmd {
 }
 
 func (m model) anyLoading() bool {
-	if m.load.active() {
+	if m.load.active() || m.kindBusy() {
 		return true
 	}
 	for i, p := range m.panes {

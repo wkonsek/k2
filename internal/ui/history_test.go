@@ -93,13 +93,15 @@ func TestHomeClearsHistory(t *testing.T) {
 	if len(m.hist) == 0 {
 		t.Fatal("expected a history entry")
 	}
-	m = pressSettle(t, m, "~")
+	next, cmd := m.goHome()
+	m = settle(t, next.(model), cmd)
 	if m.stage != "nav" || m.quitting || len(m.hist) != 0 {
 		t.Fatalf("home: stage %s quit %v hist %d", m.stage, m.quitting, len(m.hist))
 	}
-	m = pressSettle(t, m, "~")
+	next, cmd = m.goHome()
+	m = settle(t, next.(model), cmd)
 	if m.stage != "nav" || m.quitting {
-		t.Fatalf("~ on home: stage %s quit %v", m.stage, m.quitting)
+		t.Fatalf("goHome on home: stage %s quit %v", m.stage, m.quitting)
 	}
 	m = pressSettle(t, m, "q")
 	if m.stage != "nav" || m.quitting {

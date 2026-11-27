@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"k2/internal/config"
 	"k2/internal/kube"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -82,6 +83,9 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case kindListMsg:
 		cmd := m.applyKindList(msg)
 		return m, cmd, true
+	case kindLineMsg:
+		m.applyKindLine(msg)
+		return m, listen(msg.ch), true
 	case kindRunMsg:
 		cmd := m.applyKindCreated(msg)
 		return m, cmd, true
@@ -90,6 +94,15 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return m, cmd, true
 	case kindDeleteMsg:
 		cmd := m.applyKindDeleted(msg)
+		return m, cmd, true
+	case kindConfigDoneMsg:
+		m.reopenKindForm()
+		if m.vs.kop != nil && m.vs.kop.config != "" {
+			m.status = "config " + config.HomePath(m.vs.kop.config)
+		}
+		return m, nil, true
+	case kindInstalledMsg:
+		cmd := m.applyKindInstalled(msg)
 		return m, cmd, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
@@ -171,6 +184,9 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 	if m.vs.jumpFrom == "xray" && m.vs.parent == "" && (m.stage == "workpods" || m.stage == "res" || m.stage == "logs") {
 		next, cmd := m.backToXray()
 		return next, cmd, true
+	}
+	if m.stage == "kindlog" {
+		return m.backKindLog()
 	}
 	if m.vs.vback != "" && (m.stage == "yaml" || m.stage == "view" || m.stage == "describe" || m.stage == "hdiff" || m.stage == "htpl") {
 		back := m.vs.vback

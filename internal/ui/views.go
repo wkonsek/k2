@@ -262,6 +262,8 @@ func (m model) paneView() string {
 		return "helm releases"
 	case "kind":
 		return "kind clusters"
+	case "kindlog":
+		return "kind logs"
 	case "pulse":
 		return "pulse " + m.namespace
 	case "mlogs":
@@ -363,9 +365,8 @@ func (m model) legend() string {
 		}
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "kind" {
-		parts[1] = pair(k.Select.Label(), "use")
-		parts = append(parts, pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Watch.Short(), "refresh"))
-		parts = append(parts, m.tableLegend()...)
+		parts[1] = pair(k.Select.Label(), "use / logs")
+		parts = append(parts, pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Edit.Short(), "charts"), pair(k.Watch.Short(), "refresh"))
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
 		if m.kustDiff() {
@@ -565,6 +566,7 @@ func (m model) statusBody(innerW int) string {
 		hint(k.Favorites.Short(), "fav", "favorites: pinned context + namespace"),
 		hint(k.CmdFavorites.Short(), "cmds", "favorite commands ("+k.CmdSave.Short()+" in : saves)"),
 		hint(k.Theme.Short(), "theme", "theme for this context, saved to the config"),
+		hint(k.Kind.Short(), "kind", "kind clusters"),
 		hint("", "pulse", "health of the namespace"),
 		hint("", "helm", "helm releases"),
 		hint("", "xray deploy", "owner trees (tab completes kinds and names)"),
@@ -656,7 +658,7 @@ func pageLines(lines []string, at, height int) []string {
 
 func (m model) rightBody(innerW int) string {
 	switch m.stage {
-	case "workpods", "res", "xray", "helm", "helmhist", "kind":
+	case "workpods", "res", "xray", "helm", "helmhist":
 		m.content.SetDelegate(rowDelegate{width: innerW, marks: m.vs.marks})
 		reflowList(&m.content, innerW)
 		head := dimStyle.Bold(true).Render(clipLine(tableHeader(m.content, m.vs), innerW))
@@ -667,8 +669,10 @@ func (m model) rightBody(innerW int) string {
 			}
 		}
 		return head + "\n" + m.content.View()
-	case "logs", "yaml", "view", "kout", "describe", "mlogs", "pulse", "hdiff", "htpl":
+	case "logs", "yaml", "view", "kout", "describe", "mlogs", "pulse", "hdiff", "htpl", "kindlog":
 		return m.logsBody(innerW)
+	case "kind":
+		return m.kindBody(innerW)
 	case "fwds":
 		head := ""
 		if len(m.forwards) > 0 {
