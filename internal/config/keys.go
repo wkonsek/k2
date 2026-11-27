@@ -428,7 +428,7 @@ var screenKeys = func() map[string][]string {
 
 		"helm": with("helm_values", "helm_computed", "helm_manifest", "helm_notes", "helm_history", "helm_rollback",
 			"helm_install", "helm_upgrade", "delete", "all_namespaces", "copy_name", "copy_ref", "sort_next", "sort_prev", "sort_reverse"),
-		"kind": with("helm_install", "delete", "select"),
+		"kind": with("helm_install", "delete", "select", "watch"),
 
 		"helmhist": with("helm_rollback", "helm_mark", "helm_diff", "helm_values", "helm_computed", "helm_manifest", "helm_notes", "copy_name"),
 

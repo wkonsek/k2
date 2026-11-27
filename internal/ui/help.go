@@ -334,6 +334,7 @@ func (m model) viewSection() []helpSection {
 			r(k.Select, "use this cluster"),
 			r(k.HelmInstall, "create a cluster"),
 			r(k.Delete, "delete the cluster"),
+			r(k.Watch, "refresh the list"),
 		}}}
 	case "helm":
 		rows := []helpRow{

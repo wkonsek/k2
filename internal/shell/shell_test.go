@@ -151,3 +151,17 @@ func TestExecStreamStopsWhenCancelled(t *testing.T) {
 		t.Fatal("process kept running after cancel")
 	}
 }
+
+func TestExecStreamWorksWithoutContext(t *testing.T) {
+	var got []string
+	res := Exec{}.Run(Request{Name: "sh", Args: []string{"-c", "echo creating; echo done >&2"}, Stream: true, Combined: true, OnLine: func(l string) {
+		got = append(got, l)
+	}})
+	if res.Err != nil {
+		t.Fatalf("stream without context: %v", res.Err)
+	}
+	text := strings.Join(got, "\n")
+	if !strings.Contains(text, "creating") || !strings.Contains(text, "done") {
+		t.Fatalf("lines %q", got)
+	}
+}

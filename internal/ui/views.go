@@ -362,6 +362,10 @@ func (m model) legend() string {
 			parts = append(parts, pair(k.HelmInstall.Short(), "install"), pair(k.HelmUpgrade.Short(), "upgrade"), pair(k.HelmRollback.Short(), "rollback"), pair(k.Delete.Short(), "uninstall"))
 		}
 		parts = append(parts, m.tableLegend()...)
+	} else if m.stage == "kind" {
+		parts[1] = pair(k.Select.Label(), "use")
+		parts = append(parts, pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Watch.Short(), "refresh"))
+		parts = append(parts, m.tableLegend()...)
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
 		if m.kustDiff() {
@@ -652,7 +656,7 @@ func pageLines(lines []string, at, height int) []string {
 
 func (m model) rightBody(innerW int) string {
 	switch m.stage {
-	case "workpods", "res", "xray", "helm", "helmhist":
+	case "workpods", "res", "xray", "helm", "helmhist", "kind":
 		m.content.SetDelegate(rowDelegate{width: innerW, marks: m.vs.marks})
 		reflowList(&m.content, innerW)
 		head := dimStyle.Bold(true).Render(clipLine(tableHeader(m.content, m.vs), innerW))

@@ -10,6 +10,7 @@ import (
 	"k2/internal/kube"
 	"k2/internal/shell"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -131,9 +132,15 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "yes", "no"} {
+	for _, want := range []string{"CLUSTER", "KUBECONFIG", "ACTIVE", "k2", "dev", "~/.kube/k2", "yes", "no"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("list lacks %q:\n%s", want, view)
+		}
+	}
+	leg := ansi.Strip(m.legend())
+	for _, want := range []string{"A create", "enter use", "^d delete", "r refresh"} {
+		if !strings.Contains(leg, want) {
+			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
 	}
 	if !strings.Contains(view, "kind") {
@@ -399,5 +406,59 @@ func TestParseKindCmd(t *testing.T) {
 	}
 	if _, ok, msg := parseKindCmd("create --workers no"); ok || msg == "" {
 		t.Fatalf("bad workers ok=%v msg=%q", ok, msg)
+	}
+}
+
+func TestKindCreateStreamRunsWithoutCommandContextError(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "kind")
+	script := "#!/bin/sh\necho Creating cluster \"k2\" ...\necho Set kubectl context to kind-k2\nexit 0\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := testEnv(t)
+	m := initialModel(Options{Runner: shell.Exec{}, Config: &cfg})
+	t.Cleanup(m.streams.stopAll)
+	m.width, m.height = 120, 40
+	m.cfg.Kind.Binary = bin
+	op := kindOp{name: "k2", planes: 1, kubeconfig: filepath.Join(dir, "kubeconfig")}
+	m.load.token = 1
+	cmd := m.kindCreateStream(op)
+	if cmd == nil {
+		t.Fatal("no command")
+	}
+	var run kindRunMsg
+	got := false
+	queue := []tea.Cmd{cmd}
+	for steps := 0; len(queue) > 0; steps++ {
+		if steps > 50 {
+			t.Fatal("too many steps")
+		}
+		c := queue[0]
+		queue = queue[1:]
+		if c == nil {
+			continue
+		}
+		msg := c()
+		switch msg := msg.(type) {
+		case tea.BatchMsg:
+			queue = append(queue, msg...)
+		case progressMsg:
+			if msg.ch != nil {
+				queue = append(queue, listen(msg.ch))
+			}
+		case kindRunMsg:
+			run, got = msg, true
+			queue = nil
+		}
+	}
+	if !got {
+		t.Fatal("no kindRunMsg")
+	}
+	if run.err != nil {
+		t.Fatalf("kind create stream: %v", run.err)
+	}
+	if !strings.Contains(run.text, "Creating cluster") {
+		t.Fatalf("output %q", run.text)
 	}
 }

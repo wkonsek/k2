@@ -136,6 +136,8 @@ func (m model) emptyHint() string {
 	press := " — press " + m.cfg.Keys.AllNamespaces.Label() + " for all namespaces"
 	what, ns := "", m.namespace
 	switch m.stage {
+	case "kind":
+		return "no kind clusters — press " + m.cfg.Keys.HelmInstall.Label() + " to create one"
 	case "helm":
 		what, ns = "releases", m.helmNS()
 	case "xray":

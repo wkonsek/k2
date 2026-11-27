@@ -160,7 +160,7 @@ func (m model) kindHint() string {
 
 func (m *model) showKind(pick string) {
 	home, _ := os.UserHomeDir()
-	t := kube.Table{Headers: []string{"NAME", "KUBECONFIG", "ACTIVE"}, ColorCol: 2}
+	t := kube.Table{Headers: []string{"CLUSTER", "KUBECONFIG", "ACTIVE"}, ColorCol: 2}
 	for _, name := range m.vs.kindNames {
 		path, ok := m.kindKubeconfigFor(name)
 		shown := "—"
@@ -234,6 +234,9 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		next, cmd := m.useKindCluster(name)
+		return next, cmd, true
+	case km.Watch.Has(key):
+		next, cmd := m.openKind()
 		return next, cmd, true
 	}
 	return m, nil, false

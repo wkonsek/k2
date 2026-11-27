@@ -53,9 +53,12 @@ type Runner interface {
 type Exec struct{}
 
 func (Exec) Run(req Request) Result {
-	cmd := exec.Command(req.Name, req.Args...)
-	if req.Ctx != nil {
-		cmd = exec.CommandContext(req.Ctx, req.Name, req.Args...)
+	ctx := req.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, req.Name, req.Args...)
+	if req.Ctx != nil || req.Stream {
 		cmd.WaitDelay = time.Second
 	}
 	if len(req.Env) > 0 || req.TTY {
