@@ -141,6 +141,9 @@ func (m model) restoreView(h viewHist) (tea.Model, tea.Cmd) {
 		next, cmd = m.openHelm()
 	case "pulse":
 		next, cmd = m.openPulse()
+	case "kind":
+		m.kindSnap.sel = m.vs.kindSel
+		next, cmd = m.openKind()
 	case "xray":
 		kind, name := "", ""
 		if x := m.vs.xray; x != nil {

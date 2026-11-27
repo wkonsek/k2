@@ -1133,6 +1133,7 @@ func (d *dialog) helmFormRows(inner int) []string {
 		mark, st := "  ", dimStyle
 		if i == d.idx {
 			mark, st = "▸ ", keyStyle
+			d.formFocus = len(out)
 		}
 		label := st.Render(mark + fitWidth(f.label, nameW) + strings.Repeat(" ", max(0, nameW-len(f.label))) + " ")
 		if f.toggle {
@@ -1169,7 +1170,7 @@ func (d *dialog) helmFormRows(inner int) []string {
 			continue
 		}
 		avail := max(8, inner-ansi.StringWidth(ansi.Strip(label)))
-		valW := max(1, avail-ansi.StringWidth(f.input.Prompt))
+		valW := max(1, avail-ansi.StringWidth(f.input.Prompt)-1)
 		d.hfields[i].input.Width = valW
 		in := d.hfields[i].input
 		shown := in.Value()

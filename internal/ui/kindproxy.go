@@ -176,7 +176,7 @@ func (m model) kindProxyContent(selected bool, inner int) []string {
 func (m model) renderKindProxy(selected bool, width int) string {
 	inner := max(8, width-2)
 	border := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
+		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Warn).
 		Width(inner)
 	if selected {

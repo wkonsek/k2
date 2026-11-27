@@ -246,6 +246,9 @@ func (m model) popupRect() (x, y, w int) {
 	if m.dlg != nil && m.dlg.act == "error" {
 		w = max(r.W-2, 20)
 	}
+	if m.dlg != nil && (m.dlg.formAct() || (m.dlg.ask != "" && len(m.dlg.details) > 0)) {
+		w = min(max(72, r.W*4/5), max(r.W-2, 20), 110)
+	}
 	h := 12 + len(m.suggestions)
 	x = ox + r.X + (r.W-w)/2
 	y = oy + r.Y + max(0, (r.H-h)/2)

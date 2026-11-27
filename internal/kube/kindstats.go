@@ -125,6 +125,30 @@ func FormatCPU(p float64) string {
 	return strconv.FormatFloat(p, 'f', 0, 64) + "%"
 }
 
+func HostCPUPct(dockerPct float64, cpus int) float64 {
+	if cpus < 1 {
+		cpus = 1
+	}
+	return dockerPct / float64(cpus)
+}
+
+func FormatCores(dockerPct float64, cpus int) string {
+	cores := dockerPct / 100
+	if cores < 0 {
+		cores = 0
+	}
+	prec := 1
+	if cores > 0 && cores < 0.1 {
+		prec = 2
+	}
+	host := HostCPUPct(dockerPct, cpus)
+	hp := strconv.FormatFloat(host, 'f', 0, 64) + "%"
+	if host > 0 && host < 1 {
+		hp = strconv.FormatFloat(host, 'f', 1, 64) + "%"
+	}
+	return strconv.FormatFloat(cores, 'f', prec, 64) + "c (" + hp + ")"
+}
+
 func FormatBytes(n int64) string {
 	if n < 0 {
 		n = 0

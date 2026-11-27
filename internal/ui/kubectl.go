@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"k2/internal/config"
+	"k2/internal/state"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -129,6 +130,7 @@ func (m *model) updateShell(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return *m, nil
 		}
 		m.shHist = rememberShellLine(m.shHist, line)
+		_ = state.SaveKubectlHistory(m.cfg.StateDir, m.shHist)
 		m.shHistAt = 0
 		m.shDraft = ""
 		m.subject = "kubectl"
@@ -298,7 +300,7 @@ func (m model) runKubectl(line string) tea.Cmd {
 	}
 }
 
-const shHistCap = 100
+const shHistCap = state.KubectlHistoryCap
 
 func shellHistKey(key string, up bool) bool {
 	if len([]rune(key)) <= 1 {

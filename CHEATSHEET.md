@@ -314,7 +314,8 @@ IPAddressPool + L2Advertisement from the kind Docker network subnet.
 
 Clusters show as full-width cards stacked in one column (name, square
 status, uptime, a Kubernetes version line, control-plane and worker
-counts, a background pod count, CPU percent + bar, RAM usage + percent
+counts, a background pod count, CPU as cores + share of host CPUs
+(`1.4c (7%)`, bar and color follow that share), RAM usage + percent
 + bar, installed catalog charts wrapped across lines, kubeconfig). On a
 wide pane, k8s / nodes / pods sit on the left and CPU / RAM on the right;
 a narrow pane stacks those rows. The list scrolls if more cards are open
@@ -339,20 +340,23 @@ a prefilled generated config path, node image, starter-chart checkboxes).
 node counts and image flow back into the form, and form changes keep
 the generated file in sync), or type your own path. The image field lists the five latest stable `kindest/node`
 tags under the input (`tab` / `shift+tab` cycle, or type a custom
-image). `v` on a catalog chart edits its values in `$EDITOR` and
+image). A checked chart opens an indented `namespace` row under it
+(catalog default, type to change; installs there with
+`--create-namespace`, shown in the red popup). `v` on a catalog chart edits its values in `$EDITOR` and
 passes them to Helm. On `sealed-secrets`, `m` picks a master-key YAML
 (the same file browser as Kustomize `p`; default
 `helm.charts.sealed-secrets.master_key_path`) that k2 applies before
 `helm install`. Enter asks in a red popup (`esc`/`q` back to the
 form, `n` cancels), then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
-charts (already-installed ones are checked); `v` edits values the same
+charts (already-installed ones are checked, their `namespace` row is
+read-only); `v` edits values the same
 way, `m` on `sealed-secrets` picks a master key, and enter confirms installs, value upgrades, and uninstalls (istio
 in reverse: istiod, then istio-base) with the same live tile and log.
 
 | Key | Config | What it does |
 |---|---|---|
-| `~` | `keys.kind` | open this view from anywhere |
+| `~` | `keys.kind` | open this view from anywhere; `q` goes back to the view before |
 | `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move up and down between cards |
 | `space` | `space` | use a ready cluster in the pane, or open the job log of a deploying / failed / deleting one |
 | `enter` | `keys.select` | live control-plane logs of a ready cluster, or the job log of a deploying / failed / deleting one |
@@ -366,7 +370,8 @@ in reverse: istiod, then istio-base) with the same live tile and log.
 ### Registry proxy (image cache)
 
 One shared pull-through cache for all kind clusters, using
-`rpardini/docker-registry-proxy`. `p` asks, then runs it on the `kind`
+`rpardini/docker-registry-proxy:0.8.0` (pinned, `:latest` breaks docker.io
+token auth). `p` asks, then runs it on the `kind`
 Docker network as `k2-registry-proxy`, with cached layers and its CA in
 `~/.k2/kind-cache` (`cache/` and `ca/`). It shows as its own card with a
 `⇄ registry proxy` badge: status, uptime, cache size, registries. Not a
@@ -485,7 +490,7 @@ the bottom unless `ui.copy_mode_hint: false`.
 | `ctrl+o` | `keys.output` | cycle the output: default, wide, yaml, json, name |
 | `ctrl+j` | `keys.jq` | toggle the jq filter field |
 | `tab` | `keys.complete` | complete the line |
-| `↑` `↓` | | previous / next command you ran; `↓` past the newest brings back what you were typing |
+| `↑` `↓` | | previous / next command you ran, earlier sessions too (last 100 in `~/.k2/kubectl-history`); `↓` past the newest brings back what you were typing |
 | `esc`, `q` | `keys.shell_back` | leave the jq field / the kubectl view |
 
 `~` and `~/` in file paths expand to your home directory before kubectl runs, e.g. `apply -f ~/secrets/master.yml` or `--kubeconfig=~/.kube/config`. Quoted values are left alone.

@@ -301,6 +301,9 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.leaveXray()
 		return next, cmd, true
 	case "helm", "pulse", "kind":
+		if next, cmd, ok := m.popHist(); ok {
+			return next, cmd, true
+		}
 		m.stage = "nav"
 		m.status = m.context
 		return m, nil, true

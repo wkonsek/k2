@@ -9,7 +9,7 @@ import (
 
 func TestRegistryProxyDefaults(t *testing.T) {
 	r := Default().Kind.RegistryProxy
-	if r.Image != "rpardini/docker-registry-proxy:latest" || r.Container != "k2-registry-proxy" {
+	if r.Image != "rpardini/docker-registry-proxy:0.8.0" || r.Container != "k2-registry-proxy" {
 		t.Fatalf("%+v", r)
 	}
 	if r.CacheDir != filepath.Join(DefaultDir(), "kind-cache") {

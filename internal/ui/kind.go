@@ -25,6 +25,7 @@ type kindOp struct {
 	uninstall, upgrade                                 []string
 	values                                             map[string]string
 	masterKeys                                         map[string]string
+	namespaces                                         map[string]string
 	installed                                          []string
 }
 
@@ -509,6 +510,9 @@ func (m model) kindChartFields(op *kindOp) []helmField {
 			on:     selected[c.Name],
 			note:   note,
 		})
+		if selected[c.Name] {
+			fields = append(fields, m.kindNsField(op, c, op.isInstalled(c.Name)))
+		}
 	}
 	return fields
 }
@@ -568,6 +572,9 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openKindMasterKeyPicker()
 	case (key == " " || key == "c") && d.hfields[d.idx].toggle:
 		d.hfields[d.idx].on = !d.hfields[d.idx].on
+		if strings.HasPrefix(d.hfields[d.idx].key, "c:") {
+			m.syncKindNsRows()
+		}
 		return m, nil
 	}
 	if d.hfields[d.idx].toggle || d.hfields[d.idx].action || d.hfields[d.idx].locked {
@@ -824,6 +831,7 @@ func (m *model) stashKindForm() {
 		}
 	}
 	op.charts = charts
+	m.readKindNamespaces(&op)
 	m.vs.kop = &op
 }
 
@@ -914,7 +922,7 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 		details = append(details, kindDetail("image", op.image))
 	}
 	if len(op.charts) > 0 {
-		details = append(details, kindDetail("charts", strings.Join(op.charts, ", ")))
+		details = append(details, kindDetail("charts", kindChartsWithNS(op.charts, op, m.cfg.Charts())))
 	}
 	if kindSelectsSealedSecrets(op.charts) {
 		if path := m.kindSealedMasterKey(&op); path != "" {
@@ -1193,14 +1201,14 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 		if !ok {
 			continue
 		}
-		work = append(work, kindChartWork{parent: name, steps: c.InstallSteps()})
+		work = append(work, kindChartWork{parent: name, steps: op.chartSteps(c)})
 	}
 	for _, name := range op.upgrade {
 		c, ok := config.LookupChart(charts, name)
 		if !ok {
 			continue
 		}
-		work = append(work, kindChartWork{parent: name, steps: c.InstallSteps(), upgrade: true})
+		work = append(work, kindChartWork{parent: name, steps: op.chartSteps(c), upgrade: true})
 	}
 	var install []config.Chart
 	for _, w := range work {
@@ -1212,7 +1220,7 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 		if !ok {
 			continue
 		}
-		steps := c.InstallSteps()
+		steps := op.chartSteps(c)
 		for j := len(steps) - 1; j >= 0; j-- {
 			uninstall = append(uninstall, steps[j])
 		}
@@ -1717,6 +1725,9 @@ func (m model) openKindCharts(name string) (tea.Model, tea.Cmd) {
 		}
 	}
 	op := kindOp{name: name, kubeconfig: path, charts: selected, installed: append([]string{}, selected...), form: "kindcharts"}
+	if err == nil {
+		op.namespaces = kindInstalledNamespaces(secrets, m.cfg.Charts(), selected)
+	}
 	d := m.newDialog("kindcharts", kindIconCharts+" charts · "+name, "kind", "", name)
 	m.dlgSeq++
 	d.seq = m.dlgSeq
@@ -1741,6 +1752,7 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	op := *m.vs.kop
+	m.readKindNamespaces(&op)
 	had := map[string]bool{}
 	already := op.installed
 	if already == nil {
@@ -1776,6 +1788,8 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 		m.status = "no chart changes"
 		return m, nil
 	}
+	back := op
+	back.charts = want
 	op.charts, op.uninstall, op.upgrade = install, uninstall, upgrade
 	m.vs.kop = &op
 	if kindSelectsSealedSecrets(op.charts, op.upgrade) {
@@ -1786,13 +1800,13 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	}
 	var details []string
 	if len(install) > 0 {
-		details = append(details, kindDetail("install", strings.Join(install, ", ")))
+		details = append(details, kindDetail("install", kindChartsWithNS(install, op, m.cfg.Charts())))
 	}
 	if len(upgrade) > 0 {
-		details = append(details, kindDetail("upgrade", strings.Join(upgrade, ", ")+" (values)"))
+		details = append(details, kindDetail("upgrade", kindChartsWithNS(upgrade, op, m.cfg.Charts())+" (values)"))
 	}
 	if len(uninstall) > 0 {
-		details = append(details, kindDetail("uninstall", strings.Join(uninstall, ", ")))
+		details = append(details, kindDetail("uninstall", kindChartsWithNS(uninstall, op, m.cfg.Charts())))
 	}
 	if kindSelectsSealedSecrets(op.charts, op.upgrade) {
 		if path := m.kindSealedMasterKey(&op); path != "" {
@@ -1804,6 +1818,7 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 		title: "▦ charts", question: "apply chart changes on " + op.name + "?", details: details, danger: true,
 		kind: "kind", name: op.name, running: "updating charts on " + op.name + "…",
 		onBack: func(m model) (tea.Model, tea.Cmd) {
+			m.vs.kop = &back
 			m.reopenKindForm()
 			return m, nil
 		},

@@ -180,3 +180,19 @@ func TestHelmEditValuesNeedsCLI(t *testing.T) {
 		t.Fatalf("status %q confirm %q", got.status, got.asking())
 	}
 }
+
+func TestHelmLegendDropsValuesKeepsKeys(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := selectRow(t, open(t, appModel(t, f), "helm"), "web")
+	l := ansi.Strip(m.legend())
+	if strings.Contains(l, "v values") || !strings.Contains(l, "V computed") || !strings.Contains(l, "e edit values") || !strings.Contains(l, "u upgrade") {
+		t.Fatalf("legend %q", l)
+	}
+	for _, key := range []string{"v", "enter"} {
+		next := pressSettle(t, m, key)
+		if next.stage != "yaml" || !strings.Contains(next.logText, "# user-supplied values of shop/web") {
+			t.Fatalf("%s: stage %s\n%s", key, next.stage, next.logText)
+		}
+	}
+}

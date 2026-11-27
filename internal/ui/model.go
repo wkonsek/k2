@@ -550,6 +550,7 @@ func initialModel(opts Options) model {
 		forwards:    st.Forwards,
 		favs:        st.Favorites,
 		cmdFavs:     st.CommandFavorites,
+		shHist:      state.LoadKubectlHistory(cfg.StateDir),
 		resuming:    resumeAny(cfg, st.Forwards),
 		logID:       newPaneID(),
 		vis:         map[string]*visCache{},

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"k2/internal/shell"
+	"k2/internal/state"
 )
 
 func TestExpandKubectlLine(t *testing.T) {
@@ -162,5 +163,41 @@ func TestKubectlHistorySkipsJqAndEmpty(t *testing.T) {
 	m = pressSettle(t, m, "enter")
 	if m.stage != "kcmd" || strings.Join(m.shHist, ",") != "get ns" {
 		t.Fatalf("empty submit: stage %s hist %q", m.stage, m.shHist)
+	}
+}
+
+func TestKubectlHistorySurvivesRestart(t *testing.T) {
+	f := &shell.Fake{Handler: func(r shell.Request) shell.Result { return shell.OK("ok\n") }}
+	cfg := testEnv(t)
+	m := newTestModel(t, cfg, f)
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	m = press(t, m, "U")
+	m = pressSettle(t, runShell(t, m, "get ns"), "q")
+	m = pressSettle(t, runShell(t, m, "get pods -A"), "q")
+	m = pressSettle(t, runShell(t, m, "get pods -A"), "q")
+	if got := strings.Join(state.LoadKubectlHistory(cfg.StateDir), ","); got != "get ns,get pods -A" {
+		t.Fatalf("on disk %q", got)
+	}
+
+	back := newTestModel(t, cfg, f)
+	back.kubeconfig, back.context, back.namespace = "/kc", "kind-dev", "shop"
+	back = press(t, back, "U")
+	back.sh.SetValue("draft")
+	back.sh.CursorEnd()
+	back = press(t, back, "up")
+	if back.sh.Value() != "get pods -A" {
+		t.Fatalf("up after restart %q", back.sh.Value())
+	}
+	back = press(t, back, "up")
+	if back.sh.Value() != "get ns" {
+		t.Fatalf("up again %q", back.sh.Value())
+	}
+	back = press(t, back, "down", "down")
+	if back.sh.Value() != "draft" {
+		t.Fatalf("draft %q", back.sh.Value())
+	}
+	back = pressSettle(t, runShell(t, back, "get svc"), "q")
+	if got := strings.Join(state.LoadKubectlHistory(cfg.StateDir), ","); got != "get ns,get pods -A,get svc" {
+		t.Fatalf("appended %q", got)
 	}
 }

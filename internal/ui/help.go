@@ -345,11 +345,13 @@ func (m model) viewSection() []helpSection {
 			r(k.Delete, "delete the cluster"),
 			r(k.KindProxy, "start the registry proxy (shared image cache for kind nodes)"),
 			{k.Select.Label() + " / " + k.Delete.Label(), "on the registry proxy card: its logs / remove it (the cache stays on disk)"},
-			{"space", "toggle registry cache in the create form"},
+			{"space", "toggle registry cache or a chart in the create form; a checked chart gets a namespace row to edit"},
 			r(k.Watch, "refresh the list"),
 			{"↑↓←→ / h j k l / tab", "move between clusters"},
 			{"tab / shift+tab", "cycle node images in the create form"},
 			{"ctrl+e", "edit the kind config file in the create form"},
+			{"CPU", "cores in use (share of all host CPUs)"},
+			r(k.Back, "back to the view before"),
 		}}}
 	case "kindlog":
 		return []helpSection{{"Kind logs", []helpRow{
@@ -357,7 +359,7 @@ func (m model) viewSection() []helpSection {
 		}}}
 	case "helm":
 		rows := []helpRow{
-			r(k.HelmValues, "values"),
+			{keyList(k.HelmValues, 1) + " / enter", "values"},
 			r(k.HelmComputed, "computed values"),
 			r(k.HelmManifest, "manifest"),
 			r(k.HelmNotes, "notes"),
@@ -394,7 +396,7 @@ func (m model) viewSection() []helpSection {
 		return []helpSection{{"kubectl", []helpRow{
 			r(k.Submit, "run"),
 			r(k.Complete, "complete"),
-			{"↑/↓", "previous / next command"},
+			{"↑/↓", "previous / next command (kept across restarts)"},
 			r(k.Output, "output format"),
 			r(k.JQ, "jq filter"),
 			r(k.ShellBack, "back"),

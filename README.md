@@ -111,7 +111,7 @@ First start writes a commented config to `~/.k2/config.yaml`. Then:
 | `ctrl+arrows` | move between panes |
 | `0` | all namespaces and back |
 | `q` / `esc` | back (previous `:` view or drill, or home); with rows selected, clear the selection first |
-| `~` | home (clears the view history) |
+| `~` | kind clusters (`:kind`); `q` goes back to where you were |
 | `?` | help for the current view |
 | `Q` | quit; your shell switches to the focused pane's cluster |
 | `space` | select rows; `ctrl+d` deletes them, `M` tails those pods; `q` / `esc` clears the selection (press again to go back) |
@@ -263,8 +263,7 @@ your config.
 **Containers, then back.** `enter` on a pod opens its containers: image,
 ports, probes, restarts, CPU and memory. `l` still opens logs from that
 list. Jumps like `:secrets` and `:pods` remember where you were, so `q`
-walks back through them. `~` returns to the resource list and clears that
-history.
+walks back through them (`:helm` and `~` too).
 
 ![containers](docs/demo/containers.gif)
 
@@ -427,7 +426,7 @@ current line. Across namespaces, lines are prefixed
 `namespace/pod/container`.
 
 **Helm** (`:helm`, `:helm all`). Columns: NAME, REVISION, STATUS, CHART,
-APP VERSION, UPDATED. `v` values, `V` computed values, `M` manifest,
+APP VERSION, UPDATED. `v` / `enter` values, `V` computed values, `M` manifest,
 `N` notes, `t` history as a table (`●` current revision). `e` (from the
 list or from the `v` values view) opens the release's user-supplied
 values in vim; if you save a change, a red popup confirms `helm upgrade`
@@ -470,7 +469,9 @@ on the right; a narrow pane stacks them. Node counts and the version come
 from `docker ps` (control-plane / worker labels). Pod counts are fetched
 in the background per running cluster (`kubectl get pods -A`, shown as
 `14` when every pod is ready or `12/14` otherwise, and `—` while loading
-or if the cluster is stopped). Uptime, CPU percent and bar plus RAM usage,
+or if the cluster is stopped). Uptime, CPU in cores with the share of all
+host CPUs (`1.4c (7%)`; docker counts 100% per core, so the bar and its
+color follow the host share), plus RAM usage,
 percent and bar come from `docker stats` (cluster `MemPerc` is the sum of
 the node containers), plus installed catalog charts (wrapped onto extra
 lines) and the kubeconfig path. Status uses square icons (`■` running, `□`
@@ -490,7 +491,10 @@ another path (a custom file wins over the generated topology). The image field d
 of the five latest stable `kindest/node` tags fetched from Docker Hub, and
 a list of those tags sits under the input (`tab` / `shift+tab` cycle, or
 type a custom image; offline, the field stays blank and kind uses its own
-default). Checkboxes pick starter charts from the Helm catalog; `v` on a chart row
+default). Checkboxes pick starter charts from the Helm catalog; a checked
+chart gets an indented `namespace` row under it, prefilled from the
+catalog, so you can type another one (k2 installs there with
+`--create-namespace` and shows it in the red popup). `v` on a chart row
 opens its values in `$EDITOR` (catalog defaults, or a `# custom values`
 stub), marks the row `(values)`, checks the chart, and passes those
 files to Helm (`-f` catalog defaults first, then custom values). On `sealed-secrets`, `m` opens the same path picker as Kustomize `p` for a master-key YAML (`helm.charts.sealed-secrets.master_key_path` is the default; the row shows `yes · ~/secrets/master.yml` when a path is set), and k2 applies that file with `kubectl` before `helm install`. Enter
@@ -504,7 +508,8 @@ switches to `kind-<name>` and selected charts install one after another
 Docker network). `space` on a ready card uses that cluster if its
 kubeconfig exists; `enter` follows the control-plane container logs.
 `e` opens a checklist of catalog charts
-(already-installed ones are checked); `v` edits values the same way, `m` on `sealed-secrets` picks a master key the same way as create, and
+(already-installed ones are checked, their `namespace` row shows where they
+live and is read-only); `v` edits values the same way, `m` on `sealed-secrets` picks a master key the same way as create, and
 a red popup confirms installs, value upgrades of already-installed
 charts, and uninstalls, with the same live tile and log (istio
 uninstalls istiod first, then istio-base). `ctrl+d` deletes the cluster
@@ -518,7 +523,8 @@ also need helm. Read-only mode (`R`) blocks create, delete and chart
 edits.
 
 **Registry proxy** (`p` in `:kind`). A shared image cache for every kind
-cluster, built on `rpardini/docker-registry-proxy`. `p` works even with no
+cluster, built on `rpardini/docker-registry-proxy:0.8.0` (pinned, `:latest`
+breaks docker.io token auth). `p` works even with no
 clusters: it asks, makes sure the `kind` Docker network exists, then runs
 `k2-registry-proxy` there (or starts it if it is stopped). Cached layers
 and the proxy CA live in `~/.k2/kind-cache` (`cache/`, `ca/`), so they
@@ -588,8 +594,9 @@ and the cursor stays on the same entry across runs and rescans.
 The prompt shows `◉ context · namespace` (red with ☠ on production) and
 colors the line as you type. `tab` completes, `ctrl+o` cycles the output
 (default, wide, yaml, json, name), `ctrl+j` adds a jq filter. `↑` and
-`↓` walk commands you already ran (`↓` past the newest brings back what
-you were typing). `~` in paths expands to your home directory
+`↓` walk commands you already ran, also from earlier sessions (last 100,
+in `~/.k2/kubectl-history`; `↓` past the newest brings back what you were
+typing). `~` in paths expands to your home directory
 (`apply -f ~/secrets/master.yml`, `--kubeconfig=~/.kube/config`); quoted
 values stay as typed. The result header shows exit code, outcome and
 duration.
@@ -681,13 +688,15 @@ next start:
 - what each pane showed: the pod list, a resource table, a pod's logs, a
   stern view (`:logs` / `M`, same query, lines read again), the forwards
   list or a picker. Describe and YAML come back as their list. The owner
-  tree, Helm and pulse come back as the pane's home screen, and back from
-  a restored stern view goes home too
+  tree, Helm, pulse and `:kind` come back too, and back from a restored
+  stern view goes home
 - port-forwards: live processes are kept. A dead one is restarted only
   when its own auto-restart is on, or when it has no override and
   `portforward.auto_restart` is true; otherwise it stays on the list as
   dead until `r`
 - pinned favorites, favorite commands and the last Kustomize directory
+- the last 100 `U` commands, in `~/.k2/kubectl-history` next to the state
+  file, so `↑` / `↓` still find them tomorrow
 
 A missing or broken state file never stops k2; it just starts fresh.
 `k2 --fresh`, or `:fresh` inside a session, does that on purpose: every

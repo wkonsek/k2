@@ -20,6 +20,7 @@ import (
 
 func init() {
 	fetchKindNodeImages = func() ([]string, error) { return nil, nil }
+	hostCPUs = func() int { return 20 }
 }
 
 func withKindCLIs(t *testing.T) {
@@ -208,7 +209,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "running", "up 1h", "k8s", "v1.33.1", "control-plane", "workers", "pods", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconKube, kindIconActive, kindIconIdle, kindIconSel} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "running", "up 1h", "k8s", "v1.33.1", "control-plane", "workers", "pods", "CPU", "0.04c (0.2%)", "RAM", "1.4 GiB", kindIconRunning, kindIconKube, kindIconActive, kindIconIdle, kindIconSel} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
@@ -814,7 +815,7 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	m.kindCatalog = map[string][]string{"k2": {"metallb", "argocd"}}
 	m.stage = "kind"
 	view := ansi.Strip(m.kindBody(80))
-	for _, want := range []string{kindIconRunning, "running · up 2h", "k8s            v1.33.1", "control-plane  1", "workers        0", "pods           —", "CPU  4.2%", "■□□□□", "RAM  1.4 GiB (40%)", "■■□□□", kindIconCharts + "  metallb, argocd"} {
+	for _, want := range []string{kindIconRunning, "running · up 2h", "k8s            v1.33.1", "control-plane  1", "workers        0", "pods           —", "CPU  0.04c (0.2%)", "■□□□□", "RAM  1.4 GiB (40%)", "■■□□□", kindIconCharts + "  metallb, argocd"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tile lacks %q:\n%s", want, view)
 		}
@@ -1067,7 +1068,7 @@ func TestKindChartValuesUpgradeOnExisting(t *testing.T) {
 	next, cmd := m.submitKindCharts()
 	m = settle(t, next.(model), cmd)
 	view := ansi.Strip(m.View())
-	if m.dlg == nil || !strings.Contains(view, kindDetail("upgrade", "metallb (values)")) {
+	if m.dlg == nil || !strings.Contains(view, kindDetail("upgrade", "metallb → metallb-system (values)")) {
 		t.Fatalf("confirm:\n%s", view)
 	}
 	m = pressSettle(t, m, "y")

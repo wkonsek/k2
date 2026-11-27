@@ -40,11 +40,12 @@ type dialog struct {
 	images  []imageField
 	bg      string
 
-	cands    []string
-	candBase string
-	candAt   int
-	hfields  []helmField
-	hcreate  bool
+	cands     []string
+	candBase  string
+	candAt    int
+	hfields   []helmField
+	formFocus int
+	hcreate   bool
 }
 
 func (m model) newDialog(act, title, kind, ns, name string) *dialog {
@@ -319,6 +320,37 @@ func (m model) kubectlAction(what string, args ...string) tea.Cmd {
 	}
 }
 
+func (d *dialog) formAct() bool {
+	return d.act == "helminstall" || d.act == "kindcreate" || d.act == "kindcharts"
+}
+
+func (m model) formRoom(d *dialog) int {
+	foot := 2
+	if d.msg != "" {
+		foot = 1
+	}
+	return max(4, m.height-2-2-1-foot-4)
+}
+
+func scrollRows(rows []string, focus, room int) []string {
+	if len(rows) <= room {
+		return rows
+	}
+	take := max(1, room-2)
+	top := min(max(0, focus-take/2), len(rows)-take)
+	out := []string{dimStyle.Render("  ↑ " + plural(top, "row", "rows"))}
+	if top == 0 {
+		out[0] = ""
+	}
+	out = append(out, rows[top:top+take]...)
+	if rest := len(rows) - top - take; rest > 0 {
+		out = append(out, dimStyle.Render("  ↓ "+plural(rest, "row", "rows")))
+	} else {
+		out = append(out, "")
+	}
+	return out
+}
+
 func (m model) dialogBox(width int) string {
 	d := m.dlg
 	inner := width - 4
@@ -409,8 +441,9 @@ func (m model) dialogBox(width int) string {
 	if len(d.images) > 0 && d.ask == "" {
 		lines = append(lines, d.imageRows(inner)...)
 	}
-	if (d.act == "helminstall" || d.act == "kindcreate" || d.act == "kindcharts") && d.ask == "" {
-		lines = append(lines, d.helmFormRows(inner)...)
+	if d.formAct() && d.ask == "" {
+		rows := d.helmFormRows(inner)
+		lines = append(lines, scrollRows(rows, d.formFocus, m.formRoom(d))...)
 	}
 	if d.hasIn {
 		if d.hint != "" {

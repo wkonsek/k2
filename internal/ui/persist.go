@@ -85,6 +85,8 @@ func (m *model) save() {
 			target = m.kroot
 		case "kdir":
 			target = m.kroot
+		case "kindlog":
+			stage = "kind"
 		case "kcmd":
 			if p.logID == m.logID {
 				target = m.sh.Value()
@@ -179,7 +181,7 @@ func (m *model) savedTabs(st state.State) (roots []*layout.Node, focus []string,
 }
 
 func (m *model) restorePanes(st state.State) {
-	if len(st.Panes) == 0 || st.Kubeconfig == "" || st.Kubeconfig != m.kubeconfig {
+	if len(st.Panes) == 0 || st.Kubeconfig != m.kubeconfig || (st.Kubeconfig == "" && !hasKindPane(st.Panes)) {
 		return
 	}
 	roots, focus, ok := m.savedTabs(st)
@@ -222,6 +224,15 @@ func (m *model) restorePanes(st state.State) {
 		m.sh.SetValue(m.subject)
 	}
 	m.refit()
+}
+
+func hasKindPane(panes []state.Pane) bool {
+	for _, p := range panes {
+		if p.Stage == "kind" {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *model) hydrate(sp state.Pane) paneSnap {
@@ -421,6 +432,11 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 		alt.content.SetShowTitle(true)
 		alt.content.SetItems(items)
 		alt.status = "kustomize"
+	case "kind":
+		alt.stage = "kind"
+		alt.status = "kind"
+		alt.restoreKindSnap()
+		alt.showKind("")
 	case "kcmd":
 		alt.stage = "kcmd"
 		alt.subject = sp.Target
@@ -435,6 +451,10 @@ func (m *model) resumeViews() []tea.Cmd {
 	}
 	var cmds []tea.Cmd
 	start := func(id, stage, kind, target, kc, ctx, ns string, helmAll bool) {
+		if stage == "kind" {
+			cmds = append(cmds, m.kindResumeCmd(id))
+			return
+		}
 		if kc == "" || ctx == "" {
 			return
 		}

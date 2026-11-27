@@ -43,7 +43,7 @@
 # kind:
 #   binary: kind          # name or path
 #   registry_proxy:       # p in :kind, one shared image cache for every kind cluster
-#     image: rpardini/docker-registry-proxy:latest
+#     image: rpardini/docker-registry-proxy:0.8.0
 #     container: k2-registry-proxy
 #     cache_dir: ~/.k2/kind-cache   # cache/ and ca/ live here, kept when the proxy is removed
 #     registries: [docker.io, registry.k8s.io, gcr.io, quay.io, ghcr.io]

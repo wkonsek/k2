@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -579,6 +580,8 @@ func (m model) kindStatusLine(t kindTile, _ int) string {
 	return st.Render(kindLabel(icon, label))
 }
 
+var hostCPUs = runtime.NumCPU
+
 func kindMiniBar(pct float64, n int) string {
 	if n < 1 {
 		n = kindBarCells
@@ -643,9 +646,11 @@ func (m model) kindUsageLines(t kindTile, width int) []string {
 			clipLine(dimStyle.Render("RAM  —"), width),
 		}
 	}
-	cpuBar := kindMiniBar(t.usage.CPU, kindBarCells)
+	cpus := hostCPUs()
+	hostPct := kube.HostCPUPct(t.usage.CPU, cpus)
+	cpuBar := kindMiniBar(hostPct, kindBarCells)
 	ramBar := kindMiniBar(t.usage.MemPct, kindBarCells)
-	cpu := "CPU  " + kube.FormatCPU(t.usage.CPU) + "  " + kindMetricStyle(m, t.usage.CPU).Render(cpuBar)
+	cpu := "CPU  " + kube.FormatCores(t.usage.CPU, cpus) + "  " + kindMetricStyle(m, hostPct).Render(cpuBar)
 	ram := "RAM  " + kube.FormatBytes(t.usage.MemUsed) + " (" + kube.FormatCPU(t.usage.MemPct) + ")  " + kindMetricStyle(m, t.usage.MemPct).Render(ramBar)
 	return []string{clipLine(cpu, width), clipLine(ram, width)}
 }
@@ -872,12 +877,16 @@ func (m *model) applyKindLiveLog(msg kindLiveLogDoneMsg) {
 }
 
 func (m model) kindRefreshCmd() tea.Cmd {
+	return m.kindResumeCmd(m.logID)
+}
+
+func (m model) kindResumeCmd(pane string) tea.Cmd {
 	proxy := m.kindProxyCmd()
 	bin := m.kindCLI()
 	if bin == "" {
 		return proxy
 	}
-	list := kindListCmd(bin, m.dockerCLI(), m.run, m.logID, 0)
+	list := kindListCmd(bin, m.dockerCLI(), m.run, pane, 0)
 	if proxy == nil {
 		return list
 	}

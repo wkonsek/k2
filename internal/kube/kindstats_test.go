@@ -37,7 +37,7 @@ func TestParseDockerStatsAndSum(t *testing.T) {
 
 func TestParseDockerBytesAndFormat(t *testing.T) {
 	cases := map[string]int64{
-		"1.400GiB": 1503238554, // 1.4 * 1<<30 ≈ 1.503e9
+		"1.400GiB": 1503238554,
 		"200MiB":   200 << 20,
 		"512KiB":   512 << 10,
 		"100B":     100,
@@ -88,5 +88,30 @@ func TestContainerIDMatch(t *testing.T) {
 	full := "idk2aaaaaaaaaaabcdef"
 	if !ContainerIDMatch(full, full[:12]) || !ContainerIDMatch(full[:12], full) || ContainerIDMatch("abc", "xyz") {
 		t.Fatal("id match")
+	}
+}
+
+func TestFormatCoresAndHostPct(t *testing.T) {
+	cases := []struct {
+		pct  float64
+		cpus int
+		want string
+		host float64
+	}{
+		{139, 20, "1.4c (7%)", 6.95},
+		{20, 20, "0.2c (1%)", 1},
+		{100, 1, "1.0c (100%)", 100},
+		{4.2, 20, "0.04c (0.2%)", 0.21},
+		{0, 8, "0.0c (0%)", 0},
+		{1800, 20, "18.0c (90%)", 90},
+		{50, 0, "0.5c (50%)", 50},
+	}
+	for _, c := range cases {
+		if got := FormatCores(c.pct, c.cpus); got != c.want {
+			t.Fatalf("FormatCores(%v, %d) = %q, want %q", c.pct, c.cpus, got, c.want)
+		}
+		if got := HostCPUPct(c.pct, c.cpus); got < c.host-0.001 || got > c.host+0.001 {
+			t.Fatalf("HostCPUPct(%v, %d) = %v, want %v", c.pct, c.cpus, got, c.host)
+		}
 	}
 }

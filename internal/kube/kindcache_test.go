@@ -13,7 +13,7 @@ import (
 
 func testProxy(dir string) RegistryProxy {
 	return RegistryProxy{
-		Image:      "rpardini/docker-registry-proxy:latest",
+		Image:      "rpardini/docker-registry-proxy:0.8.0",
 		Container:  "k2-registry-proxy",
 		CacheDir:   dir,
 		Registries: []string{"docker.io", "registry.k8s.io", "gcr.io", "quay.io", "ghcr.io"},
@@ -31,7 +31,7 @@ func TestRegistryProxyRunArgs(t *testing.T) {
 	p := testProxy("/data/kc")
 	want := []string{"run", "-d", "--name", "k2-registry-proxy", "--restart", "unless-stopped", "--network", "kind",
 		"-e", "ENABLE_MANIFEST_CACHE=true", "-e", "REGISTRIES=registry.k8s.io gcr.io quay.io ghcr.io",
-		"-v", "/data/kc/cache:/docker_mirror_cache", "-v", "/data/kc/ca:/ca", "rpardini/docker-registry-proxy:latest"}
+		"-v", "/data/kc/cache:/docker_mirror_cache", "-v", "/data/kc/ca:/ca", "rpardini/docker-registry-proxy:0.8.0"}
 	if got := RegistryProxyRunArgs(p); !reflect.DeepEqual(got, want) {
 		t.Fatalf("args\n%v\n%v", got, want)
 	}
@@ -73,7 +73,7 @@ func TestRegistryProxyDropInAndNodeArgs(t *testing.T) {
 }
 
 func TestParseRegistryProxyInspect(t *testing.T) {
-	out := `[{"State":{"Status":"running","StartedAt":"2026-11-27T10:00:00.123456789Z"},"Config":{"Image":"rpardini/docker-registry-proxy:latest","Env":["PATH=/usr/bin","REGISTRIES=registry.k8s.io quay.io"]},"NetworkSettings":{"Networks":{"kind":{},"bridge":{}}}}]`
+	out := `[{"State":{"Status":"running","StartedAt":"2026-11-27T10:00:00.123456789Z"},"Config":{"Image":"rpardini/docker-registry-proxy:0.8.0","Env":["PATH=/usr/bin","REGISTRIES=registry.k8s.io quay.io"]},"NetworkSettings":{"Networks":{"kind":{},"bridge":{}}}}]`
 	s, err := ParseRegistryProxyInspect(out)
 	if err != nil {
 		t.Fatal(err)

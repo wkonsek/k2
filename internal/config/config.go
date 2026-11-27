@@ -61,7 +61,7 @@ type RegistryProxy struct {
 
 func DefaultRegistryProxy() RegistryProxy {
 	return RegistryProxy{
-		Image:      "rpardini/docker-registry-proxy:latest",
+		Image:      "rpardini/docker-registry-proxy:0.8.0",
 		Container:  "k2-registry-proxy",
 		CacheDir:   filepath.Join(DefaultDir(), "kind-cache"),
 		Registries: []string{"docker.io", "registry.k8s.io", "gcr.io", "quay.io", "ghcr.io"},

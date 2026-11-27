@@ -87,7 +87,7 @@ func TestKindProxyShortcutWorksWithNoClusters(t *testing.T) {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
 	view = ansi.Strip(m.View())
-	for _, want := range []string{"rpardini/docker-registry-proxy:latest", "registry.k8s.io", "ghcr.io"} {
+	for _, want := range []string{"rpardini/docker-registry-proxy:0.8.0", "registry.k8s.io", "ghcr.io"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -215,7 +215,7 @@ func TestKindProxyRemoveKeepsCacheAndClusterDeleteKeepsProxy(t *testing.T) {
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "remove registry proxy k2-registry-proxy?") {
 		t.Fatalf("proxy delete %+v", m.dlg)
 	}
-	if view := ansi.Strip(m.View()); !strings.Contains(view, "stay on disk") {
+	if view := ansi.Strip(m.View()); !strings.Contains(strings.Join(m.dlg.details, " "), "stay on disk") || !strings.Contains(view, "stay on") {
 		t.Fatalf("confirm should say the cache stays:\n%s", view)
 	}
 	m = pressSettle(t, m, "y")
@@ -317,13 +317,16 @@ func TestKindProxyCardRendersDistinctFromClusters(t *testing.T) {
 	m := newTestModel(t, testEnv(t), &shell.Fake{})
 	m.kindProxy = kube.ProxyStatus{State: "running", StartedAt: now().Add(-3 * time.Hour), Registries: []string{"quay.io"}, CacheOK: true, CacheBytes: 3 << 20}
 	out := ansi.Strip(m.renderKindProxy(true, 90))
-	for _, want := range []string{"▸  k2-registry-proxy", "⇄ registry proxy", "up 3h", "3.0", "docker.io, quay.io", "http://k2-registry-proxy:3128/", "╔"} {
+	for _, want := range []string{"▸  k2-registry-proxy", "⇄ registry proxy", "up 3h", "3.0", "docker.io, quay.io", "http://k2-registry-proxy:3128/", "╭", "╯"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("card lacks %q:\n%s", want, out)
 		}
 	}
 	if strings.Contains(out, "control-plane  ") || strings.Contains(out, "⬡") {
 		t.Fatalf("proxy card looks like a cluster:\n%s", out)
+	}
+	if strings.ContainsAny(out, "╔╗╚╝═║") {
+		t.Fatalf("proxy card should use the single-line card border:\n%s", out)
 	}
 	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "…") {
