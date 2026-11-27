@@ -194,8 +194,8 @@ helm CLI needed to browse). Values, computed values, manifest, notes,
 revision history. Mark two revisions and diff them per resource. Install,
 upgrade or roll back uses the helm CLI, when it's installed.
 
-**Kind clusters.** `:kind` (or `~`) shows local kind clusters as a tile
-grid, with square status, uptime, CPU and RAM bars, and installed catalog
+**Kind clusters.** `:kind` (or `~`) shows local kind clusters as full-width stacked
+cards, with square status, uptime, CPU and RAM bars, and installed catalog
 charts wrapped across lines. `A` (or `:kind create`) opens a form: name,
 control-planes, workers, optional config, a node image picker (the five
 latest stable `kindest/node` tags, or kind's default if offline), plus
@@ -431,8 +431,12 @@ one with the current one), per resource plus user values.
 `A` installs a chart and `u` upgrades the selected release: a form for
 the release name, chart (catalog names first, then `helm search repo`),
 version, namespace (with create-if-missing) and values file (pick a path,
-edit it, or start from `helm show values`). Picking a catalog chart fills
-the form. k2 adds and updates that chart's Helm repo when needed. Istio
+edit it, or start from `helm show values`). While the chart field is
+focused, a compact list under it shows matching catalog charts (or the
+full catalog when the field is empty) plus matching `helm search repo`
+results as you type. `tab` and `shift+tab` cycle those suggestions and
+fill release, namespace, create-ns and default values, unless you edited
+those fields yourself; `↑` `↓` still move between form fields. k2 adds and updates that chart's Helm repo when needed. Istio
 installs `istio/base` then `istio/istiod` in `istio-system`. The built-in
 catalog (istio, sealed-secrets, metallb, argocd, cert-manager,
 metrics-server, kube-prometheus-stack, kafbat) is overridable under
@@ -461,9 +465,10 @@ or if the cluster is stopped). Uptime, CPU percent and bar plus RAM usage,
 percent and bar come from `docker stats` (cluster `MemPerc` is the sum of
 the node containers), plus installed catalog charts (wrapped onto extra
 lines) and the kubeconfig path. Status uses square icons (`■` running, `□`
-stopped). The active cluster shows a filled hexagon (`⬢`) in the top-right
-corner of the name line, one space from the border; other cards show an
-empty hexagon (`⬡`). `enter` or `space` uses a ready cluster in the pane
+stopped). The active cluster shows `⬢ active` next to its name on the left
+of the name line, and a filled hexagon (`⬢`) in the top-right corner, one
+space from the border; other cards show just the name on the left and an
+empty hexagon (`⬡`) on the right. `enter` or `space` uses a ready cluster in the pane
 (or opens logs of a deploying / failed one). `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The
 image field defaults to the newest of the five latest stable

@@ -204,8 +204,16 @@ func TestKindListView(t *testing.T) {
 			t.Fatalf("tile lines lack %q:\n%s", want, view)
 		}
 	}
-	if strings.Contains(view, "active") || strings.Contains(view, "ACTIVE") || strings.Contains(view, "1 cp") {
-		t.Fatalf("old compact node line or active word still present:\n%s", view)
+	if !strings.Contains(view, "k2 "+kindIconActive+" active") {
+		t.Fatalf("active card should show ⬢ active next to the name:\n%s", view)
+	}
+	if strings.Contains(view, "ACTIVE") || strings.Contains(view, "1 cp") {
+		t.Fatalf("old compact node line or ACTIVE label still present:\n%s", view)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "dev") && strings.Contains(line, "active") && !strings.Contains(line, "k2") {
+			t.Fatalf("idle card should not show active:\n%s", line)
+		}
 	}
 	if strings.Contains(view, "●") || strings.Contains(view, "○") {
 		t.Fatalf("still using round status dots:\n%s", view)
@@ -1197,12 +1205,30 @@ func TestKindActiveBadgeCorner(t *testing.T) {
 	if !strings.Contains(a0, "…") {
 		t.Fatalf("long name should show an ellipsis:\n%q", a0)
 	}
-	if strings.Contains(i0, kindIconActive) {
-		t.Fatalf("idle tile should not show the filled hexagon:\n%q", i0)
+	if strings.Contains(i0, kindIconActive) || strings.Contains(i0, "active") {
+		t.Fatalf("idle tile should not show the filled hexagon or active word:\n%q", i0)
+	}
+	wideInner := max(8, kindCardWidth(80)-2)
+	wideActive := padPlain(ansi.Strip(m.kindTileContent(tiles[0], true, wideInner)[0]), wideInner)
+	wideIdle := padPlain(ansi.Strip(m.kindTileContent(tiles[1], false, wideInner)[0]), wideInner)
+	if !strings.Contains(wideActive, longName+" "+kindIconActive+" active") {
+		t.Fatalf("wide active card should show the name and ⬢ active on the left:\n%q", wideActive)
+	}
+	if widthSuffix(wideActive, badgeW) != kindIconActive+" " {
+		t.Fatalf("wide card should still keep the filled hexagon one space from the right border:\n%q", wideActive)
+	}
+	if strings.Contains(wideIdle, "active") || strings.Contains(wideIdle, kindIconActive) {
+		t.Fatalf("wide idle card should only show the name on the left:\n%q", wideIdle)
+	}
+	if widthSuffix(wideIdle, badgeW) != kindIconIdle+" " {
+		t.Fatalf("wide idle card should keep the empty hexagon one space from the right border:\n%q", wideIdle)
 	}
 	view := ansi.Strip(m.kindBody(80))
-	if strings.Contains(view, "active") || strings.Contains(view, "ACTIVE") {
-		t.Fatalf("active word should be gone:\n%s", view)
+	if !strings.Contains(view, longName+" "+kindIconActive+" active") {
+		t.Fatalf("body should show ⬢ active next to the active name:\n%s", view)
+	}
+	if strings.Contains(view, "ACTIVE") {
+		t.Fatalf("ACTIVE label still present:\n%s", view)
 	}
 	for i, line := range strings.Split(view, "\n") {
 		if got := ansi.StringWidth(line); got > 80 {

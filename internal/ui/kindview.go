@@ -454,6 +454,9 @@ func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
 		name = kindLabel(kindIconSel, t.name)
 	}
 	title := titleStyle.Render(name)
+	if t.active {
+		title = title + " " + keyStyle.Render(kindIconActive+" active")
+	}
 	status := m.kindStatusLine(t, inner)
 	icon, iconSt := kindIconIdle, dimStyle
 	if t.active {

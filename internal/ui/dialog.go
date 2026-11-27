@@ -441,8 +441,15 @@ func (m model) dialogBox(width int) string {
 			lines = append(lines, l)
 		}
 	case d.act == "helminstall" && len(d.hfields) > 0:
-		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Complete.Short())+dimStyle.Render(" complete  ")+
-			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" preview  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+		foot := keyStyle.Render("tab") + dimStyle.Render(" move / complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
+			keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		if d.idx >= 0 && d.idx < len(d.hfields) && d.hfields[d.idx].key == "chart" {
+			foot = keyStyle.Render("tab/shift+tab") + dimStyle.Render(" cycle charts  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
+				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		}
+		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
+			lines = append(lines, l)
+		}
 	case len(d.images) > 0:
 		lines = append(lines, keyStyle.Render("tab/↑↓")+dimStyle.Render(" move  ")+keyStyle.Render(k.Submit.Short())+dimStyle.Render(" apply  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

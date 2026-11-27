@@ -23,6 +23,7 @@ type helmOp struct {
 	createNS                     bool
 	catalog                      string
 	autoName, autoNS, autoValues bool
+	manualCreate                 bool
 	current                      kube.HelmRelease
 	charts                       []kube.HelmChart
 	versions                     []string
@@ -174,6 +175,9 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 
 func (m model) helmFormHint(act string) string {
 	k := m.cfg.Keys
+	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "chart" {
+		return "tab/shift+tab cycle charts · ↑/↓ move · enter previews · " + k.Cancel.Short() + " cancel"
+	}
 	return "tab moves · " + k.Complete.Short() + " completes · enter previews · " + k.Cancel.Short() + " cancel"
 }
 
@@ -218,6 +222,7 @@ func (m model) applyHelmSearch(msg helmSearchMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.vs.hop = &op
+		m.syncHelmChartSuggest()
 		return m, m.fetchHelmVersions(op.chart, msg.seq)
 	}
 	return m, nil
@@ -317,6 +322,9 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	switch {
 	case key == "tab" || key == "down" || km.ScrollDown.Has(key):
+		if key == "tab" && d.hfields[d.idx].key == "chart" {
+			return m.cycleHelmChart(1)
+		}
 		if key == "tab" && d.hfields[d.idx].typed() {
 			if next, cmd, done := m.completeHelmField(); done {
 				return next, cmd
@@ -324,20 +332,37 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m.moveHelmField(1), nil
 	case key == "shift+tab" || key == "up" || km.ScrollUp.Has(key):
+		if key == "shift+tab" && d.hfields[d.idx].key == "chart" {
+			return m.cycleHelmChart(-1)
+		}
 		return m.moveHelmField(-1), nil
 	case (key == " " || key == "c") && d.hfields[d.idx].toggle:
 		d.hcreate = !d.hcreate
+		if m.vs.hop != nil {
+			m.vs.hop.manualCreate = true
+		}
 		return m, nil
 	}
 	if d.hfields[d.idx].locked || d.hfields[d.idx].toggle || d.hfields[d.idx].action {
 		return m, nil
 	}
-	d.cands, d.candBase, d.candAt = nil, "", -1
 	var cmd tea.Cmd
 	d.hfields[d.idx].input, cmd = d.hfields[d.idx].input.Update(msg)
 	d.msg = ""
 	if d.hfields[d.idx].key == "chart" {
+		m.refreshHelmChartSuggest(true)
 		return m, tea.Batch(cmd, m.liveHelmVersions())
+	}
+	d.cands, d.candBase, d.candAt = nil, "", -1
+	if m.vs.hop != nil {
+		switch d.hfields[d.idx].key {
+		case "name":
+			m.vs.hop.autoName = false
+		case "ns":
+			m.vs.hop.autoNS = false
+		case "values":
+			m.vs.hop.autoValues = false
+		}
 	}
 	return m, cmd
 }
@@ -375,6 +400,9 @@ func (m model) moveHelmField(delta int) model {
 	d.cands, d.candBase, d.candAt = nil, "", -1
 	d.msg = ""
 	m.maybeFillCatalog()
+	if d.hfields[d.idx].key == "chart" {
+		m.syncHelmChartSuggest()
+	}
 	return m
 }
 
@@ -383,13 +411,8 @@ func (m model) completeHelmField() (tea.Model, tea.Cmd, bool) {
 	f := d.hfields[d.idx]
 	switch f.key {
 	case "chart":
-		next, cmd, done := m.completeHelmList(m.helmChartCandidates(), false)
-		if done {
-			nm := next.(model)
-			nm.maybeFillCatalog()
-			return nm, tea.Batch(cmd, nm.liveHelmVersions()), true
-		}
-		return next, cmd, done
+		next, cmd := m.cycleHelmChart(1)
+		return next, cmd, true
 	case "version":
 		vers := []string{}
 		if m.vs.hop != nil {
@@ -1008,8 +1031,11 @@ func (d *dialog) helmFormRows(inner int) []string {
 			continue
 		}
 		out = append(out, label+in.View())
+		if f.key == "chart" && i == d.idx {
+			out = append(out, d.helmChartSuggestRows(inner, ansi.StringWidth(ansi.Strip(label)))...)
+		}
 	}
-	if len(d.cands) > 0 {
+	if len(d.cands) > 0 && !(d.idx >= 0 && d.idx < len(d.hfields) && d.hfields[d.idx].key == "chart") {
 		var parts []string
 		for i, c := range d.cands {
 			if i == maxCands {

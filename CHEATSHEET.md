@@ -244,8 +244,10 @@ browse). Install, upgrade, rollback and uninstall run the helm CLI
 
 `A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
 opens a form for the release name, chart (catalog names first, then
-`helm search repo`; picking one fills release, namespace, create-ns and
-default values),
+`helm search repo`; a compact list under the chart field shows matches,
+and `tab` / `shift+tab` cycle them, filling release, namespace, create-ns
+and default values unless you edited those fields; `↑` `↓` move between
+fields),
 version, namespace (with a create-if-missing toggle) and values file
 (pick a path, edit it in the editor, or start from `helm show values`).
 Built-in catalog: istio (`base` then `istiod`), sealed-secrets, metallb,
@@ -308,9 +310,10 @@ counts, a background pod count, CPU percent + bar, RAM usage + percent
 + bar, installed catalog charts wrapped across lines, kubeconfig). On a
 wide pane, k8s / nodes / pods sit on the left and CPU / RAM on the right;
 a narrow pane stacks those rows. The list scrolls if more cards are open
-than fit. The active cluster has a filled hexagon (`⬢`) in the top-right
-corner of the name line, one space from the border; other cards show an
-empty hexagon (`⬡`). `r` refreshes the list, including pod counts.
+than fit. The active cluster shows `⬢ active` next to its name on the left of
+the name line, and a filled hexagon (`⬢`) in the top-right corner, one
+space from the border; other cards show just the name on the left and an
+empty hexagon (`⬡`) on the right. `r` refreshes the list, including pod counts.
 A new cluster appears as a `deploying` card as soon as create starts;
 `enter` or `space` on a ready card uses that cluster in the pane, or
 opens a live log of a deploying / failed / deleting one (auto-scrolls

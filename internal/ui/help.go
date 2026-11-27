@@ -355,6 +355,7 @@ func (m model) viewSection() []helpSection {
 		}
 		if m.helmCLI() != "" {
 			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
+			rows = append(rows, helpRow{"tab / shift+tab", "cycle catalog charts in the install form (↑↓ move between fields)"})
 		}
 		return []helpSection{{"Helm", append(rows, r(k.AllNamespaces, "all namespaces"), r(k.CopyName, "copy name"))}}
 	case "helmhist":

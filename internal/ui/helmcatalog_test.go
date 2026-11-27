@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"k2/internal/config"
+	"k2/internal/kube"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestHelmCatalogCompletesFirstAndFillsForm(t *testing.T) {
@@ -185,3 +188,177 @@ func containsStr(ss []string, want string) bool {
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+func focusHelmChart(t *testing.T, m model) model {
+	t.Helper()
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	for i, f := range m.dlg.hfields {
+		if f.key == "chart" {
+			m.dlg.idx = i
+			break
+		}
+	}
+	return m.moveHelmField(0)
+}
+
+func TestHelmCatalogTabCyclesCharts(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	m = focusHelmChart(t, m)
+	want := []string{"istio", "sealed-secrets", "metallb", "argocd", "cert-manager", "metrics-server", "kube-prometheus-stack", "kafbat"}
+	var got []string
+	for i := 0; i < len(want); i++ {
+		m = pressSettle(t, m, "tab")
+		if m.dlg == nil || m.dlg.hfields[m.dlg.idx].key != "chart" {
+			t.Fatalf("tab %d left the chart field idx=%d", i, m.dlg.idx)
+		}
+		name := ""
+		if m.vs.hop != nil {
+			name = m.vs.hop.catalog
+		}
+		if name == "" {
+			name = helmFieldValue(m.dlg, "chart")
+		}
+		got = append(got, name)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("cycled %v", got)
+	}
+	for i, name := range want {
+		if got[i] != name {
+			t.Fatalf("tab cycle %d: got %v want %v", i, got, want)
+		}
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "istio" {
+		t.Fatalf("tab should wrap to istio, got %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	m = pressSettle(t, m, "shift+tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "kafbat" {
+		t.Fatalf("shift+tab should cycle back to kafbat, got %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	if helmFieldValue(m.dlg, "name") != "kafbat-ui" || helmFieldValue(m.dlg, "ns") != "kafbat" || !m.dlg.hcreate {
+		t.Fatalf("kafbat fill name=%s ns=%s create=%v", helmFieldValue(m.dlg, "name"), helmFieldValue(m.dlg, "ns"), m.dlg.hcreate)
+	}
+	if helmFieldValue(m.dlg, "chart") != "kafbat/kafka-ui" {
+		t.Fatalf("kafbat chart=%s", helmFieldValue(m.dlg, "chart"))
+	}
+}
+
+func TestHelmCatalogCycleUpdatesAndKeepsEdits(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	m = focusHelmChart(t, m)
+	m = pressSettle(t, m, "tab")
+	if helmFieldValue(m.dlg, "chart") != "istio" || helmFieldValue(m.dlg, "ns") != "istio-system" || !m.dlg.hcreate {
+		t.Fatalf("istio fill chart=%s ns=%s create=%v", helmFieldValue(m.dlg, "chart"), helmFieldValue(m.dlg, "ns"), m.dlg.hcreate)
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "sealed-secrets" || helmFieldValue(m.dlg, "name") != "sealed-secrets" || helmFieldValue(m.dlg, "ns") != "kube-system" || m.dlg.hcreate {
+		t.Fatalf("sealed-secrets fill name=%s ns=%s create=%v catalog=%s", helmFieldValue(m.dlg, "name"), helmFieldValue(m.dlg, "ns"), m.dlg.hcreate, m.vs.hop.catalog)
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "metallb" || helmFieldValue(m.dlg, "name") != "metallb" || helmFieldValue(m.dlg, "ns") != "metallb-system" || !m.dlg.hcreate || helmFieldValue(m.dlg, "chart") != "metallb/metallb" {
+		t.Fatalf("metallb fill name=%s chart=%s ns=%s create=%v", helmFieldValue(m.dlg, "name"), helmFieldValue(m.dlg, "chart"), helmFieldValue(m.dlg, "ns"), m.dlg.hcreate)
+	}
+	setHelmField(m.dlg, "name", "my-release")
+	if m.vs.hop != nil {
+		m.vs.hop.autoName = false
+	}
+	m = focusHelmChart(t, m)
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "argocd" {
+		t.Fatalf("next catalog %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	if helmFieldValue(m.dlg, "name") != "my-release" {
+		t.Fatalf("manual name was overwritten: %s", helmFieldValue(m.dlg, "name"))
+	}
+	if helmFieldValue(m.dlg, "ns") != "argocd" || !m.dlg.hcreate {
+		t.Fatalf("argocd auto ns=%s create=%v", helmFieldValue(m.dlg, "ns"), m.dlg.hcreate)
+	}
+}
+
+func TestHelmCatalogSuggestsUnderChart(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	view := ansi.Strip(m.View())
+	if strings.Contains(view, "▸ istio") || strings.Contains(view, "sealed-secrets") && strings.Contains(view, "cycle charts") {
+		t.Fatalf("suggestions should wait until chart is focused:\n%s", view)
+	}
+	m = focusHelmChart(t, m)
+	view = ansi.Strip(m.View())
+	for _, want := range []string{"istio", "sealed-secrets", "metallb", "argocd", "cert-manager", "metrics-server", "kube-prometheus-stack", "kafbat", "cycle charts"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("focused chart view lacks %q:\n%s", want, view)
+		}
+	}
+	if !strings.Contains(view, kindIconSel+" istio") && !strings.Contains(view, kindIconSel+"  istio") {
+		t.Fatalf("first suggestion should be marked:\n%s", view)
+	}
+	m = pressSettle(t, m, "tab", "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "sealed-secrets" {
+		t.Fatalf("second tab catalog %+v", m.vs.hop)
+	}
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, kindIconSel+" sealed-secrets") && !strings.Contains(view, kindIconSel+"  sealed-secrets") {
+		t.Fatalf("current suggestion should be marked:\n%s", view)
+	}
+	setHelmField(m.dlg, "chart", "met")
+	m.syncHelmChartSuggest()
+	sugs := m.helmChartSuggestions(helmFieldValue(m.dlg, "chart"))
+	if !containsStr(sugs, "metallb") || !containsStr(sugs, "metrics-server") {
+		t.Fatalf("typed prefix should match metallb and metrics-server: %v chart=%s", sugs, helmFieldValue(m.dlg, "chart"))
+	}
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "metallb") || !strings.Contains(view, "metrics-server") {
+		t.Fatalf("filtered list missing matches:\n%s", view)
+	}
+	if containsStr(m.dlg.cands, "sealed-secrets") || containsStr(m.dlg.cands, "istio") || containsStr(m.dlg.cands, "kube-prometheus-stack") {
+		t.Fatalf("filtered candidates still include a non-match: %v", m.dlg.cands)
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "metallb" {
+		t.Fatalf("tab on met should pick metallb, got %+v chart=%s", m.vs.hop, helmFieldValue(m.dlg, "chart"))
+	}
+	m = pressSettle(t, m, "tab")
+	if m.vs.hop == nil || m.vs.hop.catalog != "metrics-server" {
+		t.Fatalf("second tab should pick metrics-server, got %+v", m.vs.hop)
+	}
+	before := m.dlg.idx
+	m = pressSettle(t, m, "down")
+	if m.dlg.idx == before {
+		t.Fatal("down should leave the chart field")
+	}
+	m = pressSettle(t, m, "up")
+	if m.dlg.hfields[m.dlg.idx].key != "chart" {
+		t.Fatalf("up should return to chart, at %s", m.dlg.hfields[m.dlg.idx].key)
+	}
+}
+
+func TestHelmChartSearchSuggestions(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "helm"), "A")
+	m.vs.hop.charts = []kube.HelmChart{{Name: "bitnami/redis"}, {Name: "bitnami/nginx"}, {Name: "metallb/metallb"}}
+	m = focusHelmChart(t, m)
+	empty := m.helmChartSuggestions("")
+	if containsStr(empty, "bitnami/redis") {
+		t.Fatalf("empty prefix should stay on the catalog, got %v", empty)
+	}
+	hits := m.helmChartSuggestions("bit")
+	if !containsStr(hits, "bitnami/redis") || !containsStr(hits, "bitnami/nginx") {
+		t.Fatalf("search hits missing: %v", hits)
+	}
+	if containsStr(hits, "metallb") || containsStr(hits, "istio") {
+		t.Fatalf("unrelated catalog leaked into bit prefix: %v", hits)
+	}
+}
