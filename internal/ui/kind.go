@@ -431,10 +431,11 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	m.fillKindForm(d, &op)
 	m.vs.kop = &op
 	m.dlg = d
-	return m, m.kindNodeImagesCmd()
+	images := m.kindNodeImagesCmd()
+	return m, images
 }
 
-func (m model) kindNodeImagesCmd() tea.Cmd {
+func (m *model) kindNodeImagesCmd() tea.Cmd {
 	if len(m.kindNodeImages) > 0 || m.kindNodeImagesBusy {
 		return nil
 	}
@@ -1377,22 +1378,19 @@ func setupMetalLB(run shell.Runner, docker, kc, ctx, ns string, onLine func(stri
 		"pod-security.kubernetes.io/warn=privileged",
 		"--overwrite", "--kubeconfig", kc, "--context", ctx}
 	onLine("$ kubectl " + strings.Join(label, " "))
-	out, err := shell.Combined(run, "kubectl", label...)
+	out, _ := shell.Combined(run, "kubectl", label...)
 	onLine(string(out))
-	if err != nil && strings.TrimSpace(string(out)) != "" {
-		onLine(strings.TrimSpace(string(out)))
-	}
 	wait := []string{"wait", "--for=condition=Available", "deployment", "--all", "-n", ns, "--timeout=120s"}
 	wait = append(wait, "--kubeconfig", kc, "--context", ctx)
 	onLine("$ kubectl " + strings.Join(wait, " "))
-	out, err = shell.Combined(run, "kubectl", wait...)
+	out, _ = shell.Combined(run, "kubectl", wait...)
 	onLine(string(out))
 	if docker == "" {
 		return "", "metallb: docker not in PATH, skipped IPAddressPool"
 	}
 	inspect := kube.DockerNetworkInspectArgs("kind")
 	onLine("$ docker " + strings.Join(inspect, " "))
-	out, err = shell.Combined(run, docker, inspect...)
+	out, err := shell.Combined(run, docker, inspect...)
 	onLine(string(out))
 	if err != nil {
 		return "", "metallb: could not inspect the kind docker network, skipped IPAddressPool"
