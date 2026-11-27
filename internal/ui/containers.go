@@ -60,6 +60,38 @@ func getContainerItems(k kube.Client, kubeconfig, context, ns, pod string, width
 	return packKube(kube.ContainerTable(o, usage, ok), width, ns)
 }
 
+func regularContainers(it item) []string {
+	if it.extra == nil {
+		return nil
+	}
+	var out []string
+	for _, c := range strings.Split(it.extra["containers"], ",") {
+		if c != "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func (m model) enterPod() (tea.Model, tea.Cmd) {
+	it, ok := m.selectedItem()
+	if !ok {
+		return m, nil
+	}
+	mains := regularContainers(it)
+	if len(mains) != 1 {
+		return m.openContainers()
+	}
+	ns, name := kube.SplitRef(it.id, m.namespace)
+	if it.desc != "" {
+		ns = it.desc
+	}
+	if ns == "" || name == "" {
+		return m, nil
+	}
+	return m.openLogs(ns+"/"+name, mains[0], false)
+}
+
 func (m model) openContainers() (tea.Model, tea.Cmd) {
 	it, ok := m.selectedItem()
 	if !ok {

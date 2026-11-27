@@ -487,7 +487,7 @@ func podForwardKey(k config.Keys) string {
 
 func (m model) podsHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " containers, " + k.PodLogs.Label() + " logs, " + k.Describe.Label() + " describe, " + podForwardKey(k) + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + " logs/containers, " + k.PodLogs.Label() + " logs, " + k.Describe.Label() + " describe, " + podForwardKey(k) + " forward, " + k.Shell.Label() + " shell, " + k.Edit.Label() + " edit, " + k.Delete.Label() + " delete"
 }
 
 func (m model) scrollKeys() string {

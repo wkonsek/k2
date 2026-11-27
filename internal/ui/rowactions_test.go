@@ -483,6 +483,34 @@ func TestJobsDrillToPods(t *testing.T) {
 	}
 }
 
+func TestCommandLeavesJobPodDrill(t *testing.T) {
+	f := actionCluster()
+	m := open(t, actionModel(t, f), "jobs")
+	m = pressSettle(t, selectRow(t, m, "pi"), "enter")
+	if m.stage != "workpods" || m.vs.podSel != "job-name=pi" {
+		t.Fatalf("job pods: %s sel %q", m.stage, m.vs.podSel)
+	}
+	m = open(t, m, "pods")
+	if m.stage != "workpods" || m.vs.podSel != "" || m.vs.parent != "" {
+		t.Fatalf(":pods: stage %s sel %q parent %q", m.stage, m.vs.podSel, m.vs.parent)
+	}
+	if len(m.content.Items()) != 3 {
+		t.Fatalf(":pods listed %d", len(m.content.Items()))
+	}
+	m = pressSettle(t, m, "q")
+	if m.stage != "workpods" || m.vs.podSel != "job-name=pi" || len(m.content.Items()) != 1 {
+		t.Fatalf("q: %s sel %q n %d", m.stage, m.vs.podSel, len(m.content.Items()))
+	}
+	m = open(t, m, "jobs")
+	if m.stage != "res" || m.kind != "jobs" || m.vs.podSel != "" || m.vs.parent != "" {
+		t.Fatalf(":jobs: %s %s sel %q parent %q", m.stage, m.kind, m.vs.podSel, m.vs.parent)
+	}
+	m = pressSettle(t, m, "q")
+	if m.stage != "workpods" || m.vs.podSel != "job-name=pi" {
+		t.Fatalf("q after :jobs: %s sel %q", m.stage, m.vs.podSel)
+	}
+}
+
 func TestLabelAnnotate(t *testing.T) {
 	f := actionCluster()
 	m := pressSettle(t, selectRow(t, actionModel(t, f), "db-0"), "L")

@@ -8,6 +8,7 @@ import (
 	"k2/internal/kube"
 	"k2/internal/shell"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -84,17 +85,17 @@ func TestEnterOnPodOpensContainers(t *testing.T) {
 
 func TestContainersEscKeepsPodSelection(t *testing.T) {
 	f := containerCluster()
-	m := selectRow(t, actionModel(t, f), "cache-0")
+	m := selectRow(t, actionModel(t, f), "web-1")
 	idx := m.content.Index()
 	m = pressSettle(t, m, "enter")
 	if !m.inContainers() {
-		t.Fatal("cache-0 has a container too, expected containers view")
+		t.Fatal("expected containers view")
 	}
 	m = pressSettle(t, m, "esc")
 	if m.inContainers() || m.stage != "workpods" || m.content.Index() != idx {
 		t.Fatalf("back: containers %v index %d want %d", m.inContainers(), m.content.Index(), idx)
 	}
-	if it, _ := m.selectedItem(); it.id != "cache-0" {
+	if it, _ := m.selectedItem(); it.id != "web-1" {
 		t.Fatalf("selected %q", it.id)
 	}
 	m = pressSettle(t, selectRow(t, m, "web-1"), "enter", "left")
@@ -324,5 +325,80 @@ func TestCommandPodsLeavesContainers(t *testing.T) {
 	m = open(t, m, "po")
 	if m.inContainers() || len(m.hist) != n {
 		t.Fatalf("repeat :po hist %d want %d containers %v", len(m.hist), n, m.inContainers())
+	}
+}
+
+func TestEnterOnSingleContainerPodOpensLogs(t *testing.T) {
+	f := containerCluster()
+	m := selectRow(t, actionModel(t, f), "cache-0")
+	m = pressSettle(t, m, "enter")
+	if m.stage != "logs" || m.vs.logCont != "redis" || m.dlg != nil || m.inContainers() {
+		t.Fatalf("stage %s cont %q dlg %v containers %v", m.stage, m.vs.logCont, m.dlg, m.inContainers())
+	}
+	if m.logPod != "shop/cache-0" {
+		t.Fatalf("logPod %q", m.logPod)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.stage != "workpods" || m.inContainers() {
+		t.Fatalf("esc: stage %s containers %v", m.stage, m.inContainers())
+	}
+	if it, ok := m.selectedItem(); !ok || it.id != "cache-0" {
+		t.Fatalf("selected %+v", m.content.SelectedItem())
+	}
+	m = pressSettle(t, selectRow(t, m, "cache-0"), "enter")
+	m = pressSettle(t, m, "q")
+	if m.stage != "workpods" || m.inContainers() {
+		t.Fatalf("q: stage %s containers %v", m.stage, m.inContainers())
+	}
+	if it, ok := m.selectedItem(); !ok || it.id != "cache-0" {
+		t.Fatalf("q selected %+v", m.content.SelectedItem())
+	}
+}
+
+func TestEnterPodUsesRegularContainersOnly(t *testing.T) {
+	it := item{extra: map[string]string{"containers": "app", "init": "migrate,shipper"}}
+	if got := regularContainers(it); len(got) != 1 || got[0] != "app" {
+		t.Fatalf("%v", got)
+	}
+	it = item{extra: map[string]string{"containers": "app,side", "init": "migrate"}}
+	if got := regularContainers(it); len(got) != 2 {
+		t.Fatalf("%v", got)
+	}
+	f := containerCluster()
+	m := actionModel(t, f)
+	m.content.SetItems([]list.Item{item{id: "solo", desc: "shop", extra: map[string]string{"containers": "app", "init": "migrate"}}})
+	m.content.Select(0)
+	m.stage = "workpods"
+	next, cmd := m.enterPod()
+	m = settle(t, next.(model), cmd)
+	if m.stage != "logs" || m.vs.logCont != "app" || m.logPod != "shop/solo" || m.inContainers() {
+		t.Fatalf("stage %s cont %q pod %q containers %v", m.stage, m.vs.logCont, m.logPod, m.inContainers())
+	}
+	m = pressSettle(t, m, "esc")
+	if m.stage != "workpods" || m.inContainers() {
+		t.Fatalf("esc: stage %s containers %v", m.stage, m.inContainers())
+	}
+}
+
+func TestCommandPodsFromContainerLogs(t *testing.T) {
+	f := containerCluster()
+	m := selectRow(t, containersModel(t, f), "side")
+	m = pressSettle(t, m, "enter")
+	if m.stage != "logs" {
+		t.Fatalf("stage %s", m.stage)
+	}
+	m = open(t, m, "pods")
+	if m.inContainers() || m.stage != "workpods" || m.kind != "pods" {
+		t.Fatalf(":pods from logs: stage %s containers %v", m.stage, m.inContainers())
+	}
+	if m.vs.podSel != "" || m.vs.parent != "" {
+		t.Fatalf("drill leftover sel %q parent %q", m.vs.podSel, m.vs.parent)
+	}
+	if it, ok := m.selectedItem(); !ok || it.id != "web-1" {
+		t.Fatalf("selected %+v", m.content.SelectedItem())
+	}
+	m = pressSettle(t, m, "q")
+	if !m.inContainers() || m.paneLabel(m.focus) != "Containers(shop/web-1)[4]" {
+		t.Fatalf("q after :pods: containers %v label %q", m.inContainers(), m.paneLabel(m.focus))
 	}
 }

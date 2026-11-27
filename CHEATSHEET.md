@@ -162,7 +162,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 
 | Key | Config | What it does |
 |---|---|---|
-| `enter` | `keys.select` | containers of the pod (see below) |
+| `enter` | `keys.select` | logs of a one-container pod, otherwise its containers (see below) |
 | `l` | `keys.pod_logs` | logs of the pod (container picker when it has several) |
 | `p` | `keys.previous` | previous logs of the pod (container picker when it has several) |
 | `F` | `keys.port_forward` | port-forward. `ctrl+f` still works; the pods legend shows `F` |
@@ -170,7 +170,7 @@ API groups can be spelled out: `:gateways.networking.istio.io`,
 | `s` | `keys.shell` | shell in the pod, inside the pane (bash, else sh) |
 | `ctrl+d` | `keys.delete` | delete the pod (asks in a red popup), also with other panes or tabs open |
 
-### Containers (`enter` on a pod)
+### Containers (`enter` on a pod with several containers)
 
 Title `Containers(shop/web-1)[3]`. Init containers come first and are marked
 `(init)`, native sidecars `(sidecar)`. Columns: NAME, PF (`●` when a

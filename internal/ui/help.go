@@ -277,7 +277,7 @@ func (m model) viewSection() []helpSection {
 			return []helpSection{{"Containers", append(rows, m.tableRows()...)}}
 		}
 		rows := []helpRow{
-			{keyList(k.Select, 1), "containers"},
+			{keyList(k.Select, 1), "logs / containers"},
 			r(k.PodLogs, "logs"),
 			r(k.Previous, "previous logs"),
 			r(k.Describe, "describe"),

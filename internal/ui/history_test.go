@@ -16,6 +16,8 @@ func viewHistCluster() *shell.Fake {
 		switch {
 		case strings.Contains(line, "get-contexts"):
 			return shell.OK("kind-dev\nstaging\n")
+		case strings.HasPrefix(line, "get pods web-1 -o json"):
+			return shell.OK(containerPodJSON)
 		case strings.Contains(line, "get pods"):
 			return shell.OK(actionPods)
 		case strings.Contains(line, "get secrets"), strings.Contains(line, "get secret"):
@@ -175,7 +177,7 @@ func TestContainersBackStaysConsistentThenPops(t *testing.T) {
 	m := histModel(t)
 	m = open(t, m, "secrets")
 	m = open(t, m, "pods")
-	m = selectRow(t, m, "db-0")
+	m = selectRow(t, m, "web-1")
 	m = pressSettle(t, m, "enter")
 	if !m.inContainers() {
 		t.Fatalf("not in containers: %s %q", m.stage, m.vs.podSel)
@@ -184,7 +186,7 @@ func TestContainersBackStaysConsistentThenPops(t *testing.T) {
 	if m.stage != "workpods" || m.inContainers() {
 		t.Fatalf("q from containers: stage %s sel %q", m.stage, m.vs.podSel)
 	}
-	if it, ok := m.selectedItem(); !ok || it.id != "db-0" {
+	if it, ok := m.selectedItem(); !ok || it.id != "web-1" {
 		t.Fatalf("pod sel %+v", m.content.SelectedItem())
 	}
 	m = pressSettle(t, m, "q")

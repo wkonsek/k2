@@ -87,10 +87,10 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 	case "namespace", "ns", "project", "projects", "proj", "o":
 		return m.openNamed("proj")
 	case "pods", "pod", "po", "r":
-		return m.openNamed("pods")
+		return m.openCommandPods()
 	case "forward", "p":
 
-		return m.openPods()
+		return m.openCommandList("workpods", "pods")
 	case "forwards", "fwd", "fwds", "f", "pf":
 		return m.openNamed("fwds")
 	case "kustomize", "kust", "kustomization", "k":
@@ -119,10 +119,10 @@ func (m model) runCommand(raw string) (tea.Model, tea.Cmd) {
 		return m, m.notify(toneWarn, m.status)
 	}
 	if kind == "pods" {
-		return m.openNamed("pods")
+		return m.openCommandPods()
 	}
 	m.kindAlts = alts
-	return m.openResource(kind)
+	return m.openCommandList("res", kind)
 }
 
 func (m model) resolveKind(q string) (string, []string) {

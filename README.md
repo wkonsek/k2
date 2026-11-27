@@ -101,7 +101,7 @@ First start writes a commented config to `~/.k2/config.yaml`. Then:
 |---|---|
 | `c` / `C` / `n` | context / kubeconfig / namespace |
 | `:` | command line: `:pods`, `:deploy`, `:helm`, `:xray deploy`, `:logs app=web`, `:pulse` … (`tab` completes) |
-| `enter`, `d`, `e` | open (containers of a pod, YAML of most objects), describe, edit |
+| `enter`, `d`, `e` | open (logs of a one-container pod, containers of a pod, YAML of most objects), describe, edit |
 | `ctrl+f`, `F`, `f` | port-forward the selected row (`F` on a pod too), list forwards |
 | `ctrl+t` | theme for this context (saved to the config) |
 | `K`, `U` | Kustomize browser, kubectl view |
@@ -260,10 +260,12 @@ your config.
 
 ![favorite commands](docs/demo/cmd-favorites.gif)
 
-**Containers, then back.** `enter` on a pod opens its containers: image,
-ports, probes, restarts, CPU and memory. `l` still opens logs from that
-list. Jumps like `:secrets` and `:pods` remember where you were, so `q`
-walks back through them (`:helm` and `~` too).
+**Containers, then back.** `enter` on a pod with one container opens its
+logs; with several, the containers list: image, ports, probes, restarts,
+CPU and memory. `l` still opens logs from that list (or a picker). Jumps
+like `:secrets` and `:pods` open the full list, not a drilled-down view,
+and remember where you were, so `q` walks back through them (`:helm` and
+`~` too).
 
 ![containers](docs/demo/containers.gif)
 

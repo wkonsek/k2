@@ -149,7 +149,7 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 			next, cmd, _ := m.containerKey("enter")
 			return next, cmd
 		}
-		return m.openContainers()
+		return m.enterPod()
 	case "res":
 		if next, cmd, ok := m.enterRow(it); ok {
 			return next, cmd
@@ -192,6 +192,58 @@ func (m model) openNamed(id string) (tea.Model, tea.Cmd) {
 func (m model) openPods() (tea.Model, tea.Cmd) { return m.openList("workpods", "pods") }
 
 func (m model) openResource(kind string) (tea.Model, tea.Cmd) { return m.openList("res", kind) }
+
+func (m model) openCommandPods() (tea.Model, tea.Cmd) {
+	for i, raw := range m.nav.Items() {
+		if raw.(navItem).id == "pods" {
+			m.nav.Select(i)
+			break
+		}
+	}
+	return m.openCommandList("workpods", "pods")
+}
+
+func (m model) openCommandList(stage, kind string) (tea.Model, tea.Cmd) {
+	drilled := m.vs.parent != "" || m.vs.podSel != ""
+	if !m.histSkip && (drilled || m.stage != stage || m.kind != kind) {
+		m.rememberCommandSource()
+	}
+	m.resetDrill()
+	m.histSkip = true
+	next, cmd := m.openList(stage, kind)
+	nm := next.(model)
+	nm.histSkip = false
+	return nm, cmd
+}
+
+func (m *model) rememberCommandSource() {
+	if _, _, ok := parseContainerSel(m.vs.podSel); ok && m.stage != "workpods" {
+		saved := m.stage
+		m.stage = "workpods"
+		m.rememberView()
+		m.stage = saved
+		return
+	}
+	m.rememberView()
+}
+
+func (m *model) resetDrill() {
+	if ns, pod, ok := parseContainerSel(m.vs.podSel); ok {
+		m.vs.pick = pod
+		if m.namespace == "" {
+			m.vs.pick = ns + "/" + pod
+		}
+		m.vs.sortCol, m.vs.sortDesc, m.vs.marks = m.vs.sortBack.col, m.vs.sortBack.desc, m.vs.sortBack.marks
+	} else if m.vs.pick == "" {
+		if it, ok := m.selectedItem(); ok {
+			m.vs.pick = it.id
+		}
+	}
+	m.vs.podSel, m.vs.podTitle = "", ""
+	m.vs.podSelBack, m.vs.podTitleBack = "", ""
+	m.vs.sortBack = podSort{}
+	m.vs.parent, m.vs.parentSel = "", ""
+}
 
 func (m *model) showProjects(projects []string, err error) tea.Cmd {
 	if err != nil {
