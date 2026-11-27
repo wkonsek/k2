@@ -339,7 +339,10 @@ in the list; `enter` still opens the log.
 a prefilled generated config path, node image, starter-chart checkboxes).
 `ctrl+e` on the config field opens that YAML in `$EDITOR` (edits to
 node counts and image flow back into the form, and form changes keep
-the generated file in sync), or type your own path. The image field lists the five latest stable `kindest/node`
+the generated file in sync), or type your own path. The generated YAML
+has a `KubeletConfiguration` patch for parallel image pulls
+(`serializeImagePulls: false`, `maxParallelImagePulls: 4`); remove or
+change it in `ctrl+e` and it stays that way. The image field lists the five latest stable `kindest/node`
 tags under the input (`tab` / `shift+tab` cycle, or type a custom
 image). A checked chart opens an indented `namespace` row under it
 (catalog default, type to change; installs there with
@@ -380,6 +383,9 @@ Docker network as `k2-registry-proxy`, with cached layers and its CA in
 cluster: `space` and `e` do nothing there. `ctrl+d` removes only the
 container; deleting a cluster never touches it. Settings live under
 `kind.registry_proxy` (`image`, `container`, `cache_dir`, `registries`).
+Proxy timeouts are 1200s with request buffering off, so multi-GB layers
+are not cut mid-pull; an old proxy container picks that up after
+`ctrl+d` and `p` again.
 
 Clear it from the shell: `k2 kind-cache clean cache` (layers only, keeps
 the CA), `k2 kind-cache clean ca` (CA only), `k2 kind-cache clean all`

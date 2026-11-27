@@ -489,7 +489,11 @@ snapshot at once; stats, pod counts and catalog charts refresh about every
 create form (defaults: name `k2`, one control-plane, no workers). The config field is prefilled with a generated Kind YAML the cluster will
 use and stays in sync with the form; `ctrl+e` opens it in `$EDITOR` and
 those edits (node counts and image) flow back into the form, or type
-another path (a custom file wins over the generated topology). The image field defaults to the newest
+another path (a custom file wins over the generated topology). The
+generated YAML ends with a kubelet patch (`serializeImagePulls: false`,
+`maxParallelImagePulls: 4`) so one big image does not block the other
+pods on a node; delete or change it in `ctrl+e` and k2 leaves it be.
+New clusters only. The image field defaults to the newest
 of the five latest stable `kindest/node` tags fetched from Docker Hub, and
 a list of those tags sits under the input (`tab` / `shift+tab` cycle, or
 type a custom image; offline, the field stays blank and kind uses its own
@@ -541,7 +545,9 @@ breaks docker.io token auth). `p` works even with no
 clusters: it asks, makes sure the `kind` Docker network exists, then runs
 `k2-registry-proxy` there (or starts it if it is stopped). Cached layers
 and the proxy CA live in `~/.k2/kind-cache` (`cache/`, `ca/`), so they
-survive restarts and new clusters. The proxy gets its own card with a
+survive restarts and new clusters. Its nginx timeouts are 1200s with
+request buffering off, so multi-GB layers are not cut mid-pull (a proxy
+started before needs `ctrl+d` and `p` to pick that up). The proxy gets its own card with a
 `⇄ registry proxy` badge (status, live uptime, cache size on disk,
 registries); `enter` follows `docker logs --tail 200 -f`, `ctrl+d` removes
 the container and keeps the cache dir, and deleting a cluster never
