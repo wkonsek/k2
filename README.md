@@ -862,6 +862,7 @@ make test        no cluster needed
 make bench       hot-path benchmarks (short; set benchtime=…)
 make perf        frame-budget and leak tests
 make rpm / deb   packages in dist/
+make rpm-install build and install the rpm with dnf
 make demo        the README GIFs (needs vhs)
 ```
 

@@ -6,12 +6,12 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 RPM     := dist/k2-$(PKGVER)-1.x86_64.rpm
 DEB     := dist/k2_$(PKGVER)_amd64.deb
 
-.PHONY: help build build-linux install test test-race vet fmt bench perf rpm deb dist clean demo
+.PHONY: help build build-linux install test test-race vet fmt bench perf rpm rpm-install deb dist clean demo
 
 help:
 	@echo "k2 $(VERSION)"
 	@echo "  build  install  test  test-race  vet  fmt  bench  perf"
-	@echo "  rpm    deb      dist  clean  demo"
+	@echo "  rpm    rpm-install  deb  dist  clean  demo"
 
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/k2 ./cmd/k2
@@ -53,6 +53,13 @@ rpm: build-linux
 		packaging/rpm/k2.spec
 	cp dist/rpmbuild/RPMS/x86_64/k2-$(PKGVER)-1.x86_64.rpm $(RPM)
 	@echo "built $(RPM)"
+
+rpm-install: rpm
+	if rpm -q k2-$(PKGVER)-1 >/dev/null 2>&1; then \
+		sudo dnf reinstall -y $(RPM); \
+	else \
+		sudo dnf install -y $(RPM); \
+	fi
 
 deb: build-linux
 	@command -v dpkg-deb >/dev/null || { echo "need dpkg-deb (apt install dpkg-dev)"; exit 1; }
