@@ -204,7 +204,7 @@ YAML, which stays in sync with the form; `ctrl+e` opens it in `$EDITOR`
 and those edits flow back into the form, or type your own path), plus a node
 image picker (the five latest stable `kindest/node` tags, `tab` /
 `shift+tab` cycle them) and checkboxes for starter charts. `v` on a chart
-edits its values in `$EDITOR`. A
+edits its values in `$EDITOR`. On `sealed-secrets`, `m` picks a master-key YAML (default `helm.charts.sealed-secrets.master_key_path`) that k2 applies before installing the operator. A
 red popup confirms (`esc`/`q` returns to the form, `n` cancels), then a `deploying` tile appears immediately and k2
 streams `kind create cluster` into a live log (`enter` to watch, `esc`
 back to the tiles). The kubeconfig is written to `~/.kube/k2` (or
@@ -444,7 +444,7 @@ those fields yourself; `↑` `↓` still move between form fields. k2 adds and u
 installs `istio/base` then `istio/istiod` in `istio-system`. The built-in
 catalog (istio, sealed-secrets, metallb, argocd, cert-manager,
 metrics-server, kube-prometheus-stack, kafbat) is overridable under
-`helm.charts` in `~/.k2/config.yaml`. Preview with `helm template` (for an
+`helm.charts` in `~/.k2/config.yaml`. For `sealed-secrets`, the form shows a master-key path (from `helm.charts.sealed-secrets.master_key_path`, or pick one with `ctrl+p`); k2 runs `kubectl apply -f` on that Secret YAML before `helm install`. Preview with `helm template` (for an
 upgrade, a per-resource diff against the current manifest). A red popup
 names the context, release, chart and namespace; on success k2 jumps to
 the release and shows its notes.
@@ -488,7 +488,7 @@ type a custom image; offline, the field stays blank and kind uses its own
 default). Checkboxes pick starter charts from the Helm catalog; `v` on a chart row
 opens its values in `$EDITOR` (catalog defaults, or a `# custom values`
 stub), marks the row `(values)`, checks the chart, and passes those
-files to Helm (`-f` catalog defaults first, then custom values). Enter
+files to Helm (`-f` catalog defaults first, then custom values). On `sealed-secrets`, `m` opens the same path picker as Kustomize `p` for a master-key YAML (`helm.charts.sealed-secrets.master_key_path` is the default; the row shows `yes · ~/secrets/master.yml` when a path is set), and k2 applies that file with `kubectl` before `helm install`. Enter
 asks in a red popup (`esc`/`q` returns to the form, `n` cancels), then a `deploying` tile appears at once and k2
 streams `kind create cluster --kubeconfig ~/.kube/k2` (or
 `~/.kube/k2-<name>`) into a job log. `enter` on a deploying or failed
@@ -499,7 +499,7 @@ switches to `kind-<name>` and selected charts install one after another
 Docker network). `space` on a ready card uses that cluster if its
 kubeconfig exists; `enter` follows the control-plane container logs.
 `e` opens a checklist of catalog charts
-(already-installed ones are checked); `v` edits values the same way, and
+(already-installed ones are checked); `v` edits values the same way, `m` on `sealed-secrets` picks a master key the same way as create, and
 a red popup confirms installs, value upgrades of already-installed
 charts, and uninstalls, with the same live tile and log (istio
 uninstalls istiod first, then istio-base). `ctrl+d` deletes the cluster

@@ -22,6 +22,7 @@ type helmOp struct {
 	ns, values                                            string
 	createNS                                              bool
 	catalog                                               string
+	masterKey                                             string
 	autoName, autoNS, autoValues, autoVersion, autoCreate bool
 	manualCreate                                          bool
 	current                                               kube.HelmRelease
@@ -37,6 +38,7 @@ type helmField struct {
 	toggle     bool
 	action     bool
 	on         bool
+	note       string
 }
 
 type helmSearchMsg struct {
@@ -171,12 +173,18 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 	d.hfields = fields
 	d.hcreate = op.createNS
 	d.idx = focus
+	if op.masterKey == "" {
+		op.masterKey = m.defaultSealedMasterKey(op.chart, op.catalog)
+	}
 }
 
 func (m model) helmFormHint(act string) string {
 	k := m.cfg.Keys
 	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "chart" {
 		return "tab/shift+tab cycle charts · ↑/↓ move · enter previews · " + k.Cancel.Short() + " cancel"
+	}
+	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "masterkey" {
+		return "ctrl+p browses · tab completes · enter previews · " + k.Cancel.Short() + " cancel"
 	}
 	return "tab moves · " + k.Complete.Short() + " completes · enter previews · " + k.Cancel.Short() + " cancel"
 }
@@ -198,6 +206,8 @@ func (m *model) stashHelmForm() {
 			op.ns = strings.TrimSpace(f.input.Value())
 		case "values":
 			op.values = strings.TrimSpace(f.input.Value())
+		case "masterkey":
+			op.masterKey = strings.TrimSpace(f.input.Value())
 		}
 	}
 	op.createNS = m.dlg.hcreate
@@ -344,6 +354,8 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.vs.hop.manualCreate = true
 		}
 		return m, nil
+	case key == "ctrl+p" && d.hfields[d.idx].key == "masterkey":
+		return m.openHelmMasterKeyPicker()
 	}
 	if d.hfields[d.idx].locked || d.hfields[d.idx].toggle || d.hfields[d.idx].action {
 		return m, nil
@@ -353,6 +365,7 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	d.msg = ""
 	if d.hfields[d.idx].key == "chart" {
 		m.refreshHelmChartSuggest(true)
+		m.syncHelmMasterKeyField()
 		return m, tea.Batch(cmd, m.liveHelmVersions())
 	}
 	d.cands, d.candBase, d.candAt = nil, "", -1
@@ -426,7 +439,7 @@ func (m model) completeHelmField() (tea.Model, tea.Cmd, bool) {
 			vers = m.vs.hop.versions
 		}
 		return m.completeHelmList(vers, false)
-	case "values":
+	case "values", "masterkey":
 		return m.completeHelmPath()
 	}
 	return m, nil, false
@@ -639,6 +652,23 @@ func (m model) submitHelmForm() (tea.Model, tea.Cmd) {
 		op.values = p
 		m.vs.hop = op
 	}
+	if helmShowsMasterKey(op, op.chart) || (func() bool {
+		c, ok := config.LookupChart(m.cfg.Charts(), or(op.catalog, op.chart))
+		return ok && c.IsSealedSecrets()
+	}()) {
+		if op.masterKey == "" {
+			op.masterKey = m.defaultSealedMasterKey(op.chart, op.catalog)
+		}
+		p, msg := m.validateMasterKeyFile(op.masterKey)
+		if msg != "" {
+			m.dlg.msg = msg
+			return m, nil
+		}
+		if p != "" {
+			op.masterKey = p
+			m.vs.hop = op
+		}
+	}
 	steps := m.helmSteps(op)
 	if err := m.ensureHelmRepos(steps); err != nil {
 		m.dlg.msg = err.Error()
@@ -742,6 +772,9 @@ func (m model) helmPreviewText(summary, body string) string {
 			head = fmt.Sprintf("# %s %s  %s\n# namespace %s  values %s  context %s\n# %s\n\n",
 				op.act, op.name, kube.ChartAt(op.chart, op.version), or(op.ns, "-"), config.HomePath(op.values), m.context, summary)
 		}
+		if strings.TrimSpace(op.masterKey) != "" {
+			head = strings.TrimSuffix(head, "\n\n") + "\n# master key " + config.HomePath(op.masterKey) + "\n\n"
+		}
 	}
 	return head + body
 }
@@ -760,6 +793,7 @@ func (m *model) reopenHelmForm() {
 	d.seq = m.dlgSeq
 	m.fillHelmForm(d, &op)
 	m.dlg = d
+	m.syncHelmMasterKeyField()
 	m.stage = "helm"
 }
 
@@ -797,6 +831,9 @@ func (m model) askHelmApply() (tea.Model, tea.Cmd) {
 	}
 	if op.values != "" {
 		details = append(details, "values "+config.HomePath(op.values))
+	}
+	if strings.TrimSpace(op.masterKey) != "" {
+		details = append(details, "master key "+config.HomePath(op.masterKey))
 	}
 	if op.summary != "" {
 		details = append(details, op.summary)
@@ -845,6 +882,30 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 		var last config.Chart
 		for _, step := range steps {
 			last = step
+			if step.IsSealedSecrets() || config.IsSealedSecretsName(op.catalog) || config.IsSealedSecretsName(op.chart) {
+				path := op.masterKey
+				if path == "" {
+					path = step.MasterKeyPath
+				}
+				if path != "" {
+					var log strings.Builder
+					if err := emitApplyMasterKey(run, path, step.Namespace, kc, ctx, step.CreatesNamespace(), func(line string) {
+						if strings.TrimSpace(line) != "" {
+							log.WriteString(line)
+							log.WriteByte('\n')
+						}
+					}); err != nil {
+						text := strings.TrimSpace(log.String())
+						if text == "" {
+							text = err.Error()
+						} else {
+							text = text + "\n" + err.Error()
+						}
+						return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease()}
+					}
+					extra = strings.TrimSpace(extra + "\n" + log.String())
+				}
+			}
 			values := formValues
 			if values == "" && len(step.Values) > 0 {
 				path, err := config.WriteValuesFile(step.Values)
@@ -998,7 +1059,10 @@ func (d *dialog) helmFormRows(inner int) []string {
 			if on {
 				val = "yes"
 			}
-			if i == d.idx {
+			if f.note != "" {
+				val += " · " + f.note
+			}
+			if i == d.idx && f.note == "" {
 				out = append(out, label+itemStyle.Render(val)+dimStyle.Render("  space toggles"))
 			} else {
 				out = append(out, label+itemStyle.Render(val))

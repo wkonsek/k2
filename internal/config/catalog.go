@@ -16,6 +16,7 @@ type Chart struct {
 	RepoName        string
 	Namespace       string
 	Version         string
+	MasterKeyPath   string
 	CreateNamespace *bool
 	Values          map[string]any
 	Steps           []Chart
@@ -65,6 +66,19 @@ func (c Chart) HelmRelease() string {
 	return chart
 }
 
+func IsSealedSecretsName(s string) bool {
+	s = strings.ToLower(strings.TrimSpace(s))
+	return s == "sealed-secrets" || s == "sealed-secrets/sealed-secrets"
+}
+
+func (c Chart) IsSealedSecrets() bool {
+	return IsSealedSecretsName(c.Name) || IsSealedSecretsName(c.Chart) || IsSealedSecretsName(c.HelmChart()) || IsSealedSecretsName(c.HelmRelease())
+}
+
+func (c Chart) ExpandedMasterKeyPath() string {
+	return ExpandHome(strings.TrimSpace(c.MasterKeyPath))
+}
+
 func (c Chart) InstallSteps() []Chart {
 	if len(c.Steps) == 0 {
 		return []Chart{c}
@@ -82,6 +96,9 @@ func (c Chart) InstallSteps() []Chart {
 		}
 		if s.Version == "" {
 			s.Version = c.Version
+		}
+		if s.MasterKeyPath == "" {
+			s.MasterKeyPath = c.MasterKeyPath
 		}
 		out[i] = s
 	}
@@ -191,6 +208,9 @@ func mergeChart(base, over Chart) Chart {
 	}
 	if over.Version != "" {
 		out.Version = over.Version
+	}
+	if over.MasterKeyPath != "" {
+		out.MasterKeyPath = over.MasterKeyPath
 	}
 	if over.CreateNamespace != nil {
 		out.CreateNamespace = over.CreateNamespace

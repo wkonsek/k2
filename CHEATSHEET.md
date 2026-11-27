@@ -252,7 +252,11 @@ version, namespace (with a create-if-missing toggle) and values file
 (pick a path, edit it in the editor, or start from `helm show values`).
 Built-in catalog: istio (`base` then `istiod`), sealed-secrets, metallb,
 argocd, cert-manager, metrics-server, kube-prometheus-stack, kafbat.
-Override or extend under `helm.charts` in `~/.k2/config.yaml`. k2 adds
+Override or extend under `helm.charts` in `~/.k2/config.yaml`. For
+`sealed-secrets`, a master-key row appears (default
+`helm.charts.sealed-secrets.master_key_path`; `ctrl+p` opens the file
+picker). k2 applies that Secret YAML with `kubectl apply -f` before
+`helm install`. k2 adds
 and updates the chart's Helm repo before install.
 Preview with `helm template` shows kinds and a scrollable manifest; a red
 popup names the context, release, chart and namespace. On success k2 jumps
@@ -332,11 +336,14 @@ node counts and image flow back into the form, and form changes keep
 the generated file in sync), or type your own path. The image field lists the five latest stable `kindest/node`
 tags under the input (`tab` / `shift+tab` cycle, or type a custom
 image). `v` on a catalog chart edits its values in `$EDITOR` and
-passes them to Helm. Enter asks in a red popup (`esc`/`q` back to the
+passes them to Helm. On `sealed-secrets`, `m` picks a master-key YAML
+(the same file browser as Kustomize `p`; default
+`helm.charts.sealed-secrets.master_key_path`) that k2 applies before
+`helm install`. Enter asks in a red popup (`esc`/`q` back to the
 form, `n` cancels), then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
 charts (already-installed ones are checked); `v` edits values the same
-way, and enter confirms installs, value upgrades, and uninstalls (istio
+way, `m` on `sealed-secrets` picks a master key, and enter confirms installs, value upgrades, and uninstalls (istio
 in reverse: istiod, then istio-base) with the same live tile and log.
 
 | Key | Config | What it does |

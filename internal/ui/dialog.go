@@ -34,6 +34,7 @@ type dialog struct {
 	danger  bool
 	onYes   func(m model) (tea.Model, tea.Cmd)
 	onBack  func(m model) (tea.Model, tea.Cmd)
+	onPick  func(m model, path string) (tea.Model, tea.Cmd)
 	seq     int
 	errAt   int
 	images  []imageField
@@ -131,6 +132,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	switch {
 	case km.Cancel.Has(key):
+		if d.act == "fpath" && d.onBack != nil {
+			return d.onBack(m)
+		}
 		m.dlg = nil
 		m.status = "cancelled"
 		return m, nil
@@ -163,6 +167,10 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if next, done := m.kpathKey(msg); done {
 			return next, nil
 		}
+	case d.act == "fpath":
+		if next, done := m.fpathKey(msg); done {
+			return next, nil
+		}
 	case len(d.options) > 0 && (km.ScrollDown.Has(key) || km.Complete.Has(key)):
 		d.idx = (d.idx + 1) % len(d.options)
 		m.previewTheme()
@@ -186,6 +194,8 @@ func (m model) submitDialog() (tea.Model, tea.Cmd) {
 	switch d.act {
 	case "kpath":
 		return m.submitKPath()
+	case "fpath":
+		return m.submitFPath()
 	case "rename_tab":
 		return m.submitRenameTab()
 	case "logfilter":
@@ -450,6 +460,10 @@ func (m model) dialogBox(width int) string {
 			foot = keyStyle.Render("tab/shift+tab") + dimStyle.Render(" cycle charts  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
 				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
 		}
+		if d.idx >= 0 && d.idx < len(d.hfields) && d.hfields[d.idx].key == "masterkey" {
+			foot = keyStyle.Render("ctrl+p") + dimStyle.Render(" browse  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
+				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		}
 		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
 			lines = append(lines, l)
 		}
@@ -469,6 +483,10 @@ func (m model) dialogBox(width int) string {
 	case len(d.options) > 0:
 		lines = append(lines, keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short())+dimStyle.Render(" move  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))
+	case d.act == "fpath":
+		lines = append(lines, keyStyle.Render(k.Complete.Short())+dimStyle.Render(" complete  ")+
+			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" pick  ")+
+			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" back"))
 	default:
 		lines = append(lines, keyStyle.Render(k.Submit.Short())+dimStyle.Render(" ok  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" cancel"))

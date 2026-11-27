@@ -24,6 +24,8 @@ type kindOp struct {
 	edited, autoConfig                                 bool
 	uninstall, upgrade                                 []string
 	values                                             map[string]string
+	masterKeys                                         map[string]string
+	installed                                          []string
 }
 
 var fetchKindNodeImages = func() ([]string, error) {
@@ -447,6 +449,7 @@ func (m *model) applyKindNodeImages(msg kindNodeImagesMsg) {
 }
 
 func (m *model) fillKindForm(d *dialog, op *kindOp) {
+	m.ensureKindMasterKeys(op)
 	cfgHint := "path to kind config"
 	if op.edited && op.config != "" {
 		cfgHint = "(edited)"
@@ -481,12 +484,17 @@ func (m model) kindChartFields(op *kindOp) []helmField {
 		if op.values != nil && op.values[c.Name] != "" {
 			label += " (values)"
 		}
+		note := ""
+		if path := strings.TrimSpace(m.chartMasterKey(c.Name, op.masterKeys)); path != "" {
+			note = config.HomePath(path)
+		}
 		fields = append(fields, helmField{
 			key:    "c:" + c.Name,
 			label:  label,
 			input:  helmFieldInput("", ""),
 			toggle: true,
 			on:     selected[c.Name],
+			note:   note,
 		})
 	}
 	return fields
@@ -502,6 +510,7 @@ func kindFocusField(fields []helmField, key string) int {
 }
 
 func (m *model) fillKindChartsForm(d *dialog, op *kindOp) {
+	m.ensureKindMasterKeys(op)
 	fields := m.kindChartFields(op)
 	idx := 0
 	if op.valuesChart != "" {
@@ -542,6 +551,8 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.editKindConfig()
 	case km.HelmValues.Has(key) && strings.HasPrefix(d.hfields[d.idx].key, "c:"):
 		return m.editKindChartValues()
+	case key == "m" && kindFieldIsSealedSecrets(d.hfields[d.idx].key):
+		return m.openKindMasterKeyPicker()
 	case (key == " " || key == "c") && d.hfields[d.idx].toggle:
 		d.hfields[d.idx].on = !d.hfields[d.idx].on
 		return m, nil
@@ -757,6 +768,9 @@ func (m model) kindFormFooter(d *dialog) string {
 		foot = keyStyle.Render("ctrl+e") + dimStyle.Render(" edit  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + foot
 	case strings.HasPrefix(key, "c:"):
 		foot += keyStyle.Render("space") + dimStyle.Render(" toggle  ") + keyStyle.Render(k.HelmValues.Short()) + dimStyle.Render(" values  ")
+		if kindFieldIsSealedSecrets(key) {
+			foot += keyStyle.Render("m") + dimStyle.Render(" master key  ")
+		}
 	default:
 		foot = keyStyle.Render("tab/↑↓") + dimStyle.Render(" move  ")
 	}
@@ -840,6 +854,12 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 			return next, cmd
 		}
 	}
+	if kindSelectsSealedSecrets(op.charts) {
+		if _, msg := m.validateMasterKeyFile(m.kindSealedMasterKey(op)); msg != "" {
+			m.dlg.msg = msg
+			return m, nil
+		}
+	}
 	home, _ := os.UserHomeDir()
 	op.kubeconfig = kube.KindKubeconfig(op.name, home)
 	m.vs.kop = op
@@ -878,6 +898,11 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	}
 	if len(op.charts) > 0 {
 		details = append(details, kindDetail("charts", strings.Join(op.charts, ", ")))
+	}
+	if kindSelectsSealedSecrets(op.charts) {
+		if path := m.kindSealedMasterKey(&op); path != "" {
+			details = append(details, kindDetail("master key", config.HomePath(path)))
+		}
 	}
 	return m.ask(askSpec{
 		title: "✚ kind create", question: "create kind cluster " + op.name + "?", details: details, danger: true,
@@ -1235,6 +1260,29 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 				custom := ""
 				if op.values != nil {
 					custom = op.values[w.parent]
+				}
+				if config.IsSealedSecretsName(w.parent) {
+					path := ""
+					if op.masterKeys != nil {
+						path = op.masterKeys[w.parent]
+					}
+					if path == "" {
+						if c, ok := config.LookupChart(charts, w.parent); ok {
+							path = c.MasterKeyPath
+						}
+					}
+					if path != "" {
+						ns, createNS := "", false
+						if len(w.steps) > 0 {
+							ns = w.steps[0].Namespace
+							createNS = w.steps[0].CreatesNamespace()
+						}
+						stepName := "applying sealed-secrets master key"
+						if err := emitApplyMasterKey(run, path, ns, kc, ctx, createNS, func(line string) { emit(line, stepName) }); err != nil {
+							fail(err)
+							return
+						}
+					}
 				}
 				for _, step := range w.steps {
 					files, extra, err := kindChartValueFiles(step, custom)
@@ -1634,7 +1682,7 @@ func (m model) openKindCharts(name string) (tea.Model, tea.Cmd) {
 			selected = append(selected, c.Name)
 		}
 	}
-	op := kindOp{name: name, kubeconfig: path, charts: selected, form: "kindcharts"}
+	op := kindOp{name: name, kubeconfig: path, charts: selected, installed: append([]string{}, selected...), form: "kindcharts"}
 	d := m.newDialog("kindcharts", kindIconCharts+" charts · "+name, "kind", "", name)
 	m.dlgSeq++
 	d.seq = m.dlgSeq
@@ -1660,7 +1708,11 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	}
 	op := *m.vs.kop
 	had := map[string]bool{}
-	for _, n := range op.charts {
+	already := op.installed
+	if already == nil {
+		already = op.charts
+	}
+	for _, n := range already {
 		had[n] = true
 	}
 	var want []string
@@ -1680,7 +1732,7 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 			upgrade = append(upgrade, n)
 		}
 	}
-	for _, n := range op.charts {
+	for _, n := range already {
 		if !wantSet[n] {
 			uninstall = append(uninstall, n)
 		}
@@ -1692,6 +1744,12 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	}
 	op.charts, op.uninstall, op.upgrade = install, uninstall, upgrade
 	m.vs.kop = &op
+	if kindSelectsSealedSecrets(op.charts, op.upgrade) {
+		if _, msg := m.validateMasterKeyFile(m.kindSealedMasterKey(&op)); msg != "" {
+			m.dlg.msg = msg
+			return m, nil
+		}
+	}
 	var details []string
 	if len(install) > 0 {
 		details = append(details, kindDetail("install", strings.Join(install, ", ")))
@@ -1701,6 +1759,11 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	}
 	if len(uninstall) > 0 {
 		details = append(details, kindDetail("uninstall", strings.Join(uninstall, ", ")))
+	}
+	if kindSelectsSealedSecrets(op.charts, op.upgrade) {
+		if path := m.kindSealedMasterKey(&op); path != "" {
+			details = append(details, kindDetail("master key", config.HomePath(path)))
+		}
 	}
 	details = append(details, kindDetail("cluster", op.name), kindDetail("kubeconfig", config.HomePath(op.kubeconfig)))
 	return m.ask(askSpec{

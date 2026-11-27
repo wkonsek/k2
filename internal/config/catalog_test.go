@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -57,8 +58,8 @@ func TestDefaultCatalog(t *testing.T) {
 
 func TestMergeChartsOverrideAndExtend(t *testing.T) {
 	over := map[string]Chart{
-		"kafbat": {Namespace: "kafka-lab", Release: "ui", Values: map[string]any{"replicaCount": 2}},
-		"nats":   {Chart: "nats", Repo: "https://nats-io.github.io/k8s/helm/charts/", RepoName: "nats", Namespace: "nats", CreateNamespace: boolPtr(true)},
+		"kafbat":       {Namespace: "kafka-lab", Release: "ui", Values: map[string]any{"replicaCount": 2}},
+		"nats":         {Chart: "nats", Repo: "https://nats-io.github.io/k8s/helm/charts/", RepoName: "nats", Namespace: "nats", CreateNamespace: boolPtr(true)},
 		"cert-manager": {Values: map[string]any{"crds": map[string]any{"keep": true}}},
 		"istio":        {Repo: "https://example.invalid/istio"},
 	}
@@ -174,5 +175,50 @@ kind:
 	c, w = Parse([]byte("kind: {binary: ~}"))
 	if len(w) != 0 || c.Kind.Binary != "" {
 		t.Fatalf("kind off %v %q", w, c.Kind.Binary)
+	}
+}
+
+func TestConfigMasterKeyPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	c, w := Parse([]byte(`
+helm:
+  charts:
+    sealed-secrets:
+      master_key_path: ~/secrets/master.yml
+    kafbat:
+      namespace: kafka
+`))
+	if len(w) != 0 {
+		t.Fatalf("warnings %v", w)
+	}
+	ss, ok := LookupChart(c.Charts(), "sealed-secrets")
+	if !ok || ss.MasterKeyPath != "~/secrets/master.yml" {
+		t.Fatalf("stored path %+v %v", ss, ok)
+	}
+	want := filepath.Join(home, "secrets", "master.yml")
+	if ss.ExpandedMasterKeyPath() != want {
+		t.Fatalf("expand %q want %q", ss.ExpandedMasterKeyPath(), want)
+	}
+	if !ss.IsSealedSecrets() {
+		t.Fatal("IsSealedSecrets")
+	}
+	kafbat, ok := LookupChart(c.Charts(), "kafbat")
+	if !ok || kafbat.MasterKeyPath != "" || kafbat.IsSealedSecrets() {
+		t.Fatalf("kafbat %+v %v", kafbat, ok)
+	}
+	if !IsSealedSecretsName("sealed-secrets/sealed-secrets") || IsSealedSecretsName("metallb") {
+		t.Fatal("name helper")
+	}
+}
+
+func TestMergeChartsMasterKeyPath(t *testing.T) {
+	over := map[string]Chart{"sealed-secrets": {MasterKeyPath: "~/keys/ss.yml"}}
+	got := MergeCharts(DefaultChartMap(), over)["sealed-secrets"]
+	if got.MasterKeyPath != "~/keys/ss.yml" || got.Namespace != "kube-system" || !got.IsSealedSecrets() {
+		t.Fatalf("%+v", got)
+	}
+	if got.InstallSteps()[0].MasterKeyPath != "~/keys/ss.yml" {
+		t.Fatalf("steps did not inherit %q", got.InstallSteps()[0].MasterKeyPath)
 	}
 }

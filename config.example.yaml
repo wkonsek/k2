@@ -35,7 +35,11 @@
 # helm:
 #   binary: helm          # name or path
 #   # charts: optional extras / overrides for the built-in catalog
-#   # (repo, repoName, chart, release, namespace, create_namespace, values)
+#   # (repo, repo_name, chart, release, namespace, version, create_namespace,
+#   #  values, steps, master_key_path)
+#   # charts:
+#   #   sealed-secrets:
+#   #     master_key_path: ~/secrets/master.yml  # kubectl apply -f, before helm install
 # kind:
 #   binary: kind          # name or path
 # editor:

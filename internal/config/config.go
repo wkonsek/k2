@@ -512,6 +512,10 @@ func (p *parser) helmChart(path string, n *yaml.Node) (Chart, bool) {
 			if s, ok := p.str(path+"."+k, v); ok {
 				ch.Version = s
 			}
+		case "master_key_path":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.MasterKeyPath = s
+			}
 		case "create_namespace":
 			var on bool
 			before := len(p.warnings)
@@ -533,7 +537,7 @@ func (p *parser) helmChart(path string, n *yaml.Node) (Chart, bool) {
 		case "steps":
 			ch.Steps = p.helmChartSteps(path+".steps", v)
 		default:
-			p.warn("%s: unknown setting %q (have chart, repo, repo_name, release, namespace, version, create_namespace, values, steps)", path, k)
+			p.warn("%s: unknown setting %q (have chart, repo, repo_name, release, namespace, version, master_key_path, create_namespace, values, steps)", path, k)
 		}
 	}
 	return ch, true

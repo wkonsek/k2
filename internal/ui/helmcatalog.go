@@ -246,6 +246,7 @@ func (m *model) maybeFillCatalog() {
 		}
 		m.applyHelmChartVersion(&op, "", chart)
 		m.vs.hop = &op
+		m.syncHelmMasterKeyField()
 		return
 	}
 	op.catalog = c.Name
@@ -278,6 +279,7 @@ func (m *model) maybeFillCatalog() {
 	}
 	m.applyHelmChartVersion(&op, c.Version, chart)
 	m.vs.hop = &op
+	m.syncHelmMasterKeyField()
 }
 
 func (m model) helmSteps(op *helmOp) []config.Chart {

@@ -169,3 +169,29 @@ func typeField(t *testing.T, m model, s string) model {
 	}
 	return m
 }
+
+func TestCompleteYAMLFile(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"secrets", "other"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"master.yml", "notes.txt", "app.yaml"} {
+		if err := os.WriteFile(filepath.Join(root, "secrets", name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	value, cands := completeYAMLFile(filepath.Join(root, "secrets")+"/ma", root)
+	if value != filepath.Join(root, "secrets", "master.yml") || cands != nil {
+		t.Fatalf("unique yaml: %q %v", value, cands)
+	}
+	value, cands = completeYAMLFile(filepath.Join(root, "sec"), root)
+	if value != filepath.Join(root, "secrets")+"/" {
+		t.Fatalf("unique dir: %q %v", value, cands)
+	}
+	value, cands = completeYAMLFile(filepath.Join(root, "secrets")+"/", root)
+	if !containsStr(cands, "master.yml") || !containsStr(cands, "app.yaml") || containsStr(cands, "notes.txt") {
+		t.Fatalf("yaml only: %q %v", value, cands)
+	}
+}
