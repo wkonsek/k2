@@ -310,7 +310,7 @@ func TestKindCreateWithoutCacheSkipsProxy(t *testing.T) {
 	if strings.Contains(ansi.Strip(m.View()), "registry cache") {
 		t.Fatalf("confirm should not mention the cache:\n%s", ansi.Strip(m.View()))
 	}
-	m = pressSettle(t, m, "y")
+	pressSettle(t, m, "y")
 	if len(proxyCalls(f.Fake, "run -d")) != 0 || len(proxyCalls(f.Fake, "http-proxy.conf")) != 0 {
 		t.Fatalf("calls %v", f.Calls())
 	}

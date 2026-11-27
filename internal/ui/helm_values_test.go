@@ -114,7 +114,7 @@ func TestHelmEditValues(t *testing.T) {
 	}
 
 	opened = ""
-	next, cmd = m.Update(key(t, "e"))
+	next, _ = m.Update(key(t, "e"))
 	m = next.(model)
 	if opened == "" {
 		t.Fatal("e did not open a file")
@@ -148,7 +148,7 @@ func TestHelmEditValues(t *testing.T) {
 	m.cfg.UI.EditorInline = false
 	m = pressSettle(t, m, "v")
 	opened = ""
-	next, cmd = m.Update(key(t, "e"))
+	next, _ = m.Update(key(t, "e"))
 	m = next.(model)
 	if opened == "" {
 		t.Fatal("e from values view did not open a file")
