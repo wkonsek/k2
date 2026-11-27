@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -47,7 +48,24 @@ type Helm struct {
 }
 
 type Kind struct {
-	Binary string
+	Binary        string
+	RegistryProxy RegistryProxy
+}
+
+type RegistryProxy struct {
+	Image      string
+	Container  string
+	CacheDir   string
+	Registries []string
+}
+
+func DefaultRegistryProxy() RegistryProxy {
+	return RegistryProxy{
+		Image:      "rpardini/docker-registry-proxy:latest",
+		Container:  "k2-registry-proxy",
+		CacheDir:   filepath.Join(DefaultDir(), "kind-cache"),
+		Registries: []string{"docker.io", "registry.k8s.io", "gcr.io", "quay.io", "ghcr.io"},
+	}
 }
 
 type Editor struct {
@@ -163,7 +181,7 @@ func Default() Config {
 		Aliases:       map[string]string{},
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
-		Kind:          Kind{Binary: "kind"},
+		Kind:          Kind{Binary: "kind", RegistryProxy: DefaultRegistryProxy()},
 		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
 		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
@@ -448,8 +466,60 @@ func (p *parser) kind(n *yaml.Node, k *Kind) {
 			} else if s, ok := p.str("kind."+key, v); ok {
 				k.Binary = s
 			}
+		case "registry_proxy":
+			p.registryProxy(v, &k.RegistryProxy)
 		default:
-			p.warn("kind: unknown setting %q (have binary)", key)
+			p.warn("kind: unknown setting %q (have binary, registry_proxy)", key)
+		}
+	}
+}
+
+func (p *parser) registryProxy(n *yaml.Node, r *RegistryProxy) {
+	if n.Kind != yaml.MappingNode {
+		p.warn("kind.registry_proxy: expected a mapping (line %d, using defaults)", n.Line)
+		return
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, v := n.Content[i].Value, n.Content[i+1]
+		name := "kind.registry_proxy." + key
+		switch key {
+		case "image", "container", "cache_dir":
+			s, ok := p.str(name, v)
+			if !ok {
+				continue
+			}
+			if s == "" {
+				p.warn("%s: empty (using default)", name)
+				continue
+			}
+			switch key {
+			case "image":
+				r.Image = s
+			case "container":
+				if strings.ContainsAny(s, " /:") {
+					p.warn("%s: %q is not a valid container name (using %s)", name, s, r.Container)
+					continue
+				}
+				r.Container = s
+			case "cache_dir":
+				r.CacheDir = ExpandHome(s)
+			}
+		case "registries":
+			if v.Tag == "!!null" {
+				r.Registries = nil
+				continue
+			}
+			var out []string
+			for _, s := range p.strList(name, v) {
+				if strings.ContainsAny(s, " /") {
+					p.warn("%s: %q is not a registry host (ignored)", name, s)
+					continue
+				}
+				out = append(out, s)
+			}
+			r.Registries = out
+		default:
+			p.warn("kind.registry_proxy: unknown setting %q (have cache_dir, container, image, registries)", key)
 		}
 	}
 }

@@ -271,7 +271,7 @@ func (m model) kindTileFor(name string) kindTile {
 
 func (m model) selectedKind() (string, bool) {
 	tiles := m.kindTiles()
-	if len(tiles) == 0 {
+	if len(tiles) == 0 || m.kindProxySelected() {
 		return "", false
 	}
 	i := m.vs.kindSel
@@ -292,8 +292,7 @@ func (m *model) selectKind(name string) {
 }
 
 func (m *model) moveKind(delta int) {
-	tiles := m.kindTiles()
-	n := len(tiles)
+	n := m.kindCardCount()
 	if n == 0 {
 		return
 	}
@@ -366,7 +365,7 @@ func (m model) kindCardBlocks(innerW int) (blocks []string, starts, heights []in
 	tiles := m.kindTiles()
 	tileW := kindCardWidth(innerW)
 	sel := m.vs.kindSel
-	if sel < 0 || sel >= len(tiles) {
+	if sel < 0 || sel >= len(tiles) && !m.kindProxySelected() {
 		sel = 0
 	}
 	line := 0
@@ -384,18 +383,27 @@ func (m model) kindCardBlocks(innerW int) (blocks []string, starts, heights []in
 		blocks = append(blocks, card)
 		line += h
 	}
+	if m.kindProxyShown() {
+		if len(tiles) > 0 {
+			line++
+		}
+		starts = append(starts, line)
+		card := strings.TrimRight(m.renderKindProxy(m.vs.kindSel == len(tiles), tileW), "\n")
+		heights = append(heights, strings.Count(card, "\n")+1)
+		blocks = append(blocks, card)
+	}
 	return blocks, starts, heights
 }
 
 func (m model) kindBody(innerW int) string {
 	tiles := m.kindTiles()
-	if len(tiles) == 0 && !m.load.active() {
+	if len(tiles) == 0 && !m.kindProxyShown() && !m.load.active() {
 		k := m.cfg.Keys
 		msg := "no kind clusters"
-		hint := "press " + k.HelmInstall.Label() + " to create one"
+		hint := "press " + k.HelmInstall.Label() + " to create one, " + k.KindProxy.Label() + " for a registry proxy"
 		return "\n" + dimStyle.Render(msg) + "\n" + dimStyle.Render(hint) + "\n"
 	}
-	if len(tiles) == 0 {
+	if len(tiles) == 0 && !m.kindProxyShown() {
 		return m.loadingBlock(innerW)
 	}
 	blocks, starts, heights := m.kindCardBlocks(innerW)
@@ -775,7 +783,7 @@ func (m *model) syncKindLog(name string) {
 	}
 	if j := m.kindJobs[name]; j != nil {
 		m.logText = j.log
-		m.subject = "kind " + name
+		m.subject = kindProxyLogSubject(name)
 	}
 }
 
@@ -826,6 +834,9 @@ func (m model) backKindLog() (tea.Model, tea.Cmd, bool) {
 		m.selectKind(name)
 	}
 	m.restoreKindSnap()
+	if name == kindProxyLog {
+		m.selectKindProxy()
+	}
 	m.showKind("")
 	m.status = m.kindHint()
 	cmd := m.kindRefreshCmd()
@@ -861,11 +872,16 @@ func (m *model) applyKindLiveLog(msg kindLiveLogDoneMsg) {
 }
 
 func (m model) kindRefreshCmd() tea.Cmd {
+	proxy := m.kindProxyCmd()
 	bin := m.kindCLI()
 	if bin == "" {
-		return nil
+		return proxy
 	}
-	return kindListCmd(bin, m.dockerCLI(), m.run, m.logID, 0)
+	list := kindListCmd(bin, m.dockerCLI(), m.run, m.logID, 0)
+	if proxy == nil {
+		return list
+	}
+	return tea.Batch(list, proxy)
 }
 
 func (m model) useKindTile() (tea.Model, tea.Cmd) {

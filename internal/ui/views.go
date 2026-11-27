@@ -366,7 +366,7 @@ func (m model) legend() string {
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "kind" {
 		parts[1] = pair(k.Select.Label(), "logs")
-		parts = append(parts, pair("space", "use"), pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Edit.Short(), "charts"), pair(k.Watch.Short(), "refresh"))
+		parts = append(parts, pair("space", "use"), pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Edit.Short(), "charts"), pair(k.KindProxy.Short(), "proxy"), pair(k.Watch.Short(), "refresh"))
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
 		if m.helmValuesView() && m.helmCLI() != "" {

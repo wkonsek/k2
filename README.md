@@ -517,6 +517,24 @@ the kind CLI (`kind.binary`, default `kind`) and docker; starter charts
 also need helm. Read-only mode (`R`) blocks create, delete and chart
 edits.
 
+**Registry proxy** (`p` in `:kind`). A shared image cache for every kind
+cluster, built on `rpardini/docker-registry-proxy`. `p` works even with no
+clusters: it asks, makes sure the `kind` Docker network exists, then runs
+`k2-registry-proxy` there (or starts it if it is stopped). Cached layers
+and the proxy CA live in `~/.k2/kind-cache` (`cache/`, `ca/`), so they
+survive restarts and new clusters. The proxy gets its own card with a
+`⇄ registry proxy` badge (status, live uptime, cache size on disk,
+registries); `enter` follows `docker logs --tail 200 -f`, `ctrl+d` removes
+the container and keeps the cache dir, and deleting a cluster never
+touches it. The create form has a `registry cache` toggle (`yes` when the
+proxy is running). With `yes`, k2 starts the proxy if needed, then for
+each node copies the CA into the node trust store and writes a containerd
+drop-in with `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` (localhost, cluster
+ranges, the kind subnets and node names) and restarts containerd, before
+charts install. Private registries still work with regular
+`imagePullSecrets`. Change it under `kind.registry_proxy` (`image`,
+`container`, `cache_dir`, `registries`).
+
 ### Favorites, pulse, Kustomize, kubectl, viewers
 
 **Favorites** (`b`, `:fav`). `enter` or `1`-`9` jumps. `a` pins the

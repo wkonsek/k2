@@ -112,6 +112,9 @@ func (m *model) kindExtrasCmds() tea.Cmd {
 		m.kindPodsBusy = true
 		cmds = append(cmds, m.kindPodsCmd())
 	}
+	if proxy := m.kindProxyCmd(); proxy != nil {
+		cmds = append(cmds, proxy)
+	}
 	if len(cmds) == 0 {
 		return nil
 	}

@@ -368,6 +368,9 @@ type model struct {
 	kindExtrasAt       time.Time
 	kindExtrasForce    bool
 	kindLogCancel      context.CancelFunc
+	kindProxy          kube.ProxyStatus
+	kindProxyOp        string
+	kindProxyOpAt      time.Time
 }
 
 type Options struct {

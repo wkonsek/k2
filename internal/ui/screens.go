@@ -132,6 +132,15 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case kindLiveLogDoneMsg:
 		m.applyKindLiveLog(msg)
 		return m, nil, true
+	case kindProxyMsg:
+		m.applyKindProxy(msg)
+		return m, nil, true
+	case kindProxyDoneMsg:
+		cmd := m.applyKindProxyDone(msg)
+		return m, cmd, true
+	case kindWiredMsg:
+		cmd := m.applyKindWired(msg)
+		return m, cmd, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
 		return m, cmd, true

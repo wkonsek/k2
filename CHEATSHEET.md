@@ -304,8 +304,8 @@ the history, back again to the releases.
 ## Kind clusters (`:kind`, `~`)
 
 Needs the kind CLI (`kind.binary`, default `kind`) and docker. Starter
-charts also need helm. Read-only mode (`R`) blocks create, delete and
-chart edits. Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
+charts also need helm. Read-only mode (`R`) blocks create, delete,
+chart edits and the registry proxy start / remove. Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
 `~/.kube/k2-<name>`. `ctrl+d` removes only that file, never
 `~/.kube/config`. If that cluster was the pane's active one and exactly
 one other kind cluster still has a kubeconfig, the pane switches to it.
@@ -360,6 +360,25 @@ in reverse: istiod, then istio-base) with the same live tile and log.
 | `e` | `keys.edit` | manage catalog charts on the selected cluster |
 | `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |
 | `r` | `keys.watch` | refresh the grid (in-flight jobs stay) |
+| `p` | `keys.kind_proxy` | start the registry proxy (works with no clusters too) |
+| `enter` / `ctrl+d` | `keys.select` / `keys.delete` | on the registry proxy card: follow its logs / remove the container (cache stays on disk) |
+
+### Registry proxy (image cache)
+
+One shared pull-through cache for all kind clusters, using
+`rpardini/docker-registry-proxy`. `p` asks, then runs it on the `kind`
+Docker network as `k2-registry-proxy`, with cached layers and its CA in
+`~/.k2/kind-cache` (`cache/` and `ca/`). It shows as its own card with a
+`⇄ registry proxy` badge: status, uptime, cache size, registries. Not a
+cluster: `space` and `e` do nothing there. `ctrl+d` removes only the
+container; deleting a cluster never touches it. Settings live under
+`kind.registry_proxy` (`image`, `container`, `cache_dir`, `registries`).
+
+In `A`, `registry cache` (`space` toggles) is `yes` when the proxy is
+running. With `yes`, k2 starts the proxy if needed, then on every node
+trusts its CA and points containerd at it (`HTTP_PROXY` / `HTTPS_PROXY`,
+`NO_PROXY` for cluster and kind network ranges), before charts install.
+Private images keep working with normal `imagePullSecrets`.
 
 ## Multi-pod logs (`M`, `:logs`)
 

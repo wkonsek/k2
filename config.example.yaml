@@ -42,6 +42,11 @@
 #   #     master_key_path: ~/secrets/master.yml  # kubectl apply -f, before helm install
 # kind:
 #   binary: kind          # name or path
+#   registry_proxy:       # p in :kind, one shared image cache for every kind cluster
+#     image: rpardini/docker-registry-proxy:latest
+#     container: k2-registry-proxy
+#     cache_dir: ~/.k2/kind-cache   # cache/ and ca/ live here, kept when the proxy is removed
+#     registries: [docker.io, registry.k8s.io, gcr.io, quay.io, ghcr.io]
 # editor:
 #   open_folder: code     # . in the Kustomize browser runs it on the folder
 # favorites:              # name, context, namespace, kubeconfig, view
@@ -162,6 +167,7 @@
 #   vim: v
 #   previous: p
 #   pod_logs: l               # pods list: logs of the pod (enter opens its containers)
+#   kind_proxy: p             # :kind: start the registry proxy
 #   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
 #   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w

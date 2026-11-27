@@ -21,7 +21,7 @@ type kindOp struct {
 	name, config, image, kubeconfig, form, valuesChart string
 	planes, workers                                    int
 	charts                                             []string
-	edited, autoConfig                                 bool
+	edited, autoConfig, cache, cacheSet                bool
 	uninstall, upgrade                                 []string
 	values                                             map[string]string
 	masterKeys                                         map[string]string
@@ -126,7 +126,7 @@ func (m model) openKind() (tea.Model, tea.Cmd) {
 		nm.stage = "kind"
 		nm.restoreKindSnap()
 		nm.showKind("")
-		return nm, cmd
+		return nm, tea.Batch(cmd, nm.kindProxyCmd())
 	}
 	if m.status == "" || strings.HasPrefix(m.status, "no kind clusters") {
 		if len(m.kindTiles()) > 0 {
@@ -226,23 +226,23 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return "space use, " + k.Select.Label() + " logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
+	return "space use, " + k.Select.Label() + " logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete, " + k.KindProxy.Label() + " registry proxy"
 }
 
 func (m *model) showKind(pick string) {
 	if pick != "" {
 		m.selectKind(pick)
 	}
-	tiles := m.kindTiles()
+	n := m.kindCardCount()
 	if m.vs.kindSel < 0 {
 		m.vs.kindSel = 0
 	}
-	if len(tiles) == 0 {
+	if n == 0 {
 		m.vs.kindSel = 0
 		return
 	}
-	if m.vs.kindSel >= len(tiles) {
-		m.vs.kindSel = len(tiles) - 1
+	if m.vs.kindSel >= n {
+		m.vs.kindSel = n - 1
 	}
 	m.ensureKindVisible()
 }
@@ -302,6 +302,15 @@ func kindKubeconfigMap(names []string, run shell.Runner) map[string]string {
 
 func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
+	if km.KindProxy.Has(key) {
+		next, cmd := m.askKindProxyStart()
+		return next, cmd, true
+	}
+	if m.kindProxySelected() {
+		if next, cmd, ok := m.kindProxyKey(key); ok {
+			return next, cmd, true
+		}
+	}
 	switch {
 	case key == "tab":
 		m.moveKind(1)
@@ -399,6 +408,9 @@ func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	if op.form == "" {
 		op.form = "kindcreate"
 	}
+	if !op.cacheSet {
+		op.cache, op.cacheSet = m.kindProxy.Running(), true
+	}
 	if op.image == "" && len(m.kindNodeImages) > 0 {
 		op.image = m.kindNodeImages[0]
 	}
@@ -460,6 +472,7 @@ func (m *model) fillKindForm(d *dialog, op *kindOp) {
 		{key: "workers", label: "workers", input: helmFieldInput(strconv.Itoa(max(0, op.workers)), "0")},
 		{key: "config", label: "config", input: helmFieldInput(op.config, cfgHint)},
 		{key: "image", label: "image", input: helmFieldInput(op.image, "kindest/node:…")},
+		{key: "cache", label: "registry cache", input: helmFieldInput("", ""), toggle: true, on: op.cache},
 	}
 	fields = append(fields, m.kindChartFields(op)...)
 	idx := 0
@@ -766,6 +779,8 @@ func (m model) kindFormFooter(d *dialog) string {
 		foot = keyStyle.Render("tab/shift+tab") + dimStyle.Render(" cycle images  ") + foot
 	case key == "config":
 		foot = keyStyle.Render("ctrl+e") + dimStyle.Render(" edit  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + foot
+	case key == "cache":
+		foot += keyStyle.Render("space") + dimStyle.Render(" toggle  ")
 	case strings.HasPrefix(key, "c:"):
 		foot += keyStyle.Render("space") + dimStyle.Render(" toggle  ") + keyStyle.Render(k.HelmValues.Short()) + dimStyle.Render(" values  ")
 		if kindFieldIsSealedSecrets(key) {
@@ -800,6 +815,8 @@ func (m *model) stashKindForm() {
 			op.config = strings.TrimSpace(f.input.Value())
 		case "image":
 			op.image = strings.TrimSpace(f.input.Value())
+		case "cache":
+			op.cache, op.cacheSet = f.on, true
 		default:
 			if strings.HasPrefix(f.key, "c:") && f.on {
 				charts = append(charts, strings.TrimPrefix(f.key, "c:"))
@@ -867,7 +884,7 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 	return m.askKindCreate(*op)
 }
 
-const kindDetailCol = 12
+const kindDetailCol = 14
 
 func kindDetail(label, value string) string {
 	return fmt.Sprintf("%-*s %s", kindDetailCol, label, value)
@@ -903,6 +920,13 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 		if path := m.kindSealedMasterKey(&op); path != "" {
 			details = append(details, kindDetail("master key", config.HomePath(path)))
 		}
+	}
+	if op.cache {
+		cache := "yes (" + m.registryProxy().Container + ")"
+		if !m.kindProxy.Running() {
+			cache += " · starts first"
+		}
+		details = append(details, kindDetail("registry cache", cache))
 	}
 	return m.ask(askSpec{
 		title: "✚ kind create", question: "create kind cluster " + op.name + "?", details: details, danger: true,
@@ -1101,23 +1125,33 @@ func (m *model) applyKindCreated(msg kindRunMsg) tea.Cmd {
 		m.namespace = m.k.NamespaceOf(m.kubeconfig, m.context)
 		m.clearHist()
 		m.save()
-		if len(msg.op.charts) == 0 && len(msg.op.uninstall) == 0 {
-			j.status, j.step, j.err = "running", "", nil
-			m.showKind(msg.op.name)
-			if m.stage == "kindlog" {
-				m.syncKindLog(msg.op.name)
-				m.status = "cluster " + msg.op.name + " ready"
-			} else {
-				m.stage = "kind"
-				m.status = "created " + msg.op.name
-			}
-			cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.kindRefreshCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+		if msg.op.cache {
+			j.status, j.step = "deploying", "wiring registry cache"
+			m.status = "wiring registry cache on " + msg.op.name
+			cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.kindWireStep(msg.op))
 			return
 		}
-		j.status, j.step = "deploying", "installing charts"
-		cmd = tea.Batch(m.notify(toneOK, "created "+msg.op.name), m.startKindCharts(msg.op, ""))
+		cmd = m.finishKindCreate(msg.op)
 	})
 	return cmd
+}
+
+func (m *model) finishKindCreate(op kindOp) tea.Cmd {
+	j := m.ensureKindJob(op.name, "", "")
+	if len(op.charts) == 0 && len(op.uninstall) == 0 {
+		j.status, j.step, j.err = "running", "", nil
+		m.showKind(op.name)
+		if m.stage == "kindlog" {
+			m.syncKindLog(op.name)
+			m.status = "cluster " + op.name + " ready"
+		} else {
+			m.stage = "kind"
+			m.status = "created " + op.name
+		}
+		return tea.Batch(m.notify(toneOK, "created "+op.name), m.kindRefreshCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+	}
+	j.status, j.step = "deploying", "installing charts"
+	return tea.Batch(m.notify(toneOK, "created "+op.name), m.startKindCharts(op, ""))
 }
 
 func lastNonEmpty(text string) string {

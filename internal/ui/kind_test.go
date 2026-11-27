@@ -1536,17 +1536,20 @@ func TestKindSpaceUsesCluster(t *testing.T) {
 }
 
 func TestKindDetailAlignsConfirmRows(t *testing.T) {
-	if got, want := kindDetail("install", "kafbat"), "install      kafbat"; got != want {
+	if got, want := kindDetail("install", "kafbat"), "install        kafbat"; got != want {
 		t.Fatalf("install %q want %q", got, want)
 	}
-	if got, want := kindDetail("cluster", "kindest"), "cluster      kindest"; got != want {
+	if got, want := kindDetail("cluster", "kindest"), "cluster        kindest"; got != want {
 		t.Fatalf("cluster %q want %q", got, want)
 	}
-	if got, want := kindDetail("kubeconfig", "~/.kube/config"), "kubeconfig   ~/.kube/config"; got != want {
+	if got, want := kindDetail("kubeconfig", "~/.kube/config"), "kubeconfig     ~/.kube/config"; got != want {
 		t.Fatalf("kubeconfig %q want %q", got, want)
 	}
-	if kindDetail("will remove", "~/.kube/k2-lab") != "will remove  ~/.kube/k2-lab" {
+	if kindDetail("will remove", "~/.kube/k2-lab") != "will remove    ~/.kube/k2-lab" {
 		t.Fatalf("will remove %q", kindDetail("will remove", "~/.kube/k2-lab"))
+	}
+	if got, want := kindDetail("registry cache", "yes (k2-registry-proxy)"), "registry cache yes (k2-registry-proxy)"; got != want {
+		t.Fatalf("registry cache %q want %q", got, want)
 	}
 }
 

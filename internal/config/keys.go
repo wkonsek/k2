@@ -169,6 +169,7 @@ type Keys struct {
 	CmdRename     Binding
 	CmdClone      Binding
 	PodLogs       Binding
+	KindProxy     Binding
 }
 
 func DefaultKeys() Keys {
@@ -214,7 +215,7 @@ func DefaultKeys() Keys {
 		LogFilter: Binding{"/"},
 		FavAdd:    Binding{"a"}, FavRemove: Binding{"x"}, FavUp: Binding{"K"}, FavDown: Binding{"J"},
 		CmdFavorites: Binding{"B"}, CmdSave: Binding{"ctrl+s"}, CmdEdit: Binding{"e"}, CmdRename: Binding{"n"}, CmdClone: Binding{"c"},
-		PodLogs: Binding{"l"},
+		PodLogs: Binding{"l"}, KindProxy: Binding{"p"},
 	}
 }
 
@@ -354,6 +355,7 @@ var keyFields = []keyField{
 	{"cmd_rename", func(k *Keys) *Binding { return &k.CmdRename }},
 	{"cmd_clone", func(k *Keys) *Binding { return &k.CmdClone }},
 	{"pod_logs", func(k *Keys) *Binding { return &k.PodLogs }},
+	{"kind_proxy", func(k *Keys) *Binding { return &k.KindProxy }},
 }
 
 var keyAliases = map[string]string{"new_pane": "split_down", "forward": "port_forward", "editor_prefix": "prefix"}
@@ -430,7 +432,7 @@ var screenKeys = func() map[string][]string {
 
 		"helm": with("helm_values", "helm_computed", "helm_manifest", "helm_notes", "helm_history", "helm_rollback",
 			"helm_install", "helm_upgrade", "delete", "all_namespaces", "copy_name", "copy_ref", "sort_next", "sort_prev", "sort_reverse"),
-		"kind": with("helm_install", "delete", "select", "watch", "edit"),
+		"kind": with("helm_install", "delete", "select", "watch", "edit", "kind_proxy"),
 
 		"helmhist": with("helm_rollback", "helm_mark", "helm_diff", "helm_values", "helm_computed", "helm_manifest", "helm_notes", "copy_name"),
 
