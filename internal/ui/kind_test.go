@@ -1934,6 +1934,11 @@ func TestKindCreateGeneratedConfigSyncsWithWizard(t *testing.T) {
 	if err != nil || info.Planes != 1 || info.Workers != 0 {
 		t.Fatalf("initial %+v %v\n%s", info, err, raw)
 	}
+	for _, want := range []string{"kubeadmConfigPatches:", "serializeImagePulls: false", "maxParallelImagePulls: 4"} {
+		if !strings.Contains(string(raw), want) {
+			t.Fatalf("missing %q in generated config:\n%s", want, raw)
+		}
+	}
 	setHelmField(m.dlg, "planes", "2")
 	setHelmField(m.dlg, "workers", "3")
 	setHelmField(m.dlg, "image", "kindest/node:v1.34.0")
@@ -2004,6 +2009,46 @@ func TestKindCreateConfigEditReflectsInWizard(t *testing.T) {
 	}
 	info, err := kube.ParseKindConfig(string(raw))
 	if err != nil || info.Planes != 1 || info.Workers != 1 || info.Image != "kindest/node:v1.35.0" {
+		t.Fatalf("resync %+v %v\n%s", info, err, raw)
+	}
+}
+
+func TestKindCreateConfigEditKeepsRemovedPatches(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	path := helmFieldValue(m.dlg, "config")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "kubeadmConfigPatches:") {
+		t.Fatalf("expected default patches:\n%s", raw)
+	}
+	stripped := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"nodes:",
+		"- role: control-plane",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(stripped), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	next, cmd := m.Update(kindConfigDoneMsg{})
+	m = settle(t, next.(model), cmd)
+	setHelmField(m.dlg, "workers", "1")
+	m.refreshKindGeneratedConfig()
+	raw, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "kubeadmConfigPatches") || strings.Contains(string(raw), "serializeImagePulls") {
+		t.Fatalf("re-added default patches after a conscious edit:\n%s", raw)
+	}
+	info, err := kube.ParseKindConfig(string(raw))
+	if err != nil || info.Planes != 1 || info.Workers != 1 {
 		t.Fatalf("resync %+v %v\n%s", info, err, raw)
 	}
 }

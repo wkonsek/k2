@@ -659,8 +659,12 @@ func (m *model) writeKindGeneratedConfig(op *kindOp) error {
 	src = expandPath(src, "")
 	var text string
 	var err error
-	if raw, rerr := os.ReadFile(src); rerr == nil && len(strings.TrimSpace(string(raw))) > 0 {
-		text, err = kube.SyncKindConfigNodes(string(raw), max(1, op.planes), max(0, op.workers), op.image)
+	if op.edited {
+		if raw, rerr := os.ReadFile(src); rerr == nil && len(strings.TrimSpace(string(raw))) > 0 {
+			text, err = kube.SyncKindConfigNodes(string(raw), max(1, op.planes), max(0, op.workers), op.image)
+		} else {
+			text, err = kube.KindConfigYAML(max(1, op.planes), max(0, op.workers), op.image)
+		}
 	} else {
 		text, err = kube.KindConfigYAML(max(1, op.planes), max(0, op.workers), op.image)
 	}

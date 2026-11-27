@@ -37,8 +37,21 @@ func TestKindKubeconfigPaths(t *testing.T) {
 
 func TestKindConfigYAML(t *testing.T) {
 	got, err := KindConfigYAML(1, 0, "")
-	if err != nil || got != "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n- role: control-plane\n" {
-		t.Fatalf("default: %q %v", got, err)
+	wantDefault := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"nodes:",
+		"- role: control-plane",
+		"kubeadmConfigPatches:",
+		"- |",
+		"  kind: KubeletConfiguration",
+		"  apiVersion: kubelet.config.k8s.io/v1beta1",
+		"  serializeImagePulls: false",
+		"  maxParallelImagePulls: 4",
+		"",
+	}, "\n")
+	if err != nil || got != wantDefault {
+		t.Fatalf("default:\n%s\n%v", got, err)
 	}
 	got, err = KindConfigYAML(1, 2, "kindest/node:v1.31.0")
 	if err != nil {
@@ -54,6 +67,12 @@ func TestKindConfigYAML(t *testing.T) {
 		"  image: kindest/node:v1.31.0",
 		"- role: worker",
 		"  image: kindest/node:v1.31.0",
+		"kubeadmConfigPatches:",
+		"- |",
+		"  kind: KubeletConfiguration",
+		"  apiVersion: kubelet.config.k8s.io/v1beta1",
+		"  serializeImagePulls: false",
+		"  maxParallelImagePulls: 4",
 		"",
 	}, "\n")
 	if got != want {
@@ -174,5 +193,80 @@ func TestSyncKindConfigNodesPreservesExtras(t *testing.T) {
 	got, err = SyncKindConfigNodes(simple, 1, 2, "kindest/node:v1.31.0")
 	if err != nil || got != simple {
 		t.Fatalf("simple rewrite:\n%s\n%v", got, err)
+	}
+}
+
+func TestSyncKindConfigNodesKeepsDefaultPatches(t *testing.T) {
+	src, err := KindConfigYAML(1, 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := SyncKindConfigNodes(src, 1, 2, "kindest/node:v1.31.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := KindConfigYAML(1, 2, "kindest/node:v1.31.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("default patches rewrite:\n%s", got)
+	}
+}
+
+func TestSyncKindConfigNodesPreservesRemovedPatches(t *testing.T) {
+	src := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"nodes:",
+		"- role: control-plane",
+		"",
+	}, "\n")
+	got, err := SyncKindConfigNodes(src, 1, 1, "kindest/node:v1.35.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "kubeadmConfigPatches") || strings.Contains(got, "serializeImagePulls") {
+		t.Fatalf("re-added default patches:\n%s", got)
+	}
+	info, err := ParseKindConfig(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Planes != 1 || info.Workers != 1 || info.Image != "kindest/node:v1.35.0" {
+		t.Fatalf("synced %+v", info)
+	}
+}
+
+func TestSyncKindConfigNodesPreservesCustomPatches(t *testing.T) {
+	src := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"nodes:",
+		"- role: control-plane",
+		"kubeadmConfigPatches:",
+		"- |",
+		"  kind: KubeletConfiguration",
+		"  apiVersion: kubelet.config.k8s.io/v1beta1",
+		"  serializeImagePulls: false",
+		"  maxParallelImagePulls: 8",
+		"",
+	}, "\n")
+	got, err := SyncKindConfigNodes(src, 1, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "maxParallelImagePulls: 8") {
+		t.Fatalf("lost custom patches:\n%s", got)
+	}
+	if strings.Count(got, "maxParallelImagePulls: 4") != 0 {
+		t.Fatalf("overwrote custom patches:\n%s", got)
+	}
+	info, err := ParseKindConfig(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Planes != 1 || info.Workers != 1 {
+		t.Fatalf("synced %+v", info)
 	}
 }

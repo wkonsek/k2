@@ -10,6 +10,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const kindKubeletConfigPatch = `kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+serializeImagePulls: false
+maxParallelImagePulls: 4
+`
+
 func KindContext(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -58,7 +64,28 @@ func KindConfigYAML(controlPlanes, workers int, image string) (string, error) {
 	b.WriteString("apiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n")
 	writeKindNode(&b, "control-plane", image, controlPlanes)
 	writeKindNode(&b, "worker", image, workers)
+	writeKindKubeadmPatches(&b)
 	return b.String(), nil
+}
+
+func writeKindKubeadmPatches(b *strings.Builder) {
+	b.WriteString("kubeadmConfigPatches:\n- |\n")
+	for _, line := range strings.Split(strings.TrimSuffix(kindKubeletConfigPatch, "\n"), "\n") {
+		b.WriteString("  ")
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+}
+
+func defaultKindKubeadmPatches(n *yaml.Node) bool {
+	if n == nil || n.Kind != yaml.SequenceNode || len(n.Content) != 1 {
+		return false
+	}
+	item := n.Content[0]
+	if item == nil || item.Kind != yaml.ScalarNode {
+		return false
+	}
+	return strings.TrimSpace(item.Value) == strings.TrimSpace(kindKubeletConfigPatch)
 }
 
 func writeKindNode(b *strings.Builder, role, image string, n int) {
@@ -171,11 +198,22 @@ func kindConfigSimple(root, nodes *yaml.Node) bool {
 	if root == nil || nodes == nil || root.Kind != yaml.MappingNode || nodes.Kind != yaml.SequenceNode {
 		return true
 	}
+	hasPatches := false
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		key := strings.TrimSpace(root.Content[i].Value)
-		if key != "kind" && key != "apiVersion" && key != "nodes" {
+		switch key {
+		case "kind", "apiVersion", "nodes":
+		case "kubeadmConfigPatches":
+			if !defaultKindKubeadmPatches(root.Content[i+1]) {
+				return false
+			}
+			hasPatches = true
+		default:
 			return false
 		}
+	}
+	if !hasPatches {
+		return false
 	}
 	for _, n := range nodes.Content {
 		if n.Kind != yaml.MappingNode {
