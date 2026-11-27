@@ -201,6 +201,12 @@ func (m model) viewerRows() []helpRow {
 	if m.kustDiff() {
 		rows = append(rows, helpRow{keyList(k.Apply, 1), "apply the same kustomization"})
 	}
+	if m.helmValuesView() {
+		rows = append(rows, helpRow{keyList(k.Edit, 1), "edit values and confirm an upgrade"})
+	}
+	if m.stage == "htpl" {
+		rows = append(rows, helpRow{keyList(k.Select, 1), "confirm the install or upgrade"}, helpRow{keyList(k.Back, 1), "back"})
+	}
 	return rows
 }
 
@@ -355,8 +361,9 @@ func (m model) viewSection() []helpSection {
 			r(k.HelmHistory, "history"),
 		}
 		if m.helmCLI() != "" {
-			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
+			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), r(k.Edit, "edit values and confirm an upgrade"), r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
 			rows = append(rows, helpRow{"tab / shift+tab", "cycle catalog charts in the install form (↑↓ move between fields)"})
+			rows = append(rows, helpRow{"ctrl+e", "edit the values file in the install or upgrade form"})
 		}
 		return []helpSection{{"Helm", append(rows, r(k.AllNamespaces, "all namespaces"), r(k.CopyName, "copy name"))}}
 	case "helmhist":

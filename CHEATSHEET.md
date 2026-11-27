@@ -239,8 +239,9 @@ open; tab completes the kind and the name.
 
 Read with kubectl from Helm's release secrets (no helm CLI needed to
 browse). Install, upgrade, rollback and uninstall run the helm CLI
-(`helm.binary`) and are offered only when it is found. Read-only mode
-(`R`) blocks all four.
+(`helm.binary`) and are offered only when it is found. `e` edits the
+selected release's values in vim and, after a save, confirms an upgrade.
+Read-only mode (`R`) blocks those and `e`.
 
 `A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
 opens a form for the release name, chart (catalog names first, then
@@ -249,7 +250,9 @@ and `tab` / `shift+tab` cycle them, filling release, namespace, create-ns
 and default values unless you edited those fields; `↑` `↓` move between
 fields),
 version, namespace (with a create-if-missing toggle) and values file
-(pick a path, edit it in the editor, or start from `helm show values`).
+(pick a path, or `ctrl+e` to edit it when the values field is focused).
+Chart defaults is a read-only `helm show values` preview (`esc` returns
+to the form) and never overwrites the values file.
 Built-in catalog: istio (`base` then `istiod`), sealed-secrets, metallb,
 argocd, cert-manager, metrics-server, kube-prometheus-stack, kafbat.
 Override or extend under `helm.charts` in `~/.k2/config.yaml`. For
@@ -275,6 +278,7 @@ against the current manifest.
 | `0` | `keys.all_namespaces` | all namespaces / the pane's namespace (k9s `0`) |
 | `A` | `keys.helm_install` | install a chart (helm CLI; form, preview, red popup) |
 | `u` | `keys.helm_upgrade` | upgrade the selected release (helm CLI; form, diff preview, red popup) |
+| `e` | `keys.edit` | edit user-supplied values in vim, then confirm an upgrade (helm CLI; also from the `v` values view) |
 | `r` | `keys.helm_rollback` | roll back to the previous revision (helm CLI; red popup) |
 | `ctrl+d` | `keys.delete` | uninstall the release (helm CLI; red popup), also with other panes or tabs open |
 

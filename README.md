@@ -428,14 +428,19 @@ current line. Across namespaces, lines are prefixed
 
 **Helm** (`:helm`, `:helm all`). Columns: NAME, REVISION, STATUS, CHART,
 APP VERSION, UPDATED. `v` values, `V` computed values, `M` manifest,
-`N` notes, `t` history as a table (`●` current revision). In the history
+`N` notes, `t` history as a table (`●` current revision). `e` (from the
+list or from the `v` values view) opens the release's user-supplied
+values in vim; if you save a change, a red popup confirms `helm upgrade`
+with the edited file (no extra form). In the history
 `space` marks a revision and `D` diffs it with another (or the selected
 one with the current one), per resource plus user values.
 
 `A` installs a chart and `u` upgrades the selected release: a form for
 the release name, chart (catalog names first, then `helm search repo`),
 version, namespace (with create-if-missing) and values file (pick a path,
-edit it, or start from `helm show values`). While the chart field is
+or `ctrl+e` to edit it). Chart defaults is a read-only `helm show values`
+preview (`esc` returns to the form) and never overwrites the values file.
+While the chart field is
 focused, a compact list under it shows matching catalog charts (or the
 full catalog when the field is empty) plus matching `helm search repo`
 results as you type. `tab` and `shift+tab` cycle those suggestions and
@@ -453,7 +458,7 @@ and `:helm upgrade …` prefill the same form. `r` rolls back (to the
 previous revision from the list, to the selected one from the history)
 and `ctrl+d` uninstalls. Install, upgrade, rollback and uninstall need
 the helm CLI (`helm.binary`) and ask in a red popup. Read-only mode (`R`)
-blocks all four.
+blocks those and `e`.
 
 **Kind** (`:kind`, `~`, `:kind create [name]`). A stack of full-width
 cluster cards from `kind get clusters` (`j`/`k`, arrows and tab move up

@@ -109,7 +109,7 @@ func (m model) helmHint() string {
 	hint := k.HelmValues.Label() + " values, " + k.HelmComputed.Label() + " computed, " + k.HelmManifest.Label() + " manifest, " +
 		k.HelmNotes.Label() + " notes, " + k.HelmHistory.Label() + " history, " + k.AllNamespaces.Label() + " all namespaces"
 	if m.helmCLI() != "" {
-		hint += ", " + k.HelmInstall.Label() + " install, " + k.HelmUpgrade.Label() + " upgrade, " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
+		hint += ", " + k.HelmInstall.Label() + " install, " + k.HelmUpgrade.Label() + " upgrade, " + k.Edit.Label() + " edit, " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
 	}
 	return hint
 }
@@ -163,7 +163,7 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m, m.copyCmd(text), true
 	}
 	if !(km.HelmValues.Has(key) || km.Select.Has(key) || km.HelmComputed.Has(key) || km.HelmManifest.Has(key) ||
-		km.HelmNotes.Has(key) || km.HelmHistory.Has(key) || km.HelmRollback.Has(key) || km.HelmUpgrade.Has(key) || km.Delete.Has(key)) {
+		km.HelmNotes.Has(key) || km.HelmHistory.Has(key) || km.HelmRollback.Has(key) || km.HelmUpgrade.Has(key) || km.Edit.Has(key) || km.Delete.Has(key)) {
 		return m, nil, false
 	}
 	r, ok := m.selectedRelease()
@@ -189,6 +189,9 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 	case km.HelmUpgrade.Has(key):
 		next, cmd := m.openHelmUpgrade(r)
 		return next, cmd, true
+	case km.Edit.Has(key):
+		next, cmd := m.editHelmReleaseValues(r)
+		return next, cmd, true
 	case km.HelmRollback.Has(key):
 		if next, cmd, blocked := m.readOnlyBlock("rollback"); blocked {
 			return next, cmd, true
@@ -205,13 +208,27 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 	}
 }
 
+func (m model) helmValuesSubject(subject string) bool {
+	return strings.HasPrefix(subject, "values ") && !strings.HasPrefix(subject, "computed ")
+}
+
+func (m model) helmValuesView() bool {
+	return (m.stage == "yaml" || m.stage == "view") && m.vs.vback == "helm" && m.helmValuesSubject(m.subject)
+}
+
 func (m model) helmText(stage, subject, text string) model {
 	m.subject = subject
 	m.vs.vback = "helm"
 	m.logText = text
 	m.logStick, m.logAt = false, 0
+	m.armWatch("", "", "")
+	m.dropVis(m.logID)
+	m.load = load{}
 	m.stage = stage
 	m.status = subject + " · " + m.cfg.Keys.Back.Label() + " back"
+	if m.helmValuesSubject(subject) && m.helmCLI() != "" {
+		m.status += " · " + m.cfg.Keys.Edit.Label() + " edit"
+	}
 	return m
 }
 

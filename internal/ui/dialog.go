@@ -464,6 +464,10 @@ func (m model) dialogBox(width int) string {
 			foot = keyStyle.Render("ctrl+p") + dimStyle.Render(" browse  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
 				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
 		}
+		if d.idx >= 0 && d.idx < len(d.hfields) && d.hfields[d.idx].key == "values" {
+			foot = keyStyle.Render("ctrl+e") + dimStyle.Render(" edit  ") + keyStyle.Render("tab") + dimStyle.Render(" complete  ") + keyStyle.Render("↑↓") + dimStyle.Render(" move  ") +
+				keyStyle.Render(k.Submit.Short()) + dimStyle.Render(" preview  ") + keyStyle.Render(k.Cancel.Short()) + dimStyle.Render(" cancel")
+		}
 		for _, l := range strings.Split(ansi.Wordwrap(foot, inner, ""), "\n") {
 			lines = append(lines, l)
 		}

@@ -361,7 +361,7 @@ func (m model) legend() string {
 		parts = append(parts, pair(k.HelmValues.Short(), "values"), pair(k.HelmComputed.Short(), "computed"), pair(k.HelmManifest.Short(), "manifest"),
 			pair(k.HelmNotes.Short(), "notes"), pair(k.HelmHistory.Short(), "history"), pair(k.AllNamespaces.Short(), "all ns"))
 		if m.helmCLI() != "" {
-			parts = append(parts, pair(k.HelmInstall.Short(), "install"), pair(k.HelmUpgrade.Short(), "upgrade"), pair(k.HelmRollback.Short(), "rollback"), pair(k.Delete.Short(), "uninstall"))
+			parts = append(parts, pair(k.HelmInstall.Short(), "install"), pair(k.HelmUpgrade.Short(), "upgrade"), pair(k.Edit.Short(), "edit"), pair(k.HelmRollback.Short(), "rollback"), pair(k.Delete.Short(), "uninstall"))
 		}
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "kind" {
@@ -369,6 +369,9 @@ func (m model) legend() string {
 		parts = append(parts, pair("space", "use"), pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Edit.Short(), "charts"), pair(k.Watch.Short(), "refresh"))
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))
+		if m.helmValuesView() && m.helmCLI() != "" {
+			parts = append(parts, pair(k.Edit.Short(), "edit"))
+		}
 		if m.kustDiff() {
 			parts = append(parts, pair(k.Apply.Short(), "apply"))
 		}

@@ -80,6 +80,9 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.status = "values " + m.vs.hop.values
 		}
 		return m, nil, true
+	case helmReleaseValuesDoneMsg:
+		next, cmd := m.applyHelmReleaseValuesEdit(msg)
+		return next, cmd, true
 	case helmErrPopupMsg:
 		next, cmd := m.openLastErr()
 		return next, cmd, true
@@ -187,6 +190,13 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m.kindKey(key)
 	case m.stage == "helm":
 		return m.helmKey(key)
+	case m.helmValuesView() && km.Edit.Has(key):
+		r, ok := m.selectedRelease()
+		if !ok {
+			return m, nil, true
+		}
+		next, cmd := m.editHelmReleaseValues(r)
+		return next, cmd, true
 	case m.stage == "helmhist":
 		return m.histKey(key)
 	case m.stage == "htpl":

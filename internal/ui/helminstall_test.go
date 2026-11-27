@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -193,6 +194,10 @@ func TestHelmUpgradePreviewAndConfirm(t *testing.T) {
 	m = settle(t, next.(model), cmd)
 	if m.stage != "htpl" || !strings.Contains(m.logText, "upgrade web") {
 		t.Fatalf("upgrade preview %s:\n%s", m.stage, m.logText)
+	}
+	preview := ansi.Strip(m.View())
+	if !strings.Contains(preview, "enter confirm") || !strings.Contains(preview, "esc back") {
+		t.Fatalf("htpl hint missing confirm/back:\n%s", preview)
 	}
 	m = pressSettle(t, m, "enter")
 	if m.dlg == nil || !strings.Contains(m.dlg.ask, "upgrade web in shop?") {
@@ -442,5 +447,150 @@ func TestHelmFormTypesJAndK(t *testing.T) {
 		if m.dlg == nil || m.dlg.idx != start {
 			t.Fatalf("k on %s moved the field (idx %d -> %v)", f.key, start, m.dlg)
 		}
+	}
+}
+
+func TestHelmUpgradeFocusedValuesPathDoesNotWrap(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	long := "/tmp/k2-helm-2583312956/kafbat-ui-values.yaml"
+	setHelmField(m.dlg, "values", long)
+	for i, f := range m.dlg.hfields {
+		if f.key == "values" {
+			m = m.moveHelmField(i - m.dlg.idx)
+			break
+		}
+	}
+	if m.dlg.hfields[m.dlg.idx].key != "values" {
+		t.Fatalf("focused %s", m.dlg.hfields[m.dlg.idx].key)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "ctrl+e") || !strings.Contains(view, "edit") {
+		t.Fatalf("focused values footer missing ctrl+e edit:\n%s", view)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		trim := strings.TrimSpace(line)
+		if trim == "yaml" || strings.HasPrefix(trim, "yaml ") {
+			t.Fatalf("path wrapped onto column 0:\n%s", view)
+		}
+	}
+	if !strings.Contains(view, "values") || !(strings.Contains(view, "kafbat-ui-values.yaml") || strings.Contains(view, "values.yaml") || strings.Contains(view, "…")) {
+		t.Fatalf("focused values path missing:\n%s", view)
+	}
+}
+
+func focusHelmField(t *testing.T, m model, key string) model {
+	t.Helper()
+	if m.dlg == nil {
+		t.Fatal("no form")
+	}
+	for i, f := range m.dlg.hfields {
+		if f.key == key {
+			return m.moveHelmField(i - m.dlg.idx)
+		}
+	}
+	t.Fatalf("no field %s", key)
+	return m
+}
+
+func TestHelmFormCtrlEEditsValues(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m.cfg.UI.EditorInline = false
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	m = focusHelmField(t, m, "values")
+	orig := helmFieldValue(m.dlg, "values")
+	if orig == "" {
+		t.Fatal("values not prefilled")
+	}
+	before, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var opened string
+	old := vimCommand
+	vimCommand = func(path string) *exec.Cmd {
+		opened = path
+		return exec.Command("true")
+	}
+	t.Cleanup(func() { vimCommand = old })
+	next, cmd := m.Update(key(t, "ctrl+e"))
+	m = next.(model)
+	if opened == "" || cmd == nil {
+		t.Fatalf("ctrl+e: opened %q cmd %v", opened, cmd != nil)
+	}
+	if opened != orig {
+		t.Fatalf("ctrl+e opened %q, want existing values %q", opened, orig)
+	}
+	after, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("ctrl+e changed the values file:\n%s", after)
+	}
+}
+
+func TestHelmChartDefaultsPreviewDoesNotClobberValues(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	orig := helmFieldValue(m.dlg, "values")
+	if orig == "" {
+		t.Fatal("values not prefilled")
+	}
+	before, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(before), "replicas: 3") {
+		t.Fatalf("user values:\n%s", before)
+	}
+	m.readOnly = true
+	m = focusHelmField(t, m, "defaults")
+	next, cmd := m.submitHelmForm()
+	m = settle(t, next.(model), cmd)
+	if m.stage != "yaml" || !strings.Contains(m.logText, "chart defaults") || !strings.Contains(m.logText, "replicaCount: 1") {
+		t.Fatalf("defaults preview %s:\n%s", m.stage, m.logText)
+	}
+	if m.dlg != nil {
+		t.Fatalf("dialog still open %+v", m.dlg)
+	}
+	if m.vs.hop == nil || m.vs.hop.values != orig {
+		t.Fatalf("hop.values clobbered: %+v", m.vs.hop)
+	}
+	after, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("values file overwritten:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+	if strings.Contains(string(after), "replicaCount:") {
+		t.Fatal("chart defaults written into the values file")
+	}
+	m = pressSettle(t, m, "esc")
+	if m.dlg == nil || m.dlg.act != "helminstall" {
+		t.Fatalf("back to form: %+v stage %s", m.dlg, m.stage)
+	}
+	if helmFieldValue(m.dlg, "values") != orig || m.vs.hop.values != orig {
+		t.Fatalf("values path after back: field %q hop %q", helmFieldValue(m.dlg, "values"), m.vs.hop.values)
+	}
+	got, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(before) {
+		t.Fatalf("values file changed after back:\n%s", got)
 	}
 }

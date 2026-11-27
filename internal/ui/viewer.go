@@ -30,42 +30,37 @@ func (m model) fetchYAML(id, ns string) tea.Cmd {
 	}
 }
 
+func helmOwnedYAML(vs viewState) bool {
+	return vs.vback == "helm" || vs.vback == "helmhist" || vs.vback == "helminstall"
+}
+
 func (m *model) applyYAML(msg yamlMsg) {
-	set := func(stage, text string) (string, string) {
-		if msg.err != nil {
-			return "res", m.errLine(msg.err)
-		}
-		return "yaml", msg.text
-	}
-	if m.logID == msg.id {
-		m.load = load{}
-		if msg.err != nil {
-			m.stage = or(m.vs.vback, "res")
-			m.vs.vback = ""
-			m.status = m.errLine(msg.err)
+	set := func(stage, vback, text, status, kind *string, l *load, vs *viewState) {
+		*l = load{}
+		if *stage != "yaml" || helmOwnedYAML(*vs) {
 			return
 		}
-		m.stage = "yaml"
-		m.logText = msg.text
-		m.status = m.kind
+		if msg.err != nil {
+			*stage = or(*vback, "res")
+			*vback = ""
+			*status = m.errLine(msg.err)
+			return
+		}
+		*text = msg.text
+		*status = *kind
+	}
+	if m.logID == msg.id {
+		set(&m.stage, &m.vs.vback, &m.logText, &m.status, &m.kind, &m.load, &m.vs)
 		return
 	}
 	for i := range m.panes {
-		if m.panes[i].logID != msg.id {
+		p := &m.panes[i]
+		if p.logID != msg.id {
 			continue
 		}
-		m.panes[i].load = load{}
-		if msg.err != nil {
-			m.panes[i].stage = or(m.panes[i].vs.vback, "res")
-			m.panes[i].vs.vback = ""
-			m.panes[i].status = m.errLine(msg.err)
-			return
-		}
-		m.panes[i].stage = "yaml"
-		m.panes[i].logText = msg.text
+		set(&p.stage, &p.vs.vback, &p.logText, &p.status, &p.kind, &p.load, &p.vs)
 		return
 	}
-	_, _ = set("", "")
 }
 
 func (m model) viewing() bool {
@@ -257,6 +252,13 @@ func (m model) logsBody(innerW int) string {
 			mark = fmt.Sprintf("%s  %d-%d", m.scrollKeys(), top+1, top+len(shown))
 		}
 		mark += "    " + wrapNote
+		if m.stage == "htpl" {
+			back := "esc"
+			if !m.cfg.Keys.Back.Has("esc") {
+				back = m.cfg.Keys.Back.Label()
+			}
+			mark += "    " + m.cfg.Keys.Select.Label() + " confirm    " + back + " back"
+		}
 		if m.stage == "kout" && m.ran.set {
 			b.WriteString(m.ran.header() + dimStyle.Render("    "+mark) + "\n")
 		} else {

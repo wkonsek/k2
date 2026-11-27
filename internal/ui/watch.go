@@ -116,7 +116,7 @@ func watchCmd(k kube.Client, pane, stage, kind, ns, name, kc, ctx string) tea.Cm
 func (m *model) applyWatch(msg watchMsg) {
 	set := func(stage, text, status *string, vs *viewState) {
 		vs.watchBusy = false
-		if !vs.watchOn || *stage != msg.stage || !watchable(*stage, *vs) {
+		if !vs.watchOn || *stage != msg.stage || !watchable(*stage, *vs) || helmOwnedYAML(*vs) {
 			return
 		}
 		if msg.err != nil {

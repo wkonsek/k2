@@ -162,7 +162,6 @@ func (m *model) fillHelmForm(d *dialog, op *helmOp) {
 	}
 	fields = append(fields,
 		helmField{key: "values", label: "values", input: helmFieldInput(op.values, "path to values.yaml")},
-		helmField{key: "editvals", label: "edit values", input: helmFieldInput("", ""), action: true},
 		helmField{key: "defaults", label: "chart defaults", input: helmFieldInput("", ""), action: true},
 	)
 	focus := 0
@@ -185,6 +184,9 @@ func (m model) helmFormHint(act string) string {
 	}
 	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "masterkey" {
 		return "ctrl+p browses · tab completes · enter previews · " + k.Cancel.Short() + " cancel"
+	}
+	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) && m.dlg.hfields[m.dlg.idx].key == "values" {
+		return "ctrl+e edits · tab completes · enter previews · " + k.Cancel.Short() + " cancel"
 	}
 	return "tab moves · " + k.Complete.Short() + " completes · enter previews · " + k.Cancel.Short() + " cancel"
 }
@@ -356,6 +358,8 @@ func (m model) helmFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key == "ctrl+p" && d.hfields[d.idx].key == "masterkey":
 		return m.openHelmMasterKeyPicker()
+	case key == "ctrl+e" && d.hfields[d.idx].key == "values":
+		return m.editHelmValues()
 	}
 	if d.hfields[d.idx].locked || d.hfields[d.idx].toggle || d.hfields[d.idx].action {
 		return m, nil
@@ -541,7 +545,40 @@ func completeFile(typed string) (value string, cands []string) {
 	return dirPart + commonPrefix(plain), cands
 }
 
-func (m model) editHelmValues(defaults bool) (tea.Model, tea.Cmd) {
+func (m model) previewHelmChartDefaults() (tea.Model, tea.Cmd) {
+	m.stashHelmForm()
+	op := m.vs.hop
+	if op == nil {
+		return m, nil
+	}
+	bin, next, cmd, ok := m.needHelmCLI("chart values")
+	if !ok {
+		return next, cmd
+	}
+	if op.chart == "" {
+		m.dlg.msg = "set the chart first"
+		return m, nil
+	}
+	text, err := m.k.HelmOut(bin, kube.HelmShowValuesArgs(op.chart, op.version)...)
+	if err != nil {
+		m.dlg.msg = err.Error()
+		return m, m.notify(toneErr, "helm show values failed")
+	}
+	m.dlg = nil
+	ref := kube.ChartAt(op.chart, op.version)
+	m.subject = "chart defaults " + ref
+	m.vs.vback = "helminstall"
+	m.logText = fmt.Sprintf("# chart defaults of %s (helm show values)\n%s", ref, text)
+	m.logStick, m.logAt = false, 0
+	m.armWatch("", "", "")
+	m.dropVis(m.logID)
+	m.load = load{}
+	m.stage = "yaml"
+	m.status = m.subject + " · " + m.cfg.Keys.Back.Label() + " back"
+	return m, nil
+}
+
+func (m model) editHelmValues() (tea.Model, tea.Cmd) {
 	if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
 		return next, cmd
 	}
@@ -551,39 +588,6 @@ func (m model) editHelmValues(defaults bool) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	path := strings.TrimSpace(op.values)
-	if defaults {
-		bin, next, cmd, ok := m.needHelmCLI("chart values")
-		if !ok {
-			return next, cmd
-		}
-		if op.chart == "" {
-			m.dlg.msg = "set the chart first"
-			return m, nil
-		}
-		text, err := m.k.HelmOut(bin, kube.HelmShowValuesArgs(op.chart, op.version)...)
-		if err != nil {
-			m.dlg.msg = err.Error()
-			return m, m.notify(toneErr, "helm show values failed")
-		}
-		if path == "" {
-			dir, err := os.MkdirTemp("", "k2-helm-")
-			if err != nil {
-				m.dlg.msg = err.Error()
-				return m, nil
-			}
-			name := op.name
-			if name == "" {
-				name = "chart"
-			}
-			path = filepath.Join(dir, name+"-values.yaml")
-		}
-		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
-			m.dlg.msg = err.Error()
-			return m, nil
-		}
-		op.values = path
-		setHelmField(m.dlg, "values", path)
-	}
 	if path == "" {
 		dir, err := os.MkdirTemp("", "k2-helm-")
 		if err != nil {
@@ -614,13 +618,94 @@ func (m model) editHelmValues(defaults bool) (tea.Model, tea.Cmd) {
 
 type helmValuesDoneMsg struct{}
 
+type helmReleaseValuesDoneMsg struct {
+	text      string
+	release   kube.HelmRelease
+	chart     string
+	version   string
+	unchanged bool
+	err       error
+}
+
+func (m model) editHelmReleaseValues(r kube.HelmRelease) (tea.Model, tea.Cmd) {
+	if next, cmd, blocked := m.readOnlyBlock("edit"); blocked {
+		return next, cmd
+	}
+	if _, next, cmd, ok := m.needHelmCLI("upgrade"); !ok {
+		return next, cmd
+	}
+	text := kube.ValuesYAML(r.Config)
+	dir, err := os.MkdirTemp("", "k2-helm-")
+	if err != nil {
+		m.status = m.errLine(err)
+		return m, m.notify(toneErr, "edit values failed")
+	}
+	path := filepath.Join(dir, r.Name+"-values.yaml")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		m.status = m.errLine(err)
+		return m, m.notify(toneErr, "edit values failed")
+	}
+	chart, version := splitReleaseChart(r.Chart)
+	m.status = "opening vim…"
+	next, cmd := m.runEditor("helmvalueedit", "vim "+filepath.Base(path), filepath.Base(path), path,
+		func() *exec.Cmd { return vimCommand(path) },
+		func(err error) tea.Msg {
+			return helmValuesEditResult(path, text, r, chart, version, err)
+		})
+	if mm, ok := next.(model); ok && mm.ed != nil {
+		mm.ed.save = func(p string, _ int, err error) tea.Msg {
+			return helmValuesEditResult(p, text, r, chart, version, err)
+		}
+		next = mm
+	}
+	return next, cmd
+}
+
+func helmValuesEditResult(path, orig string, r kube.HelmRelease, chart, version string, err error) helmReleaseValuesDoneMsg {
+	if err != nil {
+		return helmReleaseValuesDoneMsg{err: err, release: r}
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		return helmReleaseValuesDoneMsg{err: err, release: r}
+	}
+	if strings.TrimRight(string(after), "\n") == strings.TrimRight(orig, "\n") {
+		return helmReleaseValuesDoneMsg{unchanged: true, release: r}
+	}
+	return helmReleaseValuesDoneMsg{text: string(after), release: r, chart: chart, version: version}
+}
+
+func (m model) applyHelmReleaseValuesEdit(msg helmReleaseValuesDoneMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.status = m.errLine(msg.err)
+		return m, m.notify(toneErr, "edit values failed")
+	}
+	if msg.unchanged {
+		m.status = "no changes"
+		return m, nil
+	}
+	dir, err := os.MkdirTemp("", "k2-helm-")
+	if err != nil {
+		m.status = m.errLine(err)
+		return m, m.notify(toneErr, "edit values failed")
+	}
+	path := filepath.Join(dir, msg.release.Name+"-values.yaml")
+	if err := os.WriteFile(path, []byte(msg.text), 0o600); err != nil {
+		m.status = m.errLine(err)
+		return m, m.notify(toneErr, "edit values failed")
+	}
+	m.vs.hop = &helmOp{
+		act: "upgrade", name: msg.release.Name, ns: msg.release.Namespace,
+		current: msg.release, chart: msg.chart, version: msg.version, values: path,
+	}
+	return m.askHelmApply()
+}
+
 func (m model) submitHelmForm() (tea.Model, tea.Cmd) {
 	if m.dlg != nil && m.dlg.idx >= 0 && m.dlg.idx < len(m.dlg.hfields) {
 		switch m.dlg.hfields[m.dlg.idx].key {
-		case "editvals":
-			return m.editHelmValues(false)
 		case "defaults":
-			return m.editHelmValues(true)
+			return m.previewHelmChartDefaults()
 		}
 	}
 	if next, cmd, blocked := m.readOnlyBlock(m.helmAct()); blocked {
@@ -1083,12 +1168,12 @@ func (d *dialog) helmFormRows(inner int) []string {
 			}
 			continue
 		}
-		in := f.input
 		avail := max(8, inner-ansi.StringWidth(ansi.Strip(label)))
-		valW := max(1, avail-ansi.StringWidth(in.Prompt))
-		in.Width = valW
+		valW := max(1, avail-ansi.StringWidth(f.input.Prompt))
+		d.hfields[i].input.Width = valW
+		in := d.hfields[i].input
 		shown := in.Value()
-		if f.key == "values" && ansi.StringWidth(shown) > valW {
+		if (f.key == "values" || f.key == "masterkey" || f.key == "config") && ansi.StringWidth(shown) > valW {
 			shown = fitMiddle(shown, valW)
 		} else if ansi.StringWidth(shown) > avail {
 			shown = fitMiddle(shown, avail)
@@ -1101,7 +1186,7 @@ func (d *dialog) helmFormRows(inner int) []string {
 			out = append(out, label+itemStyle.Render(in.Prompt+shown))
 			continue
 		}
-		out = append(out, label+in.View())
+		out = append(out, clipLine(label+in.View(), inner))
 		if (f.key == "chart" || f.key == "image") && i == d.idx {
 			out = append(out, d.helmChartSuggestRows(inner, ansi.StringWidth(ansi.Strip(label)))...)
 		}

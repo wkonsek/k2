@@ -159,6 +159,10 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 				return func() tea.Msg { return done }
 			}
 			m.status = done.what
+			return nil
+		}
+		if focused {
+			return func() tea.Msg { return follow }
 		}
 		return nil
 	}
