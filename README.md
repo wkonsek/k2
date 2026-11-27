@@ -201,7 +201,7 @@ config` opens the generated Kind YAML in `$EDITOR`. A red popup confirms,
 then a `deploying` tile appears immediately and k2 streams
 `kind create cluster` into a live log (`enter` to watch, `esc` back to the
 tiles). The kubeconfig is written to `~/.kube/k2` (or `~/.kube/k2-<name>`).
-Enter on a ready tile uses that cluster in the pane; `e` manages catalog
+Enter on a ready tile switches the pane to that cluster and opens its pods list; `e` manages catalog
 charts. `ctrl+d` deletes the cluster and only that k2 kubeconfig file,
 never `~/.kube/config`. After MetalLB lands on a kind cluster, k2 picks an
 address pool from the kind Docker network.
@@ -457,8 +457,7 @@ tile opens that log (it follows the bottom unless you scroll up; `esc`
 returns to the grid without cancelling the job). On success the pane
 switches to `kind-<name>` and selected charts install one after another
 (Helm repos added first; MetalLB gets an IPAddressPool from the kind
-Docker network). Enter on a ready tile uses that cluster if its
-kubeconfig exists. `e` opens a checklist of catalog charts (already
+Docker network). Enter on a ready tile switches the pane to that cluster and opens its pods list if its kubeconfig exists. `e` opens a checklist of catalog charts (already
 installed ones are checked); a red popup confirms installs and
 uninstalls, with the same live tile and log (istio uninstalls istiod
 first, then istio-base). `ctrl+d` deletes the cluster and the k2-managed

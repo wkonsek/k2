@@ -179,7 +179,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " use / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + " pods / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
 }
 
 func (m *model) showKind(pick string) {
@@ -289,9 +289,7 @@ func (m model) useKindCluster(name string) (tea.Model, tea.Cmd) {
 	m.namespace = m.k.NamespaceOf(path, m.context)
 	m.clearHist()
 	m.save()
-	m.showKind(name)
-	m.status = "using " + m.context + " · " + config.HomePath(path)
-	return m, fetchResources(m.k, m.kubeconfig, m.context)
+	return m.openPods()
 }
 
 func (m model) openKindCreate(op kindOp) (tea.Model, tea.Cmd) {

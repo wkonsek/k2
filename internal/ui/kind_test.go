@@ -157,13 +157,18 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "1 cp", "v1.33.1", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "1 cp", "0 workers", "v1.33.1", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconSel} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
 	}
+	for _, want := range []string{kindIconNodes + "  1 cp", kindIconKube + "  ~/.kube/k2"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("icon spacing lacks %q:\n%s", want, view)
+		}
+	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter use / logs", "^d delete", "e charts", "r refresh"} {
+	for _, want := range []string{"A create", "enter pods / logs", "^d delete", "e charts", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -352,6 +357,11 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 	if m.kubeconfig != managed || m.context != "kind-lab" {
 		t.Fatalf("switch %s %s status %q", m.kubeconfig, m.context, m.status)
 	}
+	if m.stage != "workpods" {
+		t.Fatalf("enter should open pods, stage %s status %q", m.stage, m.status)
+	}
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
 	m = pressSettle(t, m, "ctrl+d")
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "delete kind cluster lab?") {
 		t.Fatalf("confirm %+v", m.dlg)
@@ -652,5 +662,50 @@ func TestKindTildeOpensKind(t *testing.T) {
 	}
 	if m.cfg.Keys.Kind.Label() != "~" || m.cfg.Keys.Home.Label() != "" {
 		t.Fatalf("defaults kind=%q home=%q", m.cfg.Keys.Kind.Label(), m.cfg.Keys.Home.Label())
+	}
+}
+
+func TestKindTilesFitPane(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2", "dev", "lab", "other"})
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	for _, w := range []int{36, 48, 60, 80, 100, 120} {
+		body := m.kindBody(w)
+		for i, line := range strings.Split(body, "\n") {
+			if got := ansi.StringWidth(line); got > w {
+				t.Fatalf("width %d line %d is %d:\n%s", w, i, got, ansi.Strip(line))
+			}
+		}
+	}
+}
+
+func TestKindSelectedBorderDiffersFromActive(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2", "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig("k2", home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig, m.context = path, "kind-k2"
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "dev")
+	view := ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, kindIconSel+"  dev") {
+		t.Fatalf("missing selection marker:\n%s", view)
+	}
+	if !strings.Contains(view, "ACTIVE") || strings.Contains(view, kindIconSel+"  k2") {
+		t.Fatalf("ACTIVE should stay on k2 without the cursor mark:\n%s", view)
+	}
+	if !strings.Contains(view, "┏") && !strings.Contains(view, "╔") {
+		t.Fatalf("selected tile lacks a thick/double border:\n%s", view)
+	}
+	if !strings.Contains(view, "╭") {
+		t.Fatalf("unselected ACTIVE tile should keep a rounded muted border:\n%s", view)
 	}
 }

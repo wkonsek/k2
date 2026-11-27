@@ -365,7 +365,7 @@ func (m model) legend() string {
 		}
 		parts = append(parts, m.tableLegend()...)
 	} else if m.stage == "kind" {
-		parts[1] = pair(k.Select.Label(), "use / logs")
+		parts[1] = pair(k.Select.Label(), "pods / logs")
 		parts = append(parts, pair(k.HelmInstall.Short(), "create"), pair(k.Delete.Short(), "delete"), pair(k.Edit.Short(), "charts"), pair(k.Watch.Short(), "refresh"))
 	} else if m.viewing() {
 		parts = append(parts, pair(m.scrollKeys(), "scroll"), pair(k.Wrap.Short(), "wrap"), pair(k.CopyMode.Short(), "copy"), pair(k.Vim.Short(), "vim"))

@@ -10,7 +10,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 )
 
 const (
@@ -24,11 +23,31 @@ const (
 	kindIconKube    = "⊚"
 	kindIconCharts  = "▦"
 	kindIconStep    = "›"
+	kindIconSel     = "▸"
 	kindTileMinW    = 28
 	kindTileMaxW    = 42
 	kindTileGap     = 1
+	kindTileSafe    = 1
 	kindTileRows    = 7
 )
+
+func kindLabel(icon, text string) string {
+	return icon + "  " + text
+}
+
+func kindTileWidth(innerW, cols int) int {
+	if cols < 1 {
+		cols = 1
+	}
+	w := (innerW - (cols-1)*kindTileGap - cols*kindTileSafe) / cols
+	if w < 1 {
+		w = 1
+	}
+	if w > kindTileMaxW {
+		w = kindTileMaxW
+	}
+	return w
+}
 
 type kindTile struct {
 	name, status, step, last, kubeconfig string
@@ -132,16 +151,12 @@ func kindStepName(line, verb string) string {
 }
 
 func (m model) kindColumns(width int) int {
-	inner := width
-	if inner < kindTileMinW {
-		return 1
-	}
-	n := (inner + kindTileGap) / (kindTileMinW + kindTileGap)
-	if n < 1 {
-		n = 1
-	}
-	if n > 4 {
-		n = 4
+	n := 1
+	for c := 4; c >= 1; c-- {
+		if kindTileWidth(width, c) >= kindTileMinW {
+			n = c
+			break
+		}
 	}
 	return n
 }
@@ -250,14 +265,10 @@ func (m model) kindBody(innerW int) string {
 	if cols < 1 {
 		cols = 1
 	}
-	tileW := (innerW - (cols-1)*kindTileGap) / cols
+	tileW := kindTileWidth(innerW, cols)
 	if tileW < kindTileMinW && cols > 1 {
 		cols = 1
-		tileW = innerW
-	}
-	if tileW > kindTileMaxW && cols < 4 && len(tiles) > cols {
-		cols = m.kindColumns(innerW)
-		tileW = (innerW - (cols-1)*kindTileGap) / cols
+		tileW = kindTileWidth(innerW, 1)
 	}
 	sel := m.vs.kindSel
 	if sel < 0 || sel >= len(tiles) {
@@ -292,10 +303,7 @@ func (m model) kindBody(innerW int) string {
 				if i < len(cs) {
 					s = cs[i]
 				}
-				if ansi.StringWidth(s) < tileW {
-					s += strings.Repeat(" ", tileW-ansi.StringWidth(s))
-				}
-				lines[i] = append(lines[i], s)
+				lines[i] = append(lines[i], padPlain(s, tileW))
 			}
 		}
 		for i, parts := range lines {
@@ -315,35 +323,37 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 		BorderForeground(th.Muted).
 		Width(inner)
 	if selected {
-		border = border.BorderForeground(th.Accent)
-	} else if t.active {
-		border = border.BorderForeground(th.Accent2)
+		border = border.Border(lipgloss.ThickBorder()).BorderForeground(th.Accent)
 	} else if t.status == "failed" {
 		border = border.BorderForeground(th.Danger)
 	}
 
-	title := titleStyle.Render(t.name)
+	name := t.name
+	if selected {
+		name = kindLabel(kindIconSel, t.name)
+	}
+	title := titleStyle.Render(name)
 	if t.active {
-		title += " " + keyStyle.Render(kindIconActive+" ACTIVE")
+		title += " " + keyStyle.Render(kindLabel(kindIconActive, "ACTIVE"))
 	}
 	status := m.kindStatusLine(t, inner)
 	var lines []string
 	lines = append(lines, clipLine(title, inner), clipLine(status, inner))
 	if sum := t.nodes.Summary(); sum != "" {
-		lines = append(lines, clipLine(dimStyle.Render(kindIconNodes+" ")+itemStyle.Render(sum), inner))
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, ""))+itemStyle.Render(sum), inner))
 	} else if t.status == "deploying" || t.status == "deleting" {
-		lines = append(lines, clipLine(dimStyle.Render(kindIconNodes+" ")+dimStyle.Render("nodes coming up"), inner))
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, "nodes coming up")), inner))
 	} else {
-		lines = append(lines, clipLine(dimStyle.Render(kindIconNodes+" ")+dimStyle.Render("no node info"), inner))
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, "no node info")), inner))
 	}
 	if t.step != "" && (t.status == "deploying" || t.status == "deleting") {
-		lines = append(lines, clipLine(dimStyle.Render(kindIconStep+" ")+itemStyle.Render(t.step), inner))
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconStep, ""))+itemStyle.Render(t.step), inner))
 	} else if t.err != nil {
-		lines = append(lines, clipLine(errStyle.Render(kindIconStep+" "+t.err.Error()), inner))
+		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconStep, t.err.Error())), inner))
 	} else if t.last != "" && t.status == "failed" {
-		lines = append(lines, clipLine(errStyle.Render(kindIconCharts+" "+t.last), inner))
+		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
 	} else if t.last != "" && t.status == "deploying" {
-		lines = append(lines, clipLine(dimStyle.Render(kindIconCharts+" ")+dimStyle.Render(t.last), inner))
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
 	} else {
 		lines = append(lines, "")
 	}
@@ -351,7 +361,7 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 	if kc == "" {
 		kc = "—"
 	}
-	lines = append(lines, clipLine(dimStyle.Render(kindIconKube+" ")+dimStyle.Render(kc), inner))
+	lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconKube, kc)), inner))
 	for len(lines) < kindTileRows-2 {
 		lines = append(lines, "")
 	}
@@ -383,7 +393,7 @@ func (m model) kindStatusLine(t kindTile, _ int) string {
 	default:
 		icon, st, label = kindIconRunning, okStyle, "running"
 	}
-	return st.Render(icon + " " + label)
+	return st.Render(kindLabel(icon, label))
 }
 
 func (m *model) applyKindLine(msg kindLineMsg) {
