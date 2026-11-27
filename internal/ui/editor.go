@@ -201,7 +201,7 @@ func (m *model) finishEditor(msg paneterm.ExitMsg, focused bool) tea.Cmd {
 		}
 	case "kindconfig":
 		if m.vs.kop != nil {
-			m.vs.kop.edited = true
+			m.applyKindConfigEdit()
 			m.reopenKindForm()
 			m.status = "config " + config.HomePath(m.vs.kop.config)
 		}

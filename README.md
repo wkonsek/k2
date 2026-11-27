@@ -200,11 +200,12 @@ upgrade or roll back uses the helm CLI, when it's installed.
 cards, with square status, uptime, CPU and RAM bars, and installed catalog
 charts wrapped across lines. `A` (or `:kind create`) opens a form: name,
 control-planes, workers, a config path (prefilled with the generated Kind
-YAML; `ctrl+e` opens it in `$EDITOR`, or type your own path), plus a node
+YAML, which stays in sync with the form; `ctrl+e` opens it in `$EDITOR`
+and those edits flow back into the form, or type your own path), plus a node
 image picker (the five latest stable `kindest/node` tags, `tab` /
 `shift+tab` cycle them) and checkboxes for starter charts. `v` on a chart
 edits its values in `$EDITOR`. A
-red popup confirms, then a `deploying` tile appears immediately and k2
+red popup confirms (`esc`/`q` returns to the form, `n` cancels), then a `deploying` tile appears immediately and k2
 streams `kind create cluster` into a live log (`enter` to watch, `esc`
 back to the tiles). The kubeconfig is written to `~/.kube/k2` (or
 `~/.kube/k2-<name>`). `space` on a ready card uses that cluster in the
@@ -478,8 +479,9 @@ deploying / failed / deleting cluster. Re-opening this view shows the last
 snapshot at once; stats, pod counts and catalog charts refresh about every
 15 seconds while the view is open, and `r` refreshes immediately. `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The config field is prefilled with a generated Kind YAML the cluster will
-use; `ctrl+e` opens it in `$EDITOR`, or type another path (a custom file
-wins over the generated topology). The image field defaults to the newest
+use and stays in sync with the form; `ctrl+e` opens it in `$EDITOR` and
+those edits (node counts and image) flow back into the form, or type
+another path (a custom file wins over the generated topology). The image field defaults to the newest
 of the five latest stable `kindest/node` tags fetched from Docker Hub, and
 a list of those tags sits under the input (`tab` / `shift+tab` cycle, or
 type a custom image; offline, the field stays blank and kind uses its own
@@ -487,7 +489,7 @@ default). Checkboxes pick starter charts from the Helm catalog; `v` on a chart r
 opens its values in `$EDITOR` (catalog defaults, or a `# custom values`
 stub), marks the row `(values)`, checks the chart, and passes those
 files to Helm (`-f` catalog defaults first, then custom values). Enter
-asks in a red popup, then a `deploying` tile appears at once and k2
+asks in a red popup (`esc`/`q` returns to the form, `n` cancels), then a `deploying` tile appears at once and k2
 streams `kind create cluster --kubeconfig ~/.kube/k2` (or
 `~/.kube/k2-<name>`) into a job log. `enter` on a deploying or failed
 tile opens that log (it follows the bottom unless you scroll up; `esc`

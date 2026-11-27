@@ -22,6 +22,7 @@ type askSpec struct {
 	ns, name string
 
 	onYes   func(m model) (tea.Model, tea.Cmd)
+	onBack  func(m model) (tea.Model, tea.Cmd)
 	cmd     tea.Cmd
 	running string
 }
@@ -29,7 +30,7 @@ type askSpec struct {
 func (m model) ask(s askSpec) model {
 	d := m.newDialog("confirm", s.title, s.kind, s.ns, s.name)
 	d.ask, d.pending, d.pendMsg = s.question, s.cmd, s.running
-	d.details, d.danger, d.onYes = s.details, s.danger, s.onYes
+	d.details, d.danger, d.onYes, d.onBack = s.details, s.danger, s.onYes, s.onBack
 	m.dlgSeq++
 	d.seq = m.dlgSeq
 	m.dlg = d

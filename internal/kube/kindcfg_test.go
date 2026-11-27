@@ -84,3 +84,95 @@ func TestParseKindClusters(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+func TestParseKindConfig(t *testing.T) {
+	text := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"nodes:",
+		"- role: control-plane",
+		"  image: kindest/node:v1.35.0",
+		"- role: worker",
+		"  image: kindest/node:v1.35.0",
+		"",
+	}, "\n")
+	got, err := ParseKindConfig(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Planes != 1 || got.Workers != 1 || got.Image != "kindest/node:v1.35.0" || !got.HasImage {
+		t.Fatalf("%+v", got)
+	}
+	mixed := "nodes:\n- role: control-plane\n  image: kindest/node:v1.35.0\n- role: worker\n  image: kindest/node:v1.34.0\n- role: worker\n"
+	got, err = ParseKindConfig(mixed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Planes != 1 || got.Workers != 2 || got.Image != "kindest/node:v1.35.0" || !got.HasImage {
+		t.Fatalf("mixed %+v", got)
+	}
+	plain, err := ParseKindConfig("kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n- role: control-plane\n")
+	if err != nil || plain.Planes != 1 || plain.Workers != 0 || plain.Image != "" || plain.HasImage {
+		t.Fatalf("plain %+v %v", plain, err)
+	}
+}
+
+func TestKindCreateImageOmitsWhenNodesSetIt(t *testing.T) {
+	text, err := KindConfigYAML(1, 1, "kindest/node:v1.35.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if KindCreateImage(text, "kindest/node:v1.37.0") != "" {
+		t.Fatal("should drop --image when the config already sets it")
+	}
+	plain, err := KindConfigYAML(1, 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if KindCreateImage(plain, "kindest/node:v1.37.0") != "kindest/node:v1.37.0" {
+		t.Fatal("should keep --image when nodes have none")
+	}
+}
+
+func TestSyncKindConfigNodesPreservesExtras(t *testing.T) {
+	src := strings.Join([]string{
+		"kind: Cluster",
+		"apiVersion: kind.x-k8s.io/v1alpha4",
+		"networking:",
+		"  apiServerAddress: 127.0.0.1",
+		"nodes:",
+		"- role: control-plane",
+		"  image: kindest/node:v1.34.0",
+		"  extraPortMappings:",
+		"  - containerPort: 80",
+		"    hostPort: 80",
+		"- role: worker",
+		"  image: kindest/node:v1.34.0",
+		"",
+	}, "\n")
+	got, err := SyncKindConfigNodes(src, 1, 0, "kindest/node:v1.35.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "apiServerAddress: 127.0.0.1") {
+		t.Fatalf("lost extras:\n%s", got)
+	}
+	info, err := ParseKindConfig(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Planes != 1 || info.Workers != 0 || info.Image != "kindest/node:v1.35.0" {
+		t.Fatalf("synced %+v", info)
+	}
+	if !strings.Contains(got, "extraPortMappings:") || !strings.Contains(got, "hostPort: 80") {
+		t.Fatalf("lost control-plane extras:\n%s", got)
+	}
+	simple, err := KindConfigYAML(1, 2, "kindest/node:v1.31.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = SyncKindConfigNodes(simple, 1, 2, "kindest/node:v1.31.0")
+	if err != nil || got != simple {
+		t.Fatalf("simple rewrite:\n%s\n%v", got, err)
+	}
+}

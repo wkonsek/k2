@@ -441,6 +441,7 @@ func (m *model) applyKindNodeImages(msg kindNodeImagesMsg) {
 	if m.vs.kop != nil {
 		m.vs.kop.image = msg.images[0]
 	}
+	m.refreshKindGeneratedConfig()
 	m.syncKindImageSuggest()
 }
 
@@ -559,8 +560,13 @@ func (m model) kindFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	case "config":
-		if m.vs.kop != nil && m.vs.kop.autoConfig && helmFieldValue(d, "config") != kindConfigPath(m.vs.kop.name) {
-			m.vs.kop.autoConfig = false
+		if m.vs.kop != nil {
+			name := helmFieldValue(d, "name")
+			if name == "" {
+				name = m.vs.kop.name
+			}
+			cfg := helmFieldValue(d, "config")
+			m.vs.kop.autoConfig = generatedKindConfigPath(cfg, name)
 		}
 	case "name", "planes", "workers":
 		m.refreshKindGeneratedConfig()
@@ -589,15 +595,40 @@ func kindConfigPath(name string) string {
 	return filepath.Join(os.TempDir(), "k2-kind-"+b.String()+".yaml")
 }
 
+func generatedKindConfigPath(path, name string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return true
+	}
+	return filepath.Clean(expandPath(path, "")) == filepath.Clean(kindConfigPath(name))
+}
+
+func isKindGeneratedFile(path string) bool {
+	path = filepath.Clean(expandPath(strings.TrimSpace(path), ""))
+	base := filepath.Base(path)
+	return filepath.Dir(path) == filepath.Clean(os.TempDir()) && strings.HasPrefix(base, "k2-kind-") && strings.HasSuffix(base, ".yaml")
+}
+
 func (m *model) writeKindGeneratedConfig(op *kindOp) error {
 	if op == nil {
 		return nil
 	}
-	text, err := kube.KindConfigYAML(max(1, op.planes), max(0, op.workers), op.image)
+	path := kindConfigPath(op.name)
+	src := strings.TrimSpace(op.config)
+	if src == "" {
+		src = path
+	}
+	src = expandPath(src, "")
+	var text string
+	var err error
+	if raw, rerr := os.ReadFile(src); rerr == nil && len(strings.TrimSpace(string(raw))) > 0 {
+		text, err = kube.SyncKindConfigNodes(string(raw), max(1, op.planes), max(0, op.workers), op.image)
+	} else {
+		text, err = kube.KindConfigYAML(max(1, op.planes), max(0, op.workers), op.image)
+	}
 	if err != nil {
 		return err
 	}
-	path := kindConfigPath(op.name)
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		return err
 	}
@@ -606,15 +637,19 @@ func (m *model) writeKindGeneratedConfig(op *kindOp) error {
 }
 
 func (m *model) refreshKindGeneratedConfig() {
-	if m.dlg == nil || m.vs.kop == nil || !m.vs.kop.autoConfig || m.vs.kop.edited {
+	if m.dlg == nil || m.vs.kop == nil {
 		return
 	}
+	old := strings.TrimSpace(m.vs.kop.config)
 	m.stashKindForm()
-	if !m.vs.kop.autoConfig || m.vs.kop.edited {
+	if !m.vs.kop.autoConfig && !generatedKindConfigPath(m.vs.kop.config, m.vs.kop.name) {
 		return
 	}
 	if err := m.writeKindGeneratedConfig(m.vs.kop); err != nil {
 		return
+	}
+	if old != "" && old != m.vs.kop.config && isKindGeneratedFile(old) {
+		_ = os.Remove(old)
 	}
 	setHelmField(m.dlg, "config", m.vs.kop.config)
 }
@@ -783,6 +818,12 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 		m.dlg.msg = "worker count cannot be negative"
 		return m, nil
 	}
+	if op.autoConfig || generatedKindConfigPath(op.config, op.name) {
+		if err := m.writeKindGeneratedConfig(op); err != nil && m.dlg != nil {
+			m.dlg.msg = err.Error()
+			return m, nil
+		}
+	}
 	if op.config != "" {
 		p := expandPath(op.config, "")
 		if st, err := os.Stat(p); err != nil || st.IsDir() {
@@ -790,6 +831,7 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		op.config = p
+		applyKindConfigToOp(op, p)
 		m.vs.kop = op
 	}
 	if len(op.charts) > 0 {
@@ -828,9 +870,8 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	}
 	if op.config != "" {
 		details = append(details, kindDetail("config", config.HomePath(op.config)))
-	} else {
-		details = append(details, kindDetail("nodes", topo))
 	}
+	details = append(details, kindDetail("nodes", topo))
 	if op.image != "" {
 		details = append(details, kindDetail("image", op.image))
 	}
@@ -840,6 +881,10 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	return m.ask(askSpec{
 		title: "✚ kind create", question: "create kind cluster " + op.name + "?", details: details, danger: true,
 		kind: "kind", name: op.name, running: "creating cluster " + op.name + "…",
+		onBack: func(m model) (tea.Model, tea.Cmd) {
+			m.reopenKindForm()
+			return m, nil
+		},
 		onYes: func(m model) (tea.Model, tea.Cmd) {
 			if m.kindJobs == nil {
 				m.kindJobs = map[string]*kindJob{}
@@ -885,6 +930,8 @@ func (m model) kindCreateStream(op kindOp) tea.Cmd {
 		f.Close()
 		configPath = f.Name()
 		image = ""
+	} else if raw, err := os.ReadFile(configPath); err == nil {
+		image = kube.KindCreateImage(string(raw), op.image)
 	}
 	if err := os.MkdirAll(filepath.Dir(op.kubeconfig), 0o700); err != nil {
 		return func() tea.Msg { return kindRunMsg{pane: pane, err: err, op: op} }
@@ -1658,6 +1705,10 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	return m.ask(askSpec{
 		title: "▦ charts", question: "apply chart changes on " + op.name + "?", details: details, danger: true,
 		kind: "kind", name: op.name, running: "updating charts on " + op.name + "…",
+		onBack: func(m model) (tea.Model, tea.Cmd) {
+			m.reopenKindForm()
+			return m, nil
+		},
 		onYes: func(m model) (tea.Model, tea.Cmd) {
 			if m.kindJobs == nil {
 				m.kindJobs = map[string]*kindJob{}
@@ -1676,6 +1727,41 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 			return m, m.startKindCharts(op, "")
 		},
 	}), nil
+}
+
+func applyKindConfigToOp(op *kindOp, path string) {
+	if op == nil || path == "" {
+		return
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	info, err := kube.ParseKindConfig(string(raw))
+	if err != nil {
+		return
+	}
+	if info.Planes >= 1 {
+		op.planes = info.Planes
+	}
+	if info.Workers >= 0 {
+		op.workers = info.Workers
+	}
+	if info.Image != "" {
+		op.image = info.Image
+	}
+}
+
+func (m *model) applyKindConfigEdit() {
+	if m.vs.kop == nil {
+		return
+	}
+	m.vs.kop.edited = true
+	path := strings.TrimSpace(m.vs.kop.config)
+	if path == "" {
+		return
+	}
+	applyKindConfigToOp(m.vs.kop, expandPath(path, ""))
 }
 
 func (m model) editKindConfig() (tea.Model, tea.Cmd) {

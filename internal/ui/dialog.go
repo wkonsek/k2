@@ -33,6 +33,7 @@ type dialog struct {
 	details []string
 	danger  bool
 	onYes   func(m model) (tea.Model, tea.Cmd)
+	onBack  func(m model) (tea.Model, tea.Cmd)
 	seq     int
 	errAt   int
 	images  []imageField
@@ -116,6 +117,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.status = d.pendMsg
 			return m, m.runAction(d.pendMsg, cmd)
 		case km.No.Has(key):
+			if d.onBack != nil && confirmBackKey(key) {
+				return d.onBack(m)
+			}
 			if d.act == "confirm" {
 				m.dlg = nil
 				m.status = "cancelled"
@@ -418,7 +422,11 @@ func (m model) dialogBox(width int) string {
 			st = errStyle
 		}
 		lines = append(lines, st.Render(d.ask+"  "+m.yn()))
-		lines = append(lines, dimStyle.Render("default no · enter does nothing"))
+		foot := "default no · enter does nothing"
+		if d.onBack != nil {
+			foot += " · esc/q back"
+		}
+		lines = append(lines, dimStyle.Render(foot))
 	case d.act == "error":
 		lines = append(lines, keyStyle.Render("j/k")+dimStyle.Render(" scroll  ")+
 			keyStyle.Render(k.Submit.Short())+dimStyle.Render(" log  ")+
@@ -546,4 +554,8 @@ func (m model) withDialog(screen string) string {
 		y += (12 - h) / 2
 	}
 	return overlay(screen, lipgloss.NewStyle().Render(box), x, y)
+}
+
+func confirmBackKey(key string) bool {
+	return key == "esc" || key == "q"
 }

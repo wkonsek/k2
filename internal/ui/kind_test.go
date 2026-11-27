@@ -278,7 +278,7 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
 	view = ansi.Strip(m.View())
-	for _, want := range []string{kindDetail("cluster", "k2"), kindDetail("context", "kind-k2"), kindDetail("kubeconfig", "~/.kube/k2"), kindDetail("config", config.HomePath(kindConfigPath("k2")))} {
+	for _, want := range []string{kindDetail("cluster", "k2"), kindDetail("context", "kind-k2"), kindDetail("kubeconfig", "~/.kube/k2"), kindDetail("config", config.HomePath(kindConfigPath("k2"))), kindDetail("nodes", "1 control-plane")} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -332,7 +332,7 @@ func TestKindCreateCommandPrefillAndNamedKubeconfig(t *testing.T) {
 	view := ansi.Strip(m.View())
 	home := os.Getenv("HOME")
 	wantKC := kube.KindKubeconfig("lab", home)
-	for _, want := range []string{kindDetail("cluster", "lab"), kindDetail("config", config.HomePath(kindConfigPath("lab"))), kindDetail("kubeconfig", config.HomePath(wantKC)), "kindest/node:v1.31.0"} {
+	for _, want := range []string{kindDetail("cluster", "lab"), kindDetail("config", config.HomePath(kindConfigPath("lab"))), kindDetail("kubeconfig", config.HomePath(wantKC)), kindDetail("nodes", "3 control-planes, 2 workers"), "kindest/node:v1.31.0"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -341,6 +341,9 @@ func TestKindCreateCommandPrefillAndNamedKubeconfig(t *testing.T) {
 	got := kindCalls(f, "create cluster")
 	if len(got) != 1 || !strings.Contains(got[0], "--name lab") || !strings.Contains(got[0], "--kubeconfig "+wantKC) {
 		t.Fatalf("create args %v", got)
+	}
+	if strings.Contains(got[0], "--image") {
+		t.Fatalf("create should not pass --image when the config already sets it: %q", got[0])
 	}
 	if filepath.Base(wantKC) != "k2-lab" {
 		t.Fatalf("kubeconfig name %s", wantKC)
@@ -1578,14 +1581,14 @@ func TestKindCreateConfirmWrapsCharts(t *testing.T) {
 		trim := strings.TrimSpace(row)
 		if strings.Contains(trim, "metrics-server") || (strings.Contains(trim, "kafbat") && !strings.Contains(trim, "charts")) {
 			hit = row
-			idx := strings.Index(row, "metrics-server")
+			idx := kindDialogValueCol(row, "metrics-server")
 			if idx < 0 {
-				idx = strings.Index(row, "kafbat")
+				idx = kindDialogValueCol(row, "kafbat")
 			}
 			chartsIdx := -1
 			for _, r := range strings.Split(view, "\n") {
 				if strings.Contains(r, "sealed-secrets") && strings.Contains(r, "charts") {
-					chartsIdx = strings.Index(r, "sealed-secrets")
+					chartsIdx = kindDialogValueCol(r, "sealed-secrets")
 					break
 				}
 			}
@@ -1846,4 +1849,167 @@ func TestKindExtrasThrottleAndForceRefresh(t *testing.T) {
 	if m.kindExtrasAt.Equal(t0) {
 		t.Fatal("r should force extras")
 	}
+}
+
+func TestKindCreateGeneratedConfigSyncsWithWizard(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	path := helmFieldValue(m.dlg, "config")
+	if path != kindConfigPath("k2") {
+		t.Fatalf("config path %q", path)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := kube.ParseKindConfig(string(raw))
+	if err != nil || info.Planes != 1 || info.Workers != 0 {
+		t.Fatalf("initial %+v %v\n%s", info, err, raw)
+	}
+	setHelmField(m.dlg, "planes", "2")
+	setHelmField(m.dlg, "workers", "3")
+	setHelmField(m.dlg, "image", "kindest/node:v1.34.0")
+	m.refreshKindGeneratedConfig()
+	raw, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err = kube.ParseKindConfig(string(raw))
+	if err != nil || info.Planes != 2 || info.Workers != 3 || info.Image != "kindest/node:v1.34.0" {
+		t.Fatalf("updated %+v %v\n%s", info, err, raw)
+	}
+	setHelmField(m.dlg, "name", "lab")
+	m.refreshKindGeneratedConfig()
+	next := helmFieldValue(m.dlg, "config")
+	if next != kindConfigPath("lab") {
+		t.Fatalf("renamed path %q", next)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("old generated file still present: %v", err)
+	}
+	raw, err = os.ReadFile(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err = kube.ParseKindConfig(string(raw))
+	if err != nil || info.Planes != 2 || info.Workers != 3 || info.Image != "kindest/node:v1.34.0" {
+		t.Fatalf("renamed %+v %v\n%s", info, err, raw)
+	}
+}
+
+func TestKindCreateConfigEditReflectsInWizard(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m.kindNodeImages = []string{"kindest/node:v1.37.0", "kindest/node:v1.36.0", "kindest/node:v1.35.0"}
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	setHelmField(m.dlg, "workers", "2")
+	setHelmField(m.dlg, "image", "kindest/node:v1.37.0")
+	m.refreshKindGeneratedConfig()
+	path := helmFieldValue(m.dlg, "config")
+	text, err := kube.KindConfigYAML(1, 0, "kindest/node:v1.35.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	next, cmd := m.Update(kindConfigDoneMsg{})
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.act != "kindcreate" {
+		t.Fatalf("form %+v", m.dlg)
+	}
+	if helmFieldValue(m.dlg, "image") != "kindest/node:v1.35.0" {
+		t.Fatalf("image %q", helmFieldValue(m.dlg, "image"))
+	}
+	if helmFieldValue(m.dlg, "workers") != "0" {
+		t.Fatalf("workers %q", helmFieldValue(m.dlg, "workers"))
+	}
+	if helmFieldValue(m.dlg, "planes") != "1" {
+		t.Fatalf("planes %q", helmFieldValue(m.dlg, "planes"))
+	}
+	setHelmField(m.dlg, "workers", "1")
+	m.refreshKindGeneratedConfig()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := kube.ParseKindConfig(string(raw))
+	if err != nil || info.Planes != 1 || info.Workers != 1 || info.Image != "kindest/node:v1.35.0" {
+		t.Fatalf("resync %+v %v\n%s", info, err, raw)
+	}
+}
+
+func TestKindCreateConfirmBackAndCancel(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, nil)
+	m := appModel(t, f)
+	m = pressSettle(t, open(t, m, "kind"), "A")
+	setHelmField(m.dlg, "name", "lab")
+	setHelmField(m.dlg, "planes", "2")
+	setHelmField(m.dlg, "workers", "3")
+	setHelmField(m.dlg, "image", "kindest/node:v1.35.0")
+	m.refreshKindGeneratedConfig()
+	for i := range m.dlg.hfields {
+		if m.dlg.hfields[i].key == "c:metallb" {
+			m.dlg.hfields[i].on = true
+		}
+	}
+	next, cmd := m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	if m.dlg == nil || m.dlg.ask == "" || !strings.Contains(m.dlg.ask, "create kind cluster lab?") {
+		t.Fatalf("confirm %+v", m.dlg)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "esc/q back") || !strings.Contains(view, "default no") {
+		t.Fatalf("footer:\n%s", view)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.dlg == nil || m.dlg.act != "kindcreate" || m.dlg.ask != "" {
+		t.Fatalf("esc should return to the wizard: %+v", m.dlg)
+	}
+	if helmFieldValue(m.dlg, "name") != "lab" || helmFieldValue(m.dlg, "planes") != "2" || helmFieldValue(m.dlg, "workers") != "3" || helmFieldValue(m.dlg, "image") != "kindest/node:v1.35.0" {
+		t.Fatalf("fields name=%s planes=%s workers=%s image=%s", helmFieldValue(m.dlg, "name"), helmFieldValue(m.dlg, "planes"), helmFieldValue(m.dlg, "workers"), helmFieldValue(m.dlg, "image"))
+	}
+	on := false
+	for _, f := range m.dlg.hfields {
+		if f.key == "c:metallb" {
+			on = f.on
+		}
+	}
+	if !on {
+		t.Fatal("metallb should stay selected")
+	}
+	next, cmd = m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "q")
+	if m.dlg == nil || m.dlg.act != "kindcreate" || helmFieldValue(m.dlg, "name") != "lab" {
+		t.Fatalf("q should return to the wizard: %+v", m.dlg)
+	}
+	next, cmd = m.submitKindForm()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "n")
+	if m.dlg != nil {
+		t.Fatalf("n should cancel: %+v", m.dlg)
+	}
+	if m.status != "cancelled" {
+		t.Fatalf("status %q", m.status)
+	}
+	if len(kindCalls(f, "create cluster")) != 0 {
+		t.Fatal("cancelled create ran")
+	}
+}
+
+func kindDialogValueCol(row, value string) int {
+	i := strings.Index(row, value)
+	if i <= 0 {
+		return i
+	}
+	left := strings.LastIndex(row[:i], "│")
+	if left < 0 {
+		return i
+	}
+	return i - left
 }

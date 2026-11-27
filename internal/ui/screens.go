@@ -99,6 +99,7 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		cmd := m.applyKindDeleted(msg)
 		return m, cmd, true
 	case kindConfigDoneMsg:
+		m.applyKindConfigEdit()
 		m.reopenKindForm()
 		if m.vs.kop != nil && m.vs.kop.config != "" {
 			m.status = "config " + config.HomePath(m.vs.kop.config)

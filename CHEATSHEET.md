@@ -327,11 +327,13 @@ in the list; `enter` still opens the log.
 
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
 a prefilled generated config path, node image, starter-chart checkboxes).
-`ctrl+e` on the config field opens that YAML in `$EDITOR`, or type your
-own path. The image field lists the five latest stable `kindest/node`
+`ctrl+e` on the config field opens that YAML in `$EDITOR` (edits to
+node counts and image flow back into the form, and form changes keep
+the generated file in sync), or type your own path. The image field lists the five latest stable `kindest/node`
 tags under the input (`tab` / `shift+tab` cycle, or type a custom
 image). `v` on a catalog chart edits its values in `$EDITOR` and
-passes them to Helm. Enter asks in a red popup, then streams `kind
+passes them to Helm. Enter asks in a red popup (`esc`/`q` back to the
+form, `n` cancels), then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
 charts (already-installed ones are checked); `v` edits values the same
 way, and enter confirms installs, value upgrades, and uninstalls (istio
