@@ -70,6 +70,9 @@ func (m *model) showOutput(msg kOutMsg) tea.Cmd {
 	m.logAt = 0
 	m.stage = "kout"
 	m.status = fmt.Sprintf("exit %d · %s · %s", msg.code, outcome, elapsed(took))
+	if m.askMissingNS(msg) {
+		return nil
+	}
 	return m.runToast(verb, msg)
 }
 

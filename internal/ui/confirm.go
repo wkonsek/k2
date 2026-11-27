@@ -234,7 +234,7 @@ func (m model) runKust(verb, dir string) (tea.Model, tea.Cmd) {
 	m.logAt = 0
 	m.stage = "kout"
 	m.status = verb + " " + config.HomePath(dir)
-	spin := m.startLoad(map[string]string{"apply": "applying", "delete": "deleting"}[verb], false)
+	spin := m.startLoad(map[string]string{"apply": "applying", "delete": "deleting", "diff": "diffing"}[verb], false)
 	return m, tea.Batch(spin, m.kustomizeCmd(verb, dir))
 }
 

@@ -211,6 +211,7 @@ func TestReportFailedWording(t *testing.T) {
 		{Report{Verb: "diff", Text: "error: a\nerror: b", Code: 1 + 1}, []string{"diff failed — see errors above", "✗ 2 errors"}, []string{"no differences"}},
 		{Report{Verb: "diff", Text: "", Code: 0}, []string{"no differences"}, []string{"failed"}},
 		{Report{Verb: "diff", Text: "something", Code: 1}, []string{"differences found"}, []string{"no differences", "failed"}},
+		{Report{Verb: "diff", Text: `Error from server (NotFound): namespaces "cluster1" not found`, Code: 1}, []string{"✗ diff failed — see error above", "── exit 1 · failed ──"}, []string{"differences found"}},
 		{Report{Verb: "apply", Text: e1, Code: 1}, []string{"✗ apply failed — see error above", "nothing applied"}, []string{"0 objects", "applied 0"}},
 		{Report{Verb: "apply", Text: "deployment.apps/web created\nerror: x", Code: 1}, []string{"apply failed", "+ 1 created", "1 object applied before it failed"}, []string{"0 objects"}},
 		{Report{Verb: "apply", Text: "deployment.apps/web created\nservice/web created", Code: 0}, []string{"+ 2 created", "2 objects"}, []string{"failed"}},
@@ -232,5 +233,33 @@ func TestReportFailedWording(t *testing.T) {
 	}
 	if Classify(warn) != Warning || Classify(e1) != Error {
 		t.Fatal("kustomize's # comments are not classified")
+	}
+}
+
+func TestMissingNamespaces(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{`Error from server (NotFound): namespaces "cluster1" not found`, "cluster1"},
+		{
+			"Error from server (NotFound): namespaces \"a\" not found\n" +
+				"Error from server (NotFound): namespaces \"a\" not found\n" +
+				"Error from server (NotFound): namespaces \"b\" not found\n" +
+				"Error from server (NotFound): namespaces \"a\" not found",
+			"a,b",
+		},
+		{`Error from server (NotFound): pods "web" not found`, ""},
+		{`Error from server (NotFound): configmaps "cfg" not found`, ""},
+		{"error: accumulating resources: boom", ""},
+		{"", ""},
+		{"no differences", ""},
+		{"\x1b[31mError from server (NotFound): namespaces \"shop\" not found\x1b[0m", "shop"},
+	}
+	for _, c := range cases {
+		got := strings.Join(MissingNamespaces(c.in), ",")
+		if got != c.want {
+			t.Errorf("MissingNamespaces(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

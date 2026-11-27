@@ -198,6 +198,17 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.withPane(msg.id, func() { cmd = m.showOutput(msg) })
 		}
 		return m, cmd
+	case nsCreatedMsg:
+		var cmd tea.Cmd
+		apply := func() {
+			var next tea.Model
+			next, cmd = m.applyNSCreated(msg)
+			m = next.(model)
+		}
+		if msg.pane == "" || !m.withPane(msg.pane, apply) {
+			apply()
+		}
+		return m, cmd
 	case kScanMsg:
 		if msg.root != m.kroot {
 			return m, nil

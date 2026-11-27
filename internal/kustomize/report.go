@@ -357,15 +357,43 @@ var csi = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 var dyffChange = regexp.MustCompile(`(?m)(?:\[\d+ lines? unchanged\)?\]|[±⇆]|^\s*[+\-±⇆] (?:value change|content change|whitespace only change|certificate change|order changed|.+ (?:added|removed):))`)
 
+var missingNSRe = regexp.MustCompile(`namespaces "([^"]+)" not found`)
+
+func MissingNamespaces(text string) []string {
+	plain := csi.ReplaceAllString(text, "")
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range missingNSRe.FindAllStringSubmatch(plain, -1) {
+		name := m[1]
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
+}
+
 func DiffOutcome(text string, code int) string {
 	switch {
 	case code > 1:
+		return "failed"
+	case code == 1 && !looksLikeDiff(text) && hasErrorLine(text):
 		return "failed"
 	case code == 1 || looksLikeDiff(text):
 		return "differences"
 	default:
 		return "done"
 	}
+}
+
+func hasErrorLine(text string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		if Classify(line) == Error {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeDiff(text string) bool {

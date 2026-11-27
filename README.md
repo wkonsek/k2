@@ -170,6 +170,8 @@ green square, and diffs, applies or deletes them.
   summary closes the run.
 - Diffs get one bold header per resource. From the diff, `A` asks, then
   applies the same kustomization and shows the apply progress in place.
+- If a diff or apply fails because a namespace is missing, k2 asks to
+  create it (`y`) and re-runs. Read-only mode (`R`) just leaves the error.
 
 ![Kustomize diff, apply and delete with live output](docs/demo/kustomize.gif)
 
@@ -551,9 +553,11 @@ list. k2 keeps running. `editor.open_folder` sets the command (default
 `A` apply, `D` diff, `ctrl+d` delete act on a green-square row or a plain
 YAML file. Apply and delete ask first, naming the path, context and
 object count. From a diff, `A` applies that same kustomization. After a
-delete k2 shows `waiting for N to terminate…`. The summary ends with
-`── exit N · done|failed|differences ──`, and the cursor stays on the
-same entry across runs and rescans.
+delete k2 shows `waiting for N to terminate…`. If a diff or apply fails
+because a namespace does not exist, a popup offers to create it and
+re-run (`y`; default no). Read-only mode skips that and leaves the
+error. The summary ends with `── exit N · done|failed|differences ──`,
+and the cursor stays on the same entry across runs and rescans.
 
 **kubectl view** (`U`). Runs any kubectl line against the pane's target.
 The prompt shows `◉ context · namespace` (red with ☠ on production) and
