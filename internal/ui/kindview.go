@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,8 +21,6 @@ const (
 	kindIconFailed     = "×"
 	kindIconActive     = "⬢"
 	kindIconIdle       = "⬡"
-	kindActiveWord     = "active"
-	kindIconNodes      = "▣"
 	kindIconKube       = "⊚"
 	kindIconCharts     = "▦"
 	kindIconStep       = "›"
@@ -30,7 +29,7 @@ const (
 	kindTileMaxW       = 44
 	kindTileGap        = 1
 	kindTileSafe       = 1
-	kindTileMinContent = 7
+	kindTileMinContent = 10
 	kindBarCells       = 5
 )
 
@@ -38,20 +37,6 @@ var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
 
 func kindLabel(icon, text string) string {
 	return icon + "  " + text
-}
-
-func kindActiveIconCol(icon string) string {
-	w := lipgloss.Width(kindActiveWord)
-	iw := lipgloss.Width(icon)
-	if iw < 1 {
-		iw = 1
-	}
-	safe := iw + kindTileSafe
-	left := (w - safe) / 2
-	if left < 0 {
-		left = 0
-	}
-	return strings.Repeat(" ", left) + icon
 }
 
 func kindJoinRight(left, right string, inner, reserve int) string {
@@ -96,6 +81,7 @@ type kindTile struct {
 	active, kcOK, usageOK, chartsOK      bool
 	nodes                                kube.KindNodes
 	usage                                kube.KindUsage
+	pods                                 kube.KindPods
 	charts                               []string
 	started                              time.Time
 	err                                  error
@@ -246,6 +232,9 @@ func (m model) kindTileFor(name string) kindTile {
 	}
 	if names, ok := m.kindCatalog[name]; ok {
 		t.charts, t.chartsOK = names, true
+	}
+	if p, ok := m.kindPods[name]; ok {
+		t.pods = p
 	}
 	if j := m.kindJobs[name]; j != nil && (j.status == "deploying" || j.status == "deleting" || j.status == "failed") {
 		t.status, t.step, t.last, t.started, t.err = j.status, j.step, j.last, j.started, j.err
@@ -398,22 +387,18 @@ func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
 	}
 	title := titleStyle.Render(name)
 	status := m.kindStatusLine(t, inner)
-	badgeW := lipgloss.Width(kindActiveWord)
-	icon, iconSt, word := kindIconIdle, dimStyle, ""
+	icon, iconSt := kindIconIdle, dimStyle
 	if t.active {
-		icon, iconSt, word = kindIconActive, keyStyle, kindActiveWord
+		icon, iconSt = kindIconActive, keyStyle
 	}
-	title = kindJoinRight(title, iconSt.Render(kindActiveIconCol(icon)), inner, badgeW)
-	status = kindJoinRight(status, keyStyle.Render(word), inner, badgeW)
+	iw := lipgloss.Width(icon)
+	if iw < 1 {
+		iw = 1
+	}
+	title = kindJoinRight(title, iconSt.Render(icon), inner, iw+kindTileSafe)
 	var lines []string
 	lines = append(lines, title, status)
-	if sum := t.nodes.Summary(); sum != "" {
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, ""))+itemStyle.Render(sum), inner))
-	} else if t.status == "deploying" || t.status == "deleting" {
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, "nodes coming up")), inner))
-	} else {
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, "no node info")), inner))
-	}
+	lines = append(lines, m.kindInfoLines(t, inner)...)
 	busy := t.status == "deploying" || t.status == "deleting"
 	switch {
 	case busy && t.step != "":
@@ -538,6 +523,35 @@ func kindMetricStyle(m model, pct float64) lipgloss.Style {
 		st = warnStyle
 	}
 	return st
+}
+
+func kindStatLine(label, value string, inner int) string {
+	pad := len("control-plane") + 2 - len(label)
+	if pad < 1 {
+		pad = 1
+	}
+	return clipLine(dimStyle.Render(label+strings.Repeat(" ", pad))+itemStyle.Render(value), inner)
+}
+
+func (m model) kindInfoLines(t kindTile, inner int) []string {
+	ver := t.nodes.Version
+	if ver == "" {
+		ver = "—"
+	}
+	cp, wr := t.nodes.Planes, t.nodes.Workers
+	if cp == 0 && wr == 0 && t.nodes.Total > 0 {
+		cp = t.nodes.Total
+	}
+	pods := "—"
+	if t.status == "running" && t.pods.OK {
+		pods = t.pods.Label()
+	}
+	return []string{
+		kindStatLine("k8s", ver, inner),
+		kindStatLine("control-plane", strconv.Itoa(cp), inner),
+		kindStatLine("workers", strconv.Itoa(wr), inner),
+		kindStatLine("pods", pods, inner),
+	}
 }
 
 func (m model) kindUsageLines(t kindTile, width int) []string {

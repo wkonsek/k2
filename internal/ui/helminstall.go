@@ -947,7 +947,11 @@ func (d *dialog) helmFormRows(inner int) []string {
 	for _, f := range d.hfields {
 		nameW = max(nameW, len(f.label))
 	}
-	nameW = min(nameW, max(8, inner/3))
+	cap := max(8, inner/3)
+	if d.act == "kindcreate" || d.act == "kindcharts" {
+		cap = max(cap, inner-20)
+	}
+	nameW = min(nameW, cap)
 	var out []string
 	for i, f := range d.hfields {
 		mark, st := "  ", dimStyle

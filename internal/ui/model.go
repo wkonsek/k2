@@ -353,9 +353,11 @@ type model struct {
 	kindJobs           map[string]*kindJob
 	kindUsage          map[string]kube.KindUsage
 	kindCatalog        map[string][]string
+	kindPods           map[string]kube.KindPods
 	kindNodeImages     []string
 	kindUsageBusy      bool
 	kindCatalogBusy    bool
+	kindPodsBusy       bool
 	kindNodeImagesBusy bool
 }
 

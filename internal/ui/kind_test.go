@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -105,6 +106,15 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 				return shell.OK("ok")
 			}
 		case "kubectl":
+			if (strings.Contains(line, "get pods") || strings.HasPrefix(line, "get pods")) && strings.Contains(line, "--no-headers") {
+				ctx := "k2"
+				for i, a := range r.Args {
+					if a == "--context" && i+1 < len(r.Args) {
+						ctx = r.Args[i+1]
+					}
+				}
+				return shell.OK(kindFakePodTable(strings.TrimPrefix(ctx, "kind-")))
+			}
 			if strings.Contains(line, "label") && strings.Contains(line, "namespace") {
 				return shell.OK("namespace/metallb-system labeled")
 			}
@@ -117,6 +127,22 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 		}
 		return parent(r)
 	}}
+}
+
+func kindFakePodTable(name string) string {
+	ready, total := 14, 14
+	if name == "dev" {
+		ready, total = 12, 14
+	}
+	var b strings.Builder
+	for i := 0; i < total; i++ {
+		frac := "1/1"
+		if i >= ready {
+			frac = "0/1"
+		}
+		b.WriteString("ns  pod-" + name + "-" + strconv.Itoa(i) + "  " + frac + "  Running  0  1h\n")
+	}
+	return b.String()
 }
 
 func selectKindTile(t *testing.T, m model, name string) model {
@@ -168,18 +194,18 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "active", "running", "up 1h", "1 cp", "0 workers", "v1.33.1", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconIdle, kindIconSel} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "running", "up 1h", "k8s", "v1.33.1", "control-plane", "workers", "pods", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconKube, kindIconActive, kindIconIdle, kindIconSel} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
 	}
-	for _, want := range []string{kindIconNodes + "  1 cp", kindIconKube + "  ~/.kube/k2"} {
+	for _, want := range []string{"k8s            v1.33.1", "control-plane  1", "workers        0", "pods           14", kindIconKube + "  ~/.kube/k2"} {
 		if !strings.Contains(view, want) {
-			t.Fatalf("icon spacing lacks %q:\n%s", want, view)
+			t.Fatalf("tile lines lack %q:\n%s", want, view)
 		}
 	}
-	if strings.Contains(view, "ACTIVE") {
-		t.Fatalf("active label should be lowercase:\n%s", view)
+	if strings.Contains(view, "active") || strings.Contains(view, "ACTIVE") || strings.Contains(view, "1 cp") {
+		t.Fatalf("old compact node line or active word still present:\n%s", view)
 	}
 	if strings.Contains(view, "●") || strings.Contains(view, "○") {
 		t.Fatalf("still using round status dots:\n%s", view)
@@ -717,8 +743,8 @@ func TestKindSelectedBorderDiffersFromActive(t *testing.T) {
 	if !strings.Contains(view, kindIconSel+"  dev") {
 		t.Fatalf("missing selection marker:\n%s", view)
 	}
-	if !strings.Contains(view, "active") || !strings.Contains(view, kindIconActive) || strings.Contains(view, kindIconSel+"  k2") {
-		t.Fatalf("active badge should stay on k2 without the cursor mark:\n%s", view)
+	if !strings.Contains(view, kindIconActive) || strings.Contains(view, kindIconSel+"  k2") {
+		t.Fatalf("active hexagon should stay on k2 without the cursor mark:\n%s", view)
 	}
 	if !strings.Contains(view, kindIconIdle) {
 		t.Fatalf("unselected tile should show the idle hexagon:\n%s", view)
@@ -756,10 +782,15 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	m.kindCatalog = map[string][]string{"k2": {"metallb", "argocd"}}
 	m.stage = "kind"
 	view := ansi.Strip(m.kindBody(80))
-	for _, want := range []string{kindIconRunning, "running · up 2h", "CPU  4.2%", "■□□□□", "RAM  1.4 GiB (40%)", "■■□□□", kindIconCharts + "  metallb, argocd"} {
+	for _, want := range []string{kindIconRunning, "running · up 2h", "k8s            v1.33.1", "control-plane  1", "workers        0", "pods           —", "CPU  4.2%", "■□□□□", "RAM  1.4 GiB (40%)", "■■□□□", kindIconCharts + "  metallb, argocd"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tile lacks %q:\n%s", want, view)
 		}
+	}
+	m.kindPods = map[string]kube.KindPods{"k2": {Running: 12, Total: 14, OK: true}}
+	view = ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, "pods           12/14") {
+		t.Fatalf("ready/total pods:\n%s", view)
 	}
 	m.kindCatalog["k2"] = nil
 	view = ansi.Strip(m.kindBody(80))
@@ -769,7 +800,7 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	m.vs.kindNodes["k2"] = kube.KindNodes{Planes: 1, Running: 0, Total: 1, Version: "v1.33.1"}
 	m.kindUsage = nil
 	view = ansi.Strip(m.kindBody(80))
-	if !strings.Contains(view, kindIconStopped) || !strings.Contains(view, "stopped") || !strings.Contains(view, "CPU  —") || !strings.Contains(view, "RAM  —") {
+	if !strings.Contains(view, kindIconStopped) || !strings.Contains(view, "stopped") || !strings.Contains(view, "CPU  —") || !strings.Contains(view, "RAM  —") || !strings.Contains(view, "pods           —") {
 		t.Fatalf("stopped tile:\n%s", view)
 	}
 }
@@ -1154,12 +1185,15 @@ func TestKindActiveBadgeCorner(t *testing.T) {
 			t.Fatalf("line width %d want %d: %q", ansi.StringWidth(line), inner, line)
 		}
 	}
-	badgeW := ansi.StringWidth(kindActiveWord)
-	if widthSuffix(a1, badgeW) != kindActiveWord {
-		t.Fatalf("active word not under the icon:\n%q\n%q", a0, a1)
+	badgeW := ansi.StringWidth(kindIconActive) + kindTileSafe
+	if widthSuffix(a0, badgeW) != kindIconActive+" " {
+		t.Fatalf("filled hexagon should sit one space from the right border:\n%q", a0)
 	}
-	if !strings.Contains(widthSuffix(a0, badgeW), kindIconActive) {
-		t.Fatalf("filled hexagon not in the top-right:\n%q", a0)
+	if widthSuffix(i0, badgeW) != kindIconIdle+" " {
+		t.Fatalf("idle hexagon should sit one space from the right border:\n%q", i0)
+	}
+	if strings.Contains(a1, kindIconActive) || strings.Contains(a1, "active") || strings.Contains(i1, kindIconIdle) || strings.Contains(i1, "active") {
+		t.Fatalf("status line should not carry the badge:\n%q\n%q", a1, i1)
 	}
 	if strings.Contains(a0, longName) {
 		t.Fatalf("long name should truncate to leave room for the badge:\n%q", a0)
@@ -1167,19 +1201,102 @@ func TestKindActiveBadgeCorner(t *testing.T) {
 	if !strings.Contains(a0, "…") {
 		t.Fatalf("long name should show an ellipsis:\n%q", a0)
 	}
-	if !strings.Contains(widthSuffix(i0, badgeW), kindIconIdle) {
-		t.Fatalf("idle hexagon not in the top-right:\n%q", i0)
-	}
-	if strings.Contains(i1, kindActiveWord) || strings.Contains(i0, kindIconActive) {
-		t.Fatalf("idle tile should not show the active badge:\n%q\n%q", i0, i1)
+	if strings.Contains(i0, kindIconActive) {
+		t.Fatalf("idle tile should not show the filled hexagon:\n%q", i0)
 	}
 	view := ansi.Strip(m.kindBody(80))
-	if strings.Contains(view, "ACTIVE") {
-		t.Fatalf("uppercase ACTIVE:\n%s", view)
+	if strings.Contains(view, "active") || strings.Contains(view, "ACTIVE") {
+		t.Fatalf("active word should be gone:\n%s", view)
 	}
 	for i, line := range strings.Split(view, "\n") {
 		if got := ansi.StringWidth(line); got > 80 {
 			t.Fatalf("body line %d is %d wide:\n%s", i, got, line)
 		}
+	}
+}
+
+func TestKindPodsCmdAndCleanup(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2", "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"k2", "dev"} {
+		path := kube.KindKubeconfig(name, home)
+		if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m.kubeconfig, m.context = kube.KindKubeconfig("k2", home), kube.KindContext("k2")
+	m = open(t, m, "kind")
+	if m.kindPods["k2"].Label() != "14" || m.kindPods["dev"].Label() != "12/14" {
+		t.Fatalf("pods %+v", m.kindPods)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "pods           14") || !strings.Contains(view, "pods           12/14") {
+		t.Fatalf("tile pods:\n%s", view)
+	}
+	var saw bool
+	for _, c := range f.Calls() {
+		if c.Name == "kubectl" && strings.Contains(strings.Join(c.Args, " "), "get pods") && strings.Contains(strings.Join(c.Args, " "), "--no-headers") {
+			saw = true
+			line := strings.Join(c.Args, " ")
+			if !strings.Contains(line, "--kubeconfig") || !strings.Contains(line, "--context") {
+				t.Fatalf("pod count args %q", line)
+			}
+		}
+	}
+	if !saw {
+		t.Fatal("expected a background pod-count fetch")
+	}
+	m.vs.kindNodes["k2"] = kube.KindNodes{Planes: 1, Running: 0, Total: 1, Version: "v1.33.1"}
+	m.applyKindPods(kindPodsMsg{pods: map[string]kube.KindPods{"dev": {Running: 12, Total: 14, OK: true}}})
+	if _, ok := m.kindPods["k2"]; ok {
+		t.Fatalf("stopped cluster still has pods %+v", m.kindPods)
+	}
+	if m.kindPods["dev"].Label() != "12/14" {
+		t.Fatalf("dev pods %+v", m.kindPods["dev"])
+	}
+}
+
+func TestKindFormFooterAndChartNames(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2"})
+	m := appModel(t, f)
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "A")
+	view := ansi.Strip(m.View())
+	assertKindFormFooter(t, view)
+	if !strings.Contains(view, "kube-prometheus-stack") {
+		t.Fatalf("chart name truncated:\n%s", view)
+	}
+	m = pressSettle(t, m, "esc")
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := kube.KindKubeconfig("k2", home)
+	if err := os.WriteFile(path, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig, m.context = path, kube.KindContext("k2")
+	m = open(t, m, "kind")
+	m = pressSettle(t, m, "e")
+	view = ansi.Strip(m.View())
+	assertKindFormFooter(t, view)
+	if !strings.Contains(view, "kube-prometheus-stack") {
+		t.Fatalf("charts form truncated:\n%s", view)
+	}
+}
+
+func assertKindFormFooter(t *testing.T, view string) {
+	t.Helper()
+	if strings.Contains(view, "canc\nel") || strings.Contains(view, "esc canc\n") {
+		t.Fatalf("footer split mid-word:\n%s", view)
+	}
+	if !strings.Contains(view, "cancel") {
+		t.Fatalf("footer missing cancel:\n%s", view)
 	}
 }

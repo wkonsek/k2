@@ -448,13 +448,20 @@ the helm CLI (`helm.binary`) and ask in a red popup. Read-only mode (`R`)
 blocks all four.
 
 **Kind** (`:kind`, `~`, `:kind create [name]`). A tile grid of clusters
-from `kind get clusters`, plus node counts and Kubernetes version from
-`docker ps` (control-plane / worker labels), uptime, CPU percent and bar
-plus RAM usage, percent and bar from `docker stats` (cluster `MemPerc`
-is the sum of the node containers), installed catalog charts (wrapped
-onto extra lines, with every tile in a row sharing the same height), and
-the kubeconfig path. Status uses square icons (`■` running, `□`
-stopped). The active cluster shows a filled hexagon (`⬢`) in the top-right corner with `active` on the line below; other tiles show an empty hexagon (`⬡`). `A` opens the
+from `kind get clusters`. Each tile keeps Kubernetes version, control-plane
+count, worker count and a pod count on their own lines (so the version
+never has to share a row or truncate). Node counts and the version come
+from `docker ps` (control-plane / worker labels). Pod counts are fetched
+in the background per running cluster (`kubectl get pods -A`, shown as
+`14` when every pod is ready or `12/14` otherwise, and `—` while loading
+or if the cluster is stopped). Uptime, CPU percent and bar plus RAM usage,
+percent and bar come from `docker stats` (cluster `MemPerc` is the sum of
+the node containers), plus installed catalog charts (wrapped onto extra
+lines, with every tile in a row sharing the same height), and the
+kubeconfig path. Status uses square icons (`■` running, `□` stopped).
+The active cluster shows a filled hexagon (`⬢`) in the top-right corner
+of the name line, one space from the border; other tiles show an empty
+hexagon (`⬡`). `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The
 image field defaults to the newest of the five latest stable
 `kindest/node` tags fetched from Docker Hub; `←` `→` cycle those tags or

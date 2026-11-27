@@ -38,6 +38,10 @@ func (m *model) kindExtrasCmds() tea.Cmd {
 		m.kindCatalogBusy = true
 		cmds = append(cmds, m.kindCatalogCmd())
 	}
+	if !m.kindPodsBusy {
+		m.kindPodsBusy = true
+		cmds = append(cmds, m.kindPodsCmd())
+	}
 	if len(cmds) == 0 {
 		return nil
 	}
@@ -151,5 +155,61 @@ func (m *model) applyKindCatalog(msg kindCatalogMsg) {
 	}
 	for name, charts := range msg.charts {
 		m.kindCatalog[name] = charts
+	}
+}
+
+type kindPodsMsg struct {
+	pods map[string]kube.KindPods
+}
+
+func (m model) kindPodsCmd() tea.Cmd {
+	k := m.k
+	var targets []kindCatalogTarget
+	seen := map[string]bool{}
+	add := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		t := m.kindTileFor(name)
+		if t.status != "running" || !t.kcOK {
+			return
+		}
+		seen[name] = true
+		targets = append(targets, kindCatalogTarget{name: name, kubeconfig: t.kubeconfig})
+	}
+	for _, name := range m.vs.kindNames {
+		add(name)
+	}
+	return func() tea.Msg {
+		out := map[string]kube.KindPods{}
+		for _, t := range targets {
+			raw, err := shell.Combined(k.Run, "kubectl", kube.KubectlPodCountArgs(t.kubeconfig, kube.KindContext(t.name))...)
+			if err != nil {
+				continue
+			}
+			out[t.name] = kube.ParsePodCounts(string(raw))
+		}
+		return kindPodsMsg{pods: out}
+	}
+}
+
+func (m *model) applyKindPods(msg kindPodsMsg) {
+	m.kindPodsBusy = false
+	if msg.pods == nil {
+		return
+	}
+	if m.kindPods == nil {
+		m.kindPods = map[string]kube.KindPods{}
+	}
+	keep := map[string]bool{}
+	for name, p := range msg.pods {
+		m.kindPods[name] = p
+		keep[name] = true
+	}
+	for name := range m.kindPods {
+		t := m.kindTileFor(name)
+		if t.status != "running" || !t.kcOK || !keep[name] {
+			delete(m.kindPods, name)
+		}
 	}
 }
