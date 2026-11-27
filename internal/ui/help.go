@@ -331,7 +331,7 @@ func (m model) viewSection() []helpSection {
 		}
 	case "kind":
 		return []helpSection{{"Kind", []helpRow{
-			r(k.Select, "open pods on this cluster, or logs if it is still deploying"),
+			r(k.Select, "use this cluster, or open logs if it is still deploying"),
 			r(k.HelmInstall, "create a cluster"),
 			r(k.Edit, "add or remove catalog charts"),
 			r(k.Delete, "delete the cluster"),
@@ -341,7 +341,7 @@ func (m model) viewSection() []helpSection {
 	case "kindlog":
 		return []helpSection{{"Kind logs", []helpRow{
 			r(k.Back, "back to the cluster tiles (the job keeps running)"),
-			r(k.Select, "open pods on this cluster when it is ready"),
+			r(k.Select, "use this cluster when it is ready"),
 		}}}
 	case "helm":
 		rows := []helpRow{

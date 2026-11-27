@@ -168,7 +168,7 @@ func TestKindListView(t *testing.T) {
 		}
 	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter pods / logs", "^d delete", "e charts", "r refresh"} {
+	for _, want := range []string{"A create", "enter use / logs", "^d delete", "e charts", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -357,11 +357,9 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 	if m.kubeconfig != managed || m.context != "kind-lab" {
 		t.Fatalf("switch %s %s status %q", m.kubeconfig, m.context, m.status)
 	}
-	if m.stage != "workpods" {
-		t.Fatalf("enter should open pods, stage %s status %q", m.stage, m.status)
+	if m.stage != "kind" {
+		t.Fatalf("enter should stay on kind, stage %s status %q", m.stage, m.status)
 	}
-	m = open(t, m, "kind")
-	m = selectKindTile(t, m, "lab")
 	m = pressSettle(t, m, "ctrl+d")
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "delete kind cluster lab?") {
 		t.Fatalf("confirm %+v", m.dlg)

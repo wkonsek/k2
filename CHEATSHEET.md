@@ -321,7 +321,7 @@ the same live tile and log.
 |---|---|---|
 | `~` | `keys.kind` | open this view from anywhere |
 | `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move between tiles |
-| `enter` | `keys.select` | switch to a ready cluster and open its pods, or open logs of a deploying / failed / deleting one |
+| `enter` | `keys.select` | use a ready cluster in the pane, or open logs of a deploying / failed / deleting one |
 | `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
 | `e` | `keys.edit` | manage catalog charts on the selected cluster |
 | `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |
