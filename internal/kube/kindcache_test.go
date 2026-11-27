@@ -31,6 +31,11 @@ func TestRegistryProxyRunArgs(t *testing.T) {
 	p := testProxy("/data/kc")
 	want := []string{"run", "-d", "--name", "k2-registry-proxy", "--restart", "unless-stopped", "--network", "kind",
 		"-e", "ENABLE_MANIFEST_CACHE=true", "-e", "REGISTRIES=registry.k8s.io gcr.io quay.io ghcr.io",
+		"-e", "SEND_TIMEOUT=1200s", "-e", "CLIENT_BODY_TIMEOUT=1200s", "-e", "CLIENT_HEADER_TIMEOUT=1200s",
+		"-e", "KEEPALIVE_TIMEOUT=1200s", "-e", "PROXY_READ_TIMEOUT=1200s", "-e", "PROXY_CONNECT_TIMEOUT=1200s",
+		"-e", "PROXY_SEND_TIMEOUT=1200s", "-e", "PROXY_CONNECT_READ_TIMEOUT=1200s",
+		"-e", "PROXY_CONNECT_CONNECT_TIMEOUT=1200s", "-e", "PROXY_CONNECT_SEND_TIMEOUT=1200s",
+		"-e", "PROXY_REQUEST_BUFFERING=false",
 		"-v", "/data/kc/cache:/docker_mirror_cache", "-v", "/data/kc/ca:/ca", "rpardini/docker-registry-proxy:0.8.0"}
 	if got := RegistryProxyRunArgs(p); !reflect.DeepEqual(got, want) {
 		t.Fatalf("args\n%v\n%v", got, want)
