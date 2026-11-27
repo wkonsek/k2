@@ -1,6 +1,9 @@
 package kube
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestParseKindNodes(t *testing.T) {
 	out := "k2\tcontrol-plane\tkindest/node:v1.33.1\trunning\tUp 2 hours\tidk2aaaaaaaa\n" +
@@ -18,6 +21,17 @@ func TestParseKindNodes(t *testing.T) {
 	}
 	if k2.Uptime != "up 2h" || len(k2.Containers) != 1 || k2.Containers[0] != "idk2aaaaaaaa" {
 		t.Fatalf("k2 uptime/containers %+v", k2)
+	}
+	at := time.Date(2026, 11, 27, 18, 0, 0, 0, time.UTC)
+	timed := ParseKindNodesAt(out, at)
+	if got := at.Sub(timed["k2"].StartedAt); got != 2*time.Hour {
+		t.Fatalf("k2 startedAt age %s", got)
+	}
+	if got := at.Sub(timed["lab"].StartedAt); got != 5*time.Minute {
+		t.Fatalf("lab startedAt age %s", got)
+	}
+	if !timed["dead"].StartedAt.IsZero() {
+		t.Fatalf("dead startedAt %v", timed["dead"].StartedAt)
 	}
 	lab := got["lab"]
 	if lab.Planes != 1 || lab.Workers != 2 || lab.Running != 2 || lab.Total != 3 || lab.Version != "v1.31.0" {
@@ -83,5 +97,50 @@ func TestDockerControlPlaneLogsArgs(t *testing.T) {
 	args := DockerControlPlaneLogsArgs("lab")
 	if len(args) != 5 || args[0] != "logs" || args[1] != "--tail" || args[2] != "200" || args[3] != "-f" || args[4] != "lab-control-plane" {
 		t.Fatalf("%v", args)
+	}
+}
+
+func TestFormatKindUptime(t *testing.T) {
+	cases := map[time.Duration]string{
+		-time.Second:        "up 0s",
+		0:                   "up 0s",
+		time.Millisecond:    "up 0s",
+		59 * time.Second:    "up 59s",
+		time.Minute:         "up 1m",
+		59 * time.Minute:    "up 59m",
+		time.Hour:           "up 1h",
+		2 * time.Hour:       "up 2h",
+		47 * time.Hour:      "up 47h",
+		48 * time.Hour:      "up 2d",
+		3 * 24 * time.Hour:  "up 3d",
+		14 * 24 * time.Hour: "up 2w",
+		60 * 24 * time.Hour: "up 2mo",
+	}
+	for in, want := range cases {
+		if got := FormatKindUptime(in); got != want {
+			t.Errorf("FormatKindUptime(%v)=%q want %q", in, got, want)
+		}
+	}
+}
+
+func TestKeepKindStartedAt(t *testing.T) {
+	at := time.Date(2026, 11, 27, 18, 0, 0, 0, time.UTC)
+	old := at.Add(-59 * time.Minute)
+	derived := at.Add(-59 * time.Minute)
+	if got := KeepKindStartedAt(old, derived, at); !got.Equal(old) {
+		t.Fatalf("keep same-bucket %v", got)
+	}
+	later := at.Add(30 * time.Second)
+	derived2 := later.Add(-59 * time.Minute)
+	if got := KeepKindStartedAt(old, derived2, later); !got.Equal(old) {
+		t.Fatalf("refresh should keep the live clock %v want %v", got, old)
+	}
+	restart := at.Add(time.Minute)
+	fresh := restart.Add(-5 * time.Second)
+	if got := KeepKindStartedAt(old, fresh, restart); !got.Equal(fresh) {
+		t.Fatalf("restart should take the new start %v", got)
+	}
+	if got := KeepKindStartedAt(time.Time{}, derived, at); !got.Equal(derived) {
+		t.Fatalf("first observation %v", got)
 	}
 }

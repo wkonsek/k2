@@ -837,6 +837,48 @@ func TestKindUsageAndChartsOnTile(t *testing.T) {
 	}
 }
 
+func TestKindUptimeAdvancesWithoutRefresh(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2"})
+	m := appModel(t, f)
+	t0 := time.Date(2026, 11, 27, 18, 0, 0, 0, time.UTC)
+	oldNow := now
+	t.Cleanup(func() { now = oldNow })
+	now = func() time.Time { return t0 }
+	m = open(t, m, "kind")
+	n := m.vs.kindNodes["k2"]
+	if n.Running != 1 || n.StartedAt.IsZero() {
+		t.Fatalf("nodes %+v", n)
+	}
+	n.StartedAt = t0.Add(-59 * time.Second)
+	n.Uptime = "up 1h"
+	m.vs.kindNodes["k2"] = n
+	view := ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, "up 59s") {
+		t.Fatalf("want up 59s:\n%s", view)
+	}
+	if strings.Contains(view, "up 1h") {
+		t.Fatalf("stale docker uptime still shown:\n%s", view)
+	}
+	before := len(dockerCalls(f, "ps"))
+	if before == 0 {
+		t.Fatal("expected an initial docker ps")
+	}
+	now = func() time.Time { return t0.Add(time.Second) }
+	view = ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, "up 1m") || strings.Contains(view, "up 59s") {
+		t.Fatalf("want up 1m after 1s:\n%s", view)
+	}
+	now = func() time.Time { return t0.Add(time.Minute + time.Second) }
+	view = ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, "up 2m") || strings.Contains(view, "up 1m") {
+		t.Fatalf("want up 2m:\n%s", view)
+	}
+	if got := len(dockerCalls(f, "ps")); got != before {
+		t.Fatalf("docker ps ran again: %d -> %d", before, got)
+	}
+}
+
 func focusKindField(t *testing.T, m model, key string) model {
 	t.Helper()
 	if m.dlg == nil {

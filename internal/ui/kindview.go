@@ -542,6 +542,13 @@ func (m model) kindStatusIcon(status string) string {
 	}
 }
 
+func kindNodeUptime(n kube.KindNodes) string {
+	if !n.StartedAt.IsZero() {
+		return kube.FormatKindUptime(now().Sub(n.StartedAt))
+	}
+	return n.Uptime
+}
+
 func (m model) kindStatusLine(t kindTile, _ int) string {
 	icon, st, label := m.kindStatusIcon(t.status), okStyle, t.status
 	switch t.status {
@@ -557,8 +564,8 @@ func (m model) kindStatusLine(t kindTile, _ int) string {
 		st, label = errStyle, "failed"
 	default:
 		st, label = okStyle, "running"
-		if t.nodes.Uptime != "" {
-			label += " · " + t.nodes.Uptime
+		if up := kindNodeUptime(t.nodes); up != "" {
+			label += " · " + up
 		}
 	}
 	return st.Render(kindLabel(icon, label))

@@ -151,7 +151,7 @@ func kindListCmd(bin, docker string, run shell.Runner, pane string, token int) t
 		if docker != "" {
 			nout, nerr := shell.Combined(run, docker, kube.DockerKindNodesArgs()...)
 			if nerr == nil {
-				msg.nodes = kube.ParseKindNodes(string(nout))
+				msg.nodes = kube.ParseKindNodesAt(string(nout), now())
 			}
 		}
 		msg.kubeconfigs = kindKubeconfigMap(msg.names, run)
@@ -183,6 +183,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 		}
 		m.vs.kindNames = msg.names
 		if msg.nodes != nil {
+			kube.KeepKindStartedAts(m.vs.kindNodes, msg.nodes, now())
 			m.vs.kindNodes = msg.nodes
 		}
 		if msg.kubeconfigs != nil {
