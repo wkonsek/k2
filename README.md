@@ -204,7 +204,7 @@ checkboxes for starter charts. `v` on a chart edits its values in
 red popup confirms, then a `deploying` tile appears immediately and k2
 streams `kind create cluster` into a live log (`enter` to watch, `esc`
 back to the tiles). The kubeconfig is written to `~/.kube/k2` (or
-`~/.kube/k2-<name>`). Enter on a ready tile uses that cluster in the
+`~/.kube/k2-<name>`). `enter` or `space` on a ready card uses that cluster in the
 pane; `e` manages catalog charts. `ctrl+d` deletes the cluster and only
 that k2 kubeconfig file, never `~/.kube/config`. If that cluster was the
 active one and exactly one other kind cluster still has a kubeconfig, the
@@ -447,21 +447,24 @@ and `ctrl+d` uninstalls. Install, upgrade, rollback and uninstall need
 the helm CLI (`helm.binary`) and ask in a red popup. Read-only mode (`R`)
 blocks all four.
 
-**Kind** (`:kind`, `~`, `:kind create [name]`). A tile grid of clusters
-from `kind get clusters`. Each tile keeps Kubernetes version, control-plane
-count, worker count and a pod count on their own lines (so the version
-never has to share a row or truncate). Node counts and the version come
+**Kind** (`:kind`, `~`, `:kind create [name]`). A stack of full-width
+cluster cards from `kind get clusters` (`j`/`k`, arrows and tab move up
+and down; the list scrolls if there are more cards than fit). Each card
+keeps Kubernetes version, control-plane count, worker count and a pod
+count clearly labeled (so the version never has to share a cramped row
+or truncate). On a wide pane those facts sit on the left with CPU and RAM
+on the right; a narrow pane stacks them. Node counts and the version come
 from `docker ps` (control-plane / worker labels). Pod counts are fetched
 in the background per running cluster (`kubectl get pods -A`, shown as
 `14` when every pod is ready or `12/14` otherwise, and `—` while loading
 or if the cluster is stopped). Uptime, CPU percent and bar plus RAM usage,
 percent and bar come from `docker stats` (cluster `MemPerc` is the sum of
 the node containers), plus installed catalog charts (wrapped onto extra
-lines, with every tile in a row sharing the same height), and the
-kubeconfig path. Status uses square icons (`■` running, `□` stopped).
-The active cluster shows a filled hexagon (`⬢`) in the top-right corner
-of the name line, one space from the border; other tiles show an empty
-hexagon (`⬡`). `A` opens the
+lines) and the kubeconfig path. Status uses square icons (`■` running, `□`
+stopped). The active cluster shows a filled hexagon (`⬢`) in the top-right
+corner of the name line, one space from the border; other cards show an
+empty hexagon (`⬡`). `enter` or `space` uses a ready cluster in the pane
+(or opens logs of a deploying / failed one). `A` opens the
 create form (defaults: name `k2`, one control-plane, no workers). The
 image field defaults to the newest of the five latest stable
 `kindest/node` tags fetched from Docker Hub; `←` `→` cycle those tags or
@@ -480,7 +483,7 @@ tile opens that log (it follows the bottom unless you scroll up; `esc`
 returns to the grid without cancelling the job). On success the pane
 switches to `kind-<name>` and selected charts install one after another
 (Helm repos added first; MetalLB gets an IPAddressPool from the kind
-Docker network). Enter on a ready tile uses that cluster if its
+Docker network). `enter` or `space` on a ready card uses that cluster if its
 kubeconfig exists. `e` opens a checklist of catalog charts
 (already-installed ones are checked); `v` edits values the same way, and
 a red popup confirms installs, value upgrades of already-installed

@@ -302,18 +302,22 @@ one other kind cluster still has a kubeconfig, the pane switches to it.
 After MetalLB installs on a `kind-*` cluster, k2 applies an
 IPAddressPool + L2Advertisement from the kind Docker network subnet.
 
-Clusters show as a tile grid (name, square status, uptime, a Kubernetes
-version line, control-plane and worker counts, a background pod count,
-CPU percent + bar, RAM usage + percent + bar, installed catalog charts
-wrapped across lines, kubeconfig). The active cluster has a filled
-hexagon (`⬢`) in the top-right corner of the name line, one space from
-the border; other tiles show an empty hexagon (`⬡`). Tiles in the same
-row share a height. `r` refreshes the grid, including pod counts.
-A new cluster appears as a `deploying` tile as soon as create starts;
-`enter` opens a live log (auto-scrolls unless you move up; `esc` returns
-to the tiles while the job keeps running). On success the tile turns
-`running` and the pane switches to that cluster. Failed jobs stay on the
-grid; `enter` still opens the log.
+Clusters show as full-width cards stacked in one column (name, square
+status, uptime, a Kubernetes version line, control-plane and worker
+counts, a background pod count, CPU percent + bar, RAM usage + percent
++ bar, installed catalog charts wrapped across lines, kubeconfig). On a
+wide pane, k8s / nodes / pods sit on the left and CPU / RAM on the right;
+a narrow pane stacks those rows. The list scrolls if more cards are open
+than fit. The active cluster has a filled hexagon (`⬢`) in the top-right
+corner of the name line, one space from the border; other cards show an
+empty hexagon (`⬡`). `r` refreshes the list, including pod counts.
+A new cluster appears as a `deploying` card as soon as create starts;
+`enter` or `space` on a ready card uses that cluster in the pane, or
+opens a live log of a deploying / failed / deleting one (auto-scrolls
+unless you move up; `esc` returns to the cards while the job keeps
+running). On success the card turns `running` and the pane switches to
+that cluster. Failed jobs stay in the list; `enter` or `space` still
+opens the log.
 
 `A` or `:kind create [name]` opens a form (name, control-planes, workers,
 optional config YAML, node image, starter-chart checkboxes). The image
@@ -330,8 +334,8 @@ in reverse: istiod, then istio-base) with the same live tile and log.
 | Key | Config | What it does |
 |---|---|---|
 | `~` | `keys.kind` | open this view from anywhere |
-| `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move between tiles |
-| `enter` | `keys.select` | use a ready cluster in the pane, or open logs of a deploying / failed / deleting one |
+| `h` `j` `k` `l`, arrows, `tab` | `keys.left` / `keys.scroll_down` / `keys.scroll_up` | move up and down between cards |
+| `enter` or `space` | `keys.select` (and `space`) | use a ready cluster in the pane, or open logs of a deploying / failed / deleting one |
 | `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
 | `e` | `keys.edit` | manage catalog charts on the selected cluster |
 | `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup); blocked while that cluster is still deploying or deleting |

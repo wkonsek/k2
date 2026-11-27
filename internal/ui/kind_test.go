@@ -211,7 +211,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("still using round status dots:\n%s", view)
 	}
 	leg := ansi.Strip(m.legend())
-	for _, want := range []string{"A create", "enter use / logs", "^d delete", "e charts", "r refresh"} {
+	for _, want := range []string{"A create", "enter/space use / logs", "^d delete", "e charts", "r refresh"} {
 		if !strings.Contains(leg, want) {
 			t.Fatalf("legend lacks %q: %q", want, leg)
 		}
@@ -245,7 +245,7 @@ func TestKindCreateWizardAndStream(t *testing.T) {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
 	view = ansi.Strip(m.View())
-	for _, want := range []string{"cluster k2", "context kind-k2", "kubeconfig ~/.kube/k2", "1 control-plane"} {
+	for _, want := range []string{kindDetail("cluster", "k2"), kindDetail("context", "kind-k2"), kindDetail("kubeconfig", "~/.kube/k2"), kindDetail("nodes", "1 control-plane")} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -299,7 +299,7 @@ func TestKindCreateCommandPrefillAndNamedKubeconfig(t *testing.T) {
 	view := ansi.Strip(m.View())
 	home := os.Getenv("HOME")
 	wantKC := kube.KindKubeconfig("lab", home)
-	for _, want := range []string{"cluster lab", "3 control-planes, 2 workers", "kubeconfig " + config.HomePath(wantKC), "kindest/node:v1.31.0"} {
+	for _, want := range []string{kindDetail("cluster", "lab"), kindDetail("nodes", "3 control-planes, 2 workers"), kindDetail("kubeconfig", config.HomePath(wantKC)), "kindest/node:v1.31.0"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("confirm lacks %q:\n%s", want, view)
 		}
@@ -333,7 +333,7 @@ func TestKindCreateInstallsCatalogChartsAndMetalLB(t *testing.T) {
 	next, cmd := m.submitKindForm()
 	m = settle(t, next.(model), cmd)
 	view := ansi.Strip(m.View())
-	if !strings.Contains(view, "charts metallb") {
+	if !strings.Contains(view, kindDetail("charts", "metallb")) {
 		t.Fatalf("confirm lacks charts:\n%s", view)
 	}
 	m = pressSettle(t, m, "y")
@@ -408,10 +408,10 @@ func TestKindEnterUsesClusterAndDeleteRemovesManagedKubeconfig(t *testing.T) {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
 	view := ansi.Strip(m.View())
-	if !strings.Contains(view, "will remove ~/.kube/k2-lab") {
+	if !strings.Contains(view, kindDetail("will remove", "~/.kube/k2-lab")) {
 		t.Fatalf("confirm lacks managed path:\n%s", view)
 	}
-	if strings.Contains(view, "~/.kube/config") && strings.Contains(view, "will remove ~/.kube/config") {
+	if strings.Contains(view, "~/.kube/config") && strings.Contains(view, kindDetail("will remove", "~/.kube/config")) {
 		t.Fatalf("must not offer to remove ~/.kube/config:\n%s", view)
 	}
 	m = pressSettle(t, m, "y")
@@ -641,7 +641,7 @@ func TestKindChartsEditorAndLiveLogs(t *testing.T) {
 	if m.dlg == nil || !m.dlg.danger || !strings.Contains(m.dlg.ask, "apply chart changes") {
 		t.Fatalf("confirm %+v", m.dlg)
 	}
-	if !strings.Contains(ansi.Strip(m.View()), "install metallb") {
+	if !strings.Contains(ansi.Strip(m.View()), kindDetail("install", "metallb")) {
 		t.Fatalf("confirm lacks install:\n%s", ansi.Strip(m.View()))
 	}
 	m = pressSettle(t, m, "y")
@@ -820,7 +820,7 @@ func focusKindField(t *testing.T, m model, key string) model {
 	return m
 }
 
-func TestKindChartsWrapAndEqualRowHeight(t *testing.T) {
+func TestKindChartsWrapOnCard(t *testing.T) {
 	withKindCLIs(t)
 	f := kindFake(t, []string{"k2", "dev"})
 	m := appModel(t, f)
@@ -836,31 +836,27 @@ func TestKindChartsWrapAndEqualRowHeight(t *testing.T) {
 	if len(tiles) != 2 {
 		t.Fatalf("tiles %d", len(tiles))
 	}
-	cols := 2
-	tileW := kindTileWidth(80, cols)
+	tileW := kindCardWidth(80)
 	inner := max(8, tileW-2)
 	c1 := m.kindTileContent(tiles[0], false, inner)
 	c2 := m.kindTileContent(tiles[1], false, inner)
 	if len(c1) <= len(c2) {
 		t.Fatalf("expected wrapped charts to add lines: k2=%d dev=%d\n%q\n%q", len(c1), len(c2), c1, c2)
 	}
-	h := len(c1)
-	if h < kindTileMinContent {
-		h = kindTileMinContent
-	}
-	left := m.renderKindTile(tiles[0], false, tileW, h, c1)
-	right := m.renderKindTile(tiles[1], false, tileW, h, c2)
-	if strings.Count(left, "\n") != strings.Count(right, "\n") {
-		t.Fatalf("row height left=%d right=%d", strings.Count(left, "\n"), strings.Count(right, "\n"))
-	}
 	view := ansi.Strip(m.kindBody(80))
 	for _, name := range charts {
 		if !strings.Contains(view, name) {
-			t.Fatalf("wrapped tile missing %q:\n%s", name, view)
+			t.Fatalf("wrapped card missing %q:\n%s", name, view)
 		}
 	}
 	if strings.Contains(view, "…") {
 		t.Fatalf("catalog list should wrap, not ellipsize:\n%s", view)
+	}
+	if strings.Count(view, "╭") != 2 {
+		t.Fatalf("expected 2 stacked cards:\n%s", view)
+	}
+	if strings.Index(view, "kube-prometheus-stack") > strings.Index(view, "│dev") && strings.Contains(view, "│dev") {
+		t.Fatalf("k2 card should appear above dev:\n%s", view)
 	}
 }
 
@@ -997,7 +993,7 @@ func TestKindChartValuesUpgradeOnExisting(t *testing.T) {
 	next, cmd := m.submitKindCharts()
 	m = settle(t, next.(model), cmd)
 	view := ansi.Strip(m.View())
-	if m.dlg == nil || !strings.Contains(view, "upgrade metallb (values)") {
+	if m.dlg == nil || !strings.Contains(view, kindDetail("upgrade", "metallb (values)")) {
 		t.Fatalf("confirm:\n%s", view)
 	}
 	m = pressSettle(t, m, "y")
@@ -1171,7 +1167,7 @@ func TestKindActiveBadgeCorner(t *testing.T) {
 	if len(tiles) != 2 || !tiles[0].active || tiles[1].active {
 		t.Fatalf("tiles %+v", tiles)
 	}
-	tileW := kindTileWidth(80, 2)
+	tileW := kindCardWidth(40)
 	inner := max(8, tileW-2)
 	active := m.kindTileContent(tiles[0], true, inner)
 	idle := m.kindTileContent(tiles[1], false, inner)
@@ -1298,5 +1294,144 @@ func assertKindFormFooter(t *testing.T, view string) {
 	}
 	if !strings.Contains(view, "cancel") {
 		t.Fatalf("footer missing cancel:\n%s", view)
+	}
+}
+
+func TestKindCardsStackFullWidth(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2", "dev", "lab"})
+	m := appModel(t, f)
+	m.vs.kindNames = []string{"k2", "dev", "lab"}
+	nodes := kube.KindNodes{Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 2h"}
+	m.vs.kindNodes = map[string]kube.KindNodes{"k2": nodes, "dev": nodes, "lab": nodes}
+	m.stage = "kind"
+	view := ansi.Strip(m.kindBody(80))
+	k2At, devAt, labAt := strings.Index(view, "k2"), strings.Index(view, "dev"), strings.Index(view, "lab")
+	if k2At < 0 || devAt <= k2At || labAt <= devAt {
+		t.Fatalf("cards should stack k2, then dev, then lab:\n%s", view)
+	}
+	for i, line := range strings.Split(view, "\n") {
+		if !strings.Contains(line, kindIconIdle) && !strings.Contains(line, kindIconActive) {
+			continue
+		}
+		if strings.Contains(line, "k2") && strings.Contains(line, "dev") {
+			t.Fatalf("line %d still places two clusters side by side: %q", i, line)
+		}
+	}
+	wantW := kindCardWidth(80)
+	var top int
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "╭") {
+			top++
+			if got := ansi.StringWidth(line); got != wantW {
+				t.Fatalf("card top width %d want %d: %q", got, wantW, line)
+			}
+		}
+	}
+	if top != 3 {
+		t.Fatalf("expected 3 stacked cards, got %d:\n%s", top, view)
+	}
+}
+
+func TestKindCardsSplitAndNarrow(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2"})
+	m := appModel(t, f)
+	m.vs.kindNames = []string{"k2"}
+	m.vs.kindNodes = map[string]kube.KindNodes{"k2": {Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 2h"}}
+	m.kindUsage = map[string]kube.KindUsage{"k2": {CPU: 4.2, MemUsed: 1503238554, MemPct: 40, OK: true}}
+	m.kindCatalog = map[string][]string{"k2": {"metallb"}}
+	m.stage = "kind"
+	t.Helper()
+	wideInner := max(8, kindCardWidth(80)-2)
+	if wideInner < kindSplitMin {
+		t.Fatalf("wide inner %d", wideInner)
+	}
+	wide := m.kindTileContent(m.kindTiles()[0], true, wideInner)
+	var split bool
+	for _, line := range wide {
+		plain := ansi.Strip(line)
+		if strings.Contains(plain, "k8s") && strings.Contains(plain, "CPU") {
+			split = true
+			break
+		}
+	}
+	if !split {
+		t.Fatalf("wide card should put k8s and CPU on one line:\n%q", wide)
+	}
+	narrow := m.kindTileContent(m.kindTiles()[0], true, 40)
+	for _, line := range narrow {
+		plain := ansi.Strip(line)
+		if strings.Contains(plain, "k8s") && strings.Contains(plain, "CPU") {
+			t.Fatalf("narrow card should stack details, got %q", plain)
+		}
+	}
+}
+
+func TestKindCardsScrollKeepsSelectionVisible(t *testing.T) {
+	withKindCLIs(t)
+	names := []string{"alpha", "bravo", "charlie", "delta", "echo"}
+	f := kindFake(t, names)
+	m := appModel(t, f)
+	m.vs.kindNames = names
+	nodes := kube.KindNodes{Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 1h"}
+	m.vs.kindNodes = map[string]kube.KindNodes{}
+	for _, n := range names {
+		m.vs.kindNodes[n] = nodes
+	}
+	m.stage = "kind"
+	m.boxH = 12
+	m.vs.kindSel = 0
+	m.ensureKindVisible()
+	first := ansi.Strip(m.kindBody(80))
+	if !strings.Contains(first, "alpha") {
+		t.Fatalf("first card should be visible:\n%s", first)
+	}
+	m.selectKind("echo")
+	later := ansi.Strip(m.kindBody(80))
+	if !strings.Contains(later, "echo") {
+		t.Fatalf("selected card should be visible:\n%s", later)
+	}
+	if strings.Contains(later, "alpha") {
+		t.Fatalf("scrolled view should have moved past the first card:\n%s", later)
+	}
+}
+
+func TestKindSpaceUsesCluster(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"lab", "dev"})
+	m := appModel(t, f)
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, ".kube"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	labKC := kube.KindKubeconfig("lab", home)
+	if err := os.WriteFile(labKC, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.kubeconfig, m.context = "/kc", "kind-dev"
+	m = open(t, m, "kind")
+	m = selectKindTile(t, m, "lab")
+	m = pressSettle(t, m, " ")
+	if m.kubeconfig != labKC || m.context != "kind-lab" {
+		t.Fatalf("space switch %s %s status %q", m.kubeconfig, m.context, m.status)
+	}
+	if m.stage != "kind" {
+		t.Fatalf("space should stay on kind, stage %s", m.stage)
+	}
+}
+
+func TestKindDetailAlignsConfirmRows(t *testing.T) {
+	if got, want := kindDetail("install", "kafbat"), "install      kafbat"; got != want {
+		t.Fatalf("install %q want %q", got, want)
+	}
+	if got, want := kindDetail("cluster", "kindest"), "cluster      kindest"; got != want {
+		t.Fatalf("cluster %q want %q", got, want)
+	}
+	if got, want := kindDetail("kubeconfig", "~/.kube/config"), "kubeconfig   ~/.kube/config"; got != want {
+		t.Fatalf("kubeconfig %q want %q", got, want)
+	}
+	if kindDetail("will remove", "~/.kube/k2-lab") != "will remove  ~/.kube/k2-lab" {
+		t.Fatalf("will remove %q", kindDetail("will remove", "~/.kube/k2-lab"))
 	}
 }

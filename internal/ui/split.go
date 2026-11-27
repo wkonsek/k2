@@ -206,6 +206,7 @@ func (m *model) refit() {
 
 func (m *model) relayout() tea.Cmd {
 	m.refit()
+	m.ensureKindVisible()
 	return tea.Batch(m.refreshVisible()...)
 }
 

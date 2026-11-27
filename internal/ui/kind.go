@@ -185,7 +185,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 
 func (m model) kindHint() string {
 	k := m.cfg.Keys
-	return k.Select.Label() + " use / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
+	return k.Select.Label() + "/space use / logs, " + k.HelmInstall.Label() + " create, " + k.Edit.Label() + " charts, " + k.Delete.Label() + " delete"
 }
 
 func (m *model) showKind(pick string) {
@@ -203,6 +203,7 @@ func (m *model) showKind(pick string) {
 	if m.vs.kindSel >= len(tiles) {
 		m.vs.kindSel = len(tiles) - 1
 	}
+	m.ensureKindVisible()
 }
 
 func (m model) kindKubeconfigFor(name string) (string, bool) {
@@ -230,28 +231,27 @@ func (m model) kindKubeconfigFor(name string) (string, bool) {
 
 func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 	km := m.cfg.Keys
-	cols := m.kindColumns(m.tableWidth())
 	switch {
 	case key == "tab":
-		m.moveKind(1, cols)
+		m.moveKind(1)
 		return m, nil, true
 	case key == "shift+tab":
-		m.moveKind(-1, cols)
+		m.moveKind(-1)
 		return m, nil, true
 	case km.Left.Has(key) || key == "left" || key == "h":
-		m.moveKind(-1, cols)
+		m.moveKind(-1)
 		return m, nil, true
 	case key == "right":
-		m.moveKind(1, cols)
+		m.moveKind(1)
 		return m, nil, true
 	case key == "l" && !km.Submit.Has(key):
-		m.moveKind(1, cols)
+		m.moveKind(1)
 		return m, nil, true
 	case km.ScrollDown.Has(key):
-		m.moveKind(cols, cols)
+		m.moveKind(1)
 		return m, nil, true
 	case km.ScrollUp.Has(key):
-		m.moveKind(-cols, cols)
+		m.moveKind(-1)
 		return m, nil, true
 	case km.HelmInstall.Has(key) || km.Apply.Has(key):
 		next, cmd := m.openKindCreate(kindOp{name: "k2", planes: 1})
@@ -274,7 +274,7 @@ func (m model) kindKey(key string) (tea.Model, tea.Cmd, bool) {
 		}
 		next, cmd := m.askKindDelete(name)
 		return next, cmd, true
-	case km.Select.Has(key) && key != "l" && key != "right":
+	case key == " " || (km.Select.Has(key) && key != "l" && key != "right"):
 		next, cmd := m.enterKindTile()
 		return next, cmd, true
 	case km.Watch.Has(key):
@@ -579,6 +579,10 @@ func (m model) submitKindForm() (tea.Model, tea.Cmd) {
 	return m.askKindCreate(*op)
 }
 
+func kindDetail(label, value string) string {
+	return fmt.Sprintf("%-12s %s", label, value)
+}
+
 func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 	topo := strconv.Itoa(op.planes) + " control-plane"
 	if op.planes != 1 {
@@ -591,20 +595,20 @@ func (m model) askKindCreate(op kindOp) (tea.Model, tea.Cmd) {
 		}
 	}
 	details := []string{
-		"cluster " + op.name,
-		"context " + kube.KindContext(op.name),
-		"kubeconfig " + config.HomePath(op.kubeconfig),
+		kindDetail("cluster", op.name),
+		kindDetail("context", kube.KindContext(op.name)),
+		kindDetail("kubeconfig", config.HomePath(op.kubeconfig)),
 	}
 	if op.config != "" {
-		details = append(details, "config "+config.HomePath(op.config))
+		details = append(details, kindDetail("config", config.HomePath(op.config)))
 	} else {
-		details = append(details, topo)
+		details = append(details, kindDetail("nodes", topo))
 	}
 	if op.image != "" {
-		details = append(details, "image "+op.image)
+		details = append(details, kindDetail("image", op.image))
 	}
 	if len(op.charts) > 0 {
-		details = append(details, "charts "+strings.Join(op.charts, ", "))
+		details = append(details, kindDetail("charts", strings.Join(op.charts, ", ")))
 	}
 	return m.ask(askSpec{
 		title: "✚ kind create", question: "create kind cluster " + op.name + "?", details: details, danger: true,
@@ -1132,9 +1136,9 @@ func (m model) askKindDelete(name string) (tea.Model, tea.Cmd) {
 	}
 	home, _ := os.UserHomeDir()
 	managed := kube.KindKubeconfig(name, home)
-	details := []string{"cluster " + name, "context " + kube.KindContext(name)}
+	details := []string{kindDetail("cluster", name), kindDetail("context", kube.KindContext(name))}
 	if kube.ManagedKindKubeconfig(managed, name, home) {
-		details = append(details, "will remove "+config.HomePath(managed))
+		details = append(details, kindDetail("will remove", config.HomePath(managed)))
 	}
 	run := m.run
 	kc := m.kubeconfig
@@ -1411,15 +1415,15 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	m.vs.kop = &op
 	var details []string
 	if len(install) > 0 {
-		details = append(details, "install "+strings.Join(install, ", "))
+		details = append(details, kindDetail("install", strings.Join(install, ", ")))
 	}
 	if len(upgrade) > 0 {
-		details = append(details, "upgrade "+strings.Join(upgrade, ", ")+" (values)")
+		details = append(details, kindDetail("upgrade", strings.Join(upgrade, ", ")+" (values)"))
 	}
 	if len(uninstall) > 0 {
-		details = append(details, "uninstall "+strings.Join(uninstall, ", "))
+		details = append(details, kindDetail("uninstall", strings.Join(uninstall, ", ")))
 	}
-	details = append(details, "cluster "+op.name, "kubeconfig "+config.HomePath(op.kubeconfig))
+	details = append(details, kindDetail("cluster", op.name), kindDetail("kubeconfig", config.HomePath(op.kubeconfig)))
 	return m.ask(askSpec{
 		title: "▦ charts", question: "apply chart changes on " + op.name + "?", details: details, danger: true,
 		kind: "kind", name: op.name, running: "updating charts on " + op.name + "…",

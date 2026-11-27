@@ -87,6 +87,7 @@ type viewState struct {
 	kop       *kindOp
 	kindNames []string
 	kindSel   int
+	kindAt    int
 	kindLog   string
 	kindNodes map[string]kube.KindNodes
 	search    string

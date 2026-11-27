@@ -331,13 +331,13 @@ func (m model) viewSection() []helpSection {
 		}
 	case "kind":
 		return []helpSection{{"Kind", []helpRow{
-			r(k.Select, "use this cluster, or open logs if it is still deploying"),
+			{k.Select.Label() + " / space", "use this cluster, or open logs if it is still deploying"},
 			r(k.HelmInstall, "create a cluster"),
 			r(k.Edit, "add or remove catalog charts"),
 			r(k.HelmValues, "edit catalog chart values in the create or charts form"),
 			r(k.Delete, "delete the cluster"),
 			r(k.Watch, "refresh the list"),
-			{"↑↓←→ / h j k l / tab", "move between tiles"},
+			{"↑↓←→ / h j k l / tab", "move between clusters"},
 			{"←→", "cycle node images in the create form"},
 		}}}
 	case "kindlog":

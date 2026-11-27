@@ -14,23 +14,21 @@ import (
 )
 
 const (
-	kindIconRunning    = "■"
-	kindIconStopped    = "□"
-	kindIconDeploy     = "◧"
-	kindIconDelete     = "◨"
-	kindIconFailed     = "×"
-	kindIconActive     = "⬢"
-	kindIconIdle       = "⬡"
-	kindIconKube       = "⊚"
-	kindIconCharts     = "▦"
-	kindIconStep       = "›"
-	kindIconSel        = "▸"
-	kindTileMinW       = 28
-	kindTileMaxW       = 44
-	kindTileGap        = 1
-	kindTileSafe       = 1
-	kindTileMinContent = 10
-	kindBarCells       = 5
+	kindIconRunning = "■"
+	kindIconStopped = "□"
+	kindIconDeploy  = "◧"
+	kindIconDelete  = "◨"
+	kindIconFailed  = "×"
+	kindIconActive  = "⬢"
+	kindIconIdle    = "⬡"
+	kindIconKube    = "⊚"
+	kindIconCharts  = "▦"
+	kindIconStep    = "›"
+	kindIconSel     = "▸"
+	kindTileSafe    = 1
+	kindBarCells    = 5
+	kindSplitMin    = 54
+	kindStatGap     = 3
 )
 
 var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
@@ -62,18 +60,38 @@ func kindJoinRight(left, right string, inner, reserve int) string {
 	return left + strings.Repeat(" ", pad) + right
 }
 
-func kindTileWidth(innerW, cols int) int {
-	if cols < 1 {
-		cols = 1
-	}
-	w := (innerW - (cols-1)*kindTileGap - cols*kindTileSafe) / cols
+func kindCardWidth(innerW int) int {
+	w := innerW - kindTileSafe
 	if w < 1 {
-		w = 1
-	}
-	if w > kindTileMaxW {
-		w = kindTileMaxW
+		w = max(1, innerW)
 	}
 	return w
+}
+
+func kindStatColWidth(inner int) int {
+	w := len("control-plane") + 2 + 8
+	if cap := inner / 2; cap < w {
+		w = cap
+	}
+	if w < 16 {
+		w = min(16, max(8, inner-kindStatGap-12))
+	}
+	return w
+}
+
+func kindJoinCols(left, right string, leftW, inner int) string {
+	if inner < 1 {
+		return ""
+	}
+	if right == "" {
+		return clipLine(left, inner)
+	}
+	left = padPlain(clipLine(left, leftW), leftW)
+	room := inner - leftW - kindStatGap
+	if room < 1 {
+		return clipLine(left, inner)
+	}
+	return clipLine(left+strings.Repeat(" ", kindStatGap)+clipLine(right, room), inner)
 }
 
 type kindTile struct {
@@ -186,17 +204,6 @@ func kindStepName(line, verb string) string {
 	return "charts"
 }
 
-func (m model) kindColumns(width int) int {
-	n := 1
-	for c := 4; c >= 1; c-- {
-		if kindTileWidth(width, c) >= kindTileMinW {
-			n = c
-			break
-		}
-	}
-	return n
-}
-
 func (m model) kindTiles() []kindTile {
 	seen := map[string]bool{}
 	var tiles []kindTile
@@ -264,19 +271,17 @@ func (m *model) selectKind(name string) {
 	for i, t := range m.kindTiles() {
 		if t.name == name {
 			m.vs.kindSel = i
+			m.ensureKindVisible()
 			return
 		}
 	}
 }
 
-func (m *model) moveKind(delta, cols int) {
+func (m *model) moveKind(delta int) {
 	tiles := m.kindTiles()
 	n := len(tiles)
 	if n == 0 {
 		return
-	}
-	if cols < 1 {
-		cols = 1
 	}
 	i := m.vs.kindSel
 	if i < 0 || i >= n {
@@ -290,6 +295,82 @@ func (m *model) moveKind(delta, cols int) {
 		i = n - 1
 	}
 	m.vs.kindSel = i
+	m.ensureKindVisible()
+}
+
+func kindKeepVisible(starts, heights []int, sel, at, viewH int) int {
+	if viewH <= 0 || len(starts) == 0 {
+		return 0
+	}
+	last := len(starts) - 1
+	total := starts[last] + heights[last]
+	if total <= viewH {
+		return 0
+	}
+	if sel < 0 {
+		sel = 0
+	}
+	if sel > last {
+		sel = last
+	}
+	top, h := starts[sel], heights[sel]
+	bot := top + h
+	switch {
+	case h >= viewH:
+		at = top
+	case top < at:
+		at = top
+	case bot > at+viewH:
+		at = bot - viewH
+	}
+	if maxAt := total - viewH; at > maxAt {
+		at = maxAt
+	}
+	if at < 0 {
+		at = 0
+	}
+	return at
+}
+
+func (m model) kindViewHeight() int {
+	if m.boxH > 0 {
+		return m.boxH
+	}
+	_, h := m.paneBox(m.logID)
+	return max(h-2, 1)
+}
+
+func (m *model) ensureKindVisible() {
+	if m.stage != "kind" {
+		return
+	}
+	_, starts, heights := m.kindCardBlocks(m.tableWidth())
+	m.vs.kindAt = kindKeepVisible(starts, heights, m.vs.kindSel, m.vs.kindAt, m.kindViewHeight())
+}
+
+func (m model) kindCardBlocks(innerW int) (blocks []string, starts, heights []int) {
+	tiles := m.kindTiles()
+	tileW := kindCardWidth(innerW)
+	sel := m.vs.kindSel
+	if sel < 0 || sel >= len(tiles) {
+		sel = 0
+	}
+	line := 0
+	for i, t := range tiles {
+		if i > 0 {
+			line++
+		}
+		starts = append(starts, line)
+		card := strings.TrimRight(m.renderKindTile(t, i == sel, tileW, 0, nil), "\n")
+		h := 0
+		if card != "" {
+			h = strings.Count(card, "\n") + 1
+		}
+		heights = append(heights, h)
+		blocks = append(blocks, card)
+		line += h
+	}
+	return blocks, starts, heights
 }
 
 func (m model) kindBody(innerW int) string {
@@ -303,81 +384,68 @@ func (m model) kindBody(innerW int) string {
 	if len(tiles) == 0 {
 		return m.loadingBlock(innerW)
 	}
-	cols := m.kindColumns(innerW)
-	if cols > len(tiles) {
-		cols = len(tiles)
+	blocks, starts, heights := m.kindCardBlocks(innerW)
+	body := strings.Join(blocks, "\n")
+	if m.boxH <= 0 {
+		return body
 	}
-	if cols < 1 {
-		cols = 1
+	lines := strings.Split(strings.TrimRight(body, "\n"), "\n")
+	at := kindKeepVisible(starts, heights, m.vs.kindSel, m.vs.kindAt, m.boxH)
+	return strings.Join(pageLines(lines, at, m.boxH), "\n")
+}
+
+func (m model) kindSideLines(t kindTile, width int) []string {
+	busy := t.status == "deploying" || t.status == "deleting"
+	switch {
+	case busy && t.step != "":
+		return []string{clipLine(dimStyle.Render(kindLabel(kindIconStep, ""))+itemStyle.Render(t.step), width)}
+	case t.err != nil:
+		return []string{clipLine(errStyle.Render(kindLabel(kindIconStep, t.err.Error())), width)}
+	case t.status == "failed" && t.last != "":
+		return []string{clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), width)}
+	case busy && t.last != "":
+		return []string{clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), width)}
+	default:
+		return m.kindUsageLines(t, width)
 	}
-	tileW := kindTileWidth(innerW, cols)
-	if tileW < kindTileMinW && cols > 1 {
-		cols = 1
-		tileW = kindTileWidth(innerW, 1)
+}
+
+func (m model) kindExtraLines(t kindTile, width int) []string {
+	busy := t.status == "deploying" || t.status == "deleting"
+	switch {
+	case busy && t.last != "" && t.step != "":
+		return []string{clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), width)}
+	case t.status == "failed" && t.last != "" && t.err != nil:
+		return []string{clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), width)}
+	default:
+		return m.kindChartsLines(t, width)
 	}
-	sel := m.vs.kindSel
-	if sel < 0 || sel >= len(tiles) {
-		sel = 0
+}
+
+func (m model) kindWideDetails(t kindTile, inner int) []string {
+	leftW := kindStatColWidth(inner)
+	info := m.kindInfoLines(t, leftW)
+	side := m.kindSideLines(t, max(8, inner-leftW-kindStatGap))
+	n := max(len(info), len(side))
+	var lines []string
+	for i := 0; i < n; i++ {
+		left, right := "", ""
+		if i < len(info) {
+			left = info[i]
+		}
+		if i < len(side) {
+			right = side[i]
+		}
+		lines = append(lines, kindJoinCols(left, right, leftW, inner))
 	}
-	var rows [][]kindTile
-	var row []kindTile
-	for _, t := range tiles {
-		row = append(row, t)
-		if len(row) == cols {
-			rows = append(rows, row)
-			row = nil
-		}
-	}
-	if len(row) > 0 {
-		rows = append(rows, row)
-	}
-	inner := max(8, tileW-2)
-	gap := strings.Repeat(" ", kindTileGap)
-	var b strings.Builder
-	for r, tilesInRow := range rows {
-		if r > 0 {
-			b.WriteByte('\n')
-		}
-		var contents [][]string
-		maxH := kindTileMinContent
-		for i, t := range tilesInRow {
-			ls := m.kindTileContent(t, r*cols+i == sel, inner)
-			if len(ls) > maxH {
-				maxH = len(ls)
-			}
-			contents = append(contents, ls)
-		}
-		var cells []string
-		for i, t := range tilesInRow {
-			cells = append(cells, m.renderKindTile(t, r*cols+i == sel, tileW, maxH, contents[i]))
-		}
-		for len(cells) < cols {
-			cells = append(cells, strings.Repeat(" ", tileW))
-		}
-		rowH := 0
-		csplit := make([][]string, len(cells))
-		for i, cell := range cells {
-			csplit[i] = strings.Split(strings.TrimRight(cell, "\n"), "\n")
-			if len(csplit[i]) > rowH {
-				rowH = len(csplit[i])
-			}
-		}
-		for i := 0; i < rowH; i++ {
-			var parts []string
-			for _, cs := range csplit {
-				s := ""
-				if i < len(cs) {
-					s = cs[i]
-				}
-				parts = append(parts, padPlain(s, tileW))
-			}
-			b.WriteString(strings.Join(parts, gap))
-			if i < rowH-1 || r < len(rows)-1 {
-				b.WriteByte('\n')
-			}
-		}
-	}
-	return b.String()
+	return append(lines, m.kindExtraLines(t, inner)...)
+}
+
+func (m model) kindNarrowDetails(t kindTile, inner int) []string {
+	var lines []string
+	lines = append(lines, m.kindInfoLines(t, inner)...)
+	lines = append(lines, m.kindSideLines(t, inner)...)
+	return append(lines, m.kindExtraLines(t, inner)...)
 }
 
 func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
@@ -398,27 +466,10 @@ func (m model) kindTileContent(t kindTile, selected bool, inner int) []string {
 	title = kindJoinRight(title, iconSt.Render(icon), inner, iw+kindTileSafe)
 	var lines []string
 	lines = append(lines, title, status)
-	lines = append(lines, m.kindInfoLines(t, inner)...)
-	busy := t.status == "deploying" || t.status == "deleting"
-	switch {
-	case busy && t.step != "":
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconStep, ""))+itemStyle.Render(t.step), inner))
-	case t.err != nil:
-		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconStep, t.err.Error())), inner))
-	case t.status == "failed" && t.last != "":
-		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	case busy && t.last != "":
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	default:
-		lines = append(lines, m.kindUsageLines(t, inner)...)
-	}
-	switch {
-	case busy && t.last != "" && t.step != "":
-		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	case t.status == "failed" && t.last != "" && t.err != nil:
-		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	default:
-		lines = append(lines, m.kindChartsLines(t, inner)...)
+	if inner >= kindSplitMin {
+		lines = append(lines, m.kindWideDetails(t, inner)...)
+	} else {
+		lines = append(lines, m.kindNarrowDetails(t, inner)...)
 	}
 	kc := config.HomePath(t.kubeconfig)
 	if kc == "" {
@@ -433,14 +484,13 @@ func (m model) renderKindTile(t kindTile, selected bool, width, contentH int, li
 	if lines == nil {
 		lines = m.kindTileContent(t, selected, inner)
 	}
-	if contentH < kindTileMinContent {
-		contentH = kindTileMinContent
-	}
-	for len(lines) < contentH {
-		lines = append(lines, "")
-	}
-	if len(lines) > contentH {
-		lines = lines[:contentH]
+	if contentH > 0 {
+		for len(lines) < contentH {
+			lines = append(lines, "")
+		}
+		if len(lines) > contentH {
+			lines = lines[:contentH]
+		}
 	}
 	border := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
