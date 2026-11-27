@@ -79,6 +79,18 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case helmErrPopupMsg:
 		next, cmd := m.openLastErr()
 		return next, cmd, true
+	case kindListMsg:
+		cmd := m.applyKindList(msg)
+		return m, cmd, true
+	case kindRunMsg:
+		cmd := m.applyKindCreated(msg)
+		return m, cmd, true
+	case kindChartsMsg:
+		cmd := m.applyKindCharts(msg)
+		return m, cmd, true
+	case kindDeleteMsg:
+		cmd := m.applyKindDeleted(msg)
+		return m, cmd, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
 		return m, cmd, true
@@ -133,6 +145,8 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 			return next, cmd, true
 		}
 		return m.xrayKey(key)
+	case m.stage == "kind":
+		return m.kindKey(key)
 	case m.stage == "helm":
 		return m.helmKey(key)
 	case m.stage == "helmhist":
@@ -165,6 +179,10 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 			m.reopenHelmForm()
 			m.status = m.helmFormHint(m.vs.hop.act)
 			return m, nil, true
+		}
+		if back == "kind" {
+			next, cmd := m.openKind()
+			return next, cmd, true
 		}
 		m.stage = back
 		switch back {
@@ -222,7 +240,7 @@ func (m model) screenBack() (tea.Model, tea.Cmd, bool) {
 	case "xray":
 		next, cmd := m.leaveXray()
 		return next, cmd, true
-	case "helm", "pulse":
+	case "helm", "pulse", "kind":
 		m.stage = "nav"
 		m.status = m.context
 		return m, nil, true

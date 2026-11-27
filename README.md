@@ -194,6 +194,15 @@ helm CLI needed to browse). Values, computed values, manifest, notes,
 revision history. Mark two revisions and diff them per resource. Install,
 upgrade or roll back uses the helm CLI, when it's installed.
 
+**Kind clusters.** `:kind` lists local kind clusters. `A` (or `:kind create`)
+opens a form: name, control-planes, workers, optional config and node
+image, plus checkboxes for starter charts. A red popup confirms, then k2
+streams `kind create cluster` and writes the kubeconfig to `~/.kube/k2`
+(or `~/.kube/k2-<name>`). Enter uses that cluster in the pane. `ctrl+d`
+deletes the cluster and only that k2 kubeconfig file, never
+`~/.kube/config`. After MetalLB lands on a kind cluster, k2 picks an
+address pool from the kind Docker network.
+
 ![Helm history, diff and rollback](docs/demo/helm.gif)
 
 **Safe on production.** List production contexts under `prod:`:
@@ -412,9 +421,14 @@ APP VERSION, UPDATED. `v` values, `V` computed values, `M` manifest,
 one with the current one), per resource plus user values.
 
 `A` installs a chart and `u` upgrades the selected release: a form for
-the release name, chart (tab-completed from `helm search repo`), version,
-namespace (with create-if-missing) and values file (pick a path, edit it,
-or start from `helm show values`). Preview with `helm template` (for an
+the release name, chart (catalog names first, then `helm search repo`),
+version, namespace (with create-if-missing) and values file (pick a path,
+edit it, or start from `helm show values`). Picking a catalog chart fills
+the form. k2 adds and updates that chart's Helm repo when needed. Istio
+installs `istio/base` then `istio/istiod` in `istio-system`. The built-in
+catalog (istio, sealed-secrets, metallb, argocd, cert-manager,
+metrics-server, kube-prometheus-stack, kafbat) is overridable under
+`helm.charts` in `~/.k2/config.yaml`. Preview with `helm template` (for an
 upgrade, a per-resource diff against the current manifest). A red popup
 names the context, release, chart and namespace; on success k2 jumps to
 the release and shows its notes.
@@ -424,6 +438,21 @@ previous revision from the list, to the selected one from the history)
 and `ctrl+d` uninstalls. Install, upgrade, rollback and uninstall need
 the helm CLI (`helm.binary`) and ask in a red popup. Read-only mode (`R`)
 blocks all four.
+
+**Kind** (`:kind`, `:kind create [name]`). Lists clusters from
+`kind get clusters`, with the kubeconfig path and whether the pane is on
+that cluster. `A` opens the create form (defaults: name `k2`, one
+control-plane, no workers). Optional custom kind config YAML wins over
+the generated topology. Optional node image, plus checkboxes for starter
+charts from the Helm catalog. Enter asks in a red popup, then streams
+`kind create cluster --kubeconfig ~/.kube/k2` (or `~/.kube/k2-<name>`).
+On success the pane switches to `kind-<name>` and selected charts install
+one after another (Helm repos added first; MetalLB gets an IPAddressPool
+from the kind Docker network). Enter on a row uses that cluster if its
+kubeconfig exists. `ctrl+d` deletes the cluster and the k2-managed
+kubeconfig only. Needs the kind CLI (`kind.binary`, default `kind`) and
+docker; starter charts also need helm. Read-only mode (`R`) blocks create
+and delete.
 
 ### Favorites, pulse, Kustomize, kubectl, viewers
 

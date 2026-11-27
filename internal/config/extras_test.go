@@ -85,7 +85,7 @@ favorites:
 		}
 	}
 	d := Default()
-	if c.Logs != d.Logs || c.Helm != d.Helm || len(c.Favorites) != 1 || c.Favorites[0].Context != "ok" {
+	if c.Logs != d.Logs || c.Helm.Binary != d.Helm.Binary || len(c.Favorites) != 1 || c.Favorites[0].Context != "ok" {
 		t.Fatalf("fallbacks %+v %+v %+v", c.Logs, c.Helm, c.Favorites)
 	}
 	if c, w := Parse([]byte("favorites: {context: x}")); len(w) != 1 || c.Favorites != nil {

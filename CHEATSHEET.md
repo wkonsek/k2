@@ -111,6 +111,7 @@ cuts them with `…`).
 | — | — | owner tree of every object of a kind (`:xray deploy`, `:xray sts db`; deploy, sts, ds, rs, job, cronjob, pod, svc) |
 | — | — | logs of many pods, stern-like (`:logs app=web`, `:logs ^web- --since=10m -c app`; options `--since`, `--tail`, `-c`, `--all=false`) |
 | — | — | helm releases (`:helm`, `:helm all` for every namespace; `:helm install` / `:helm upgrade` prefill the install form) |
+| — | — | kind clusters (`:kind`, `:kind create [name]`) |
 | — | — | namespace pulse: health of the pane's namespace (`:pulse`) |
 | — | — | pods (`:pods`, `:pod`, `:po`, `:r`); the pods list to start a forward from (`:forward`, `:p`) |
 | `tab` | `keys.complete` | complete a `:` command (targets, cluster resources, aliases); again cycles |
@@ -242,9 +243,15 @@ browse). Install, upgrade, rollback and uninstall run the helm CLI
 (`R`) blocks all four.
 
 `A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
-opens a form for the release name, chart (tab-completed from `helm search repo`),
+opens a form for the release name, chart (catalog names first, then
+`helm search repo`; picking one fills release, namespace, create-ns and
+default values),
 version, namespace (with a create-if-missing toggle) and values file
 (pick a path, edit it in the editor, or start from `helm show values`).
+Built-in catalog: istio (`base` then `istiod`), sealed-secrets, metallb,
+argocd, cert-manager, metrics-server, kube-prometheus-stack, kafbat.
+Override or extend under `helm.charts` in `~/.k2/config.yaml`. k2 adds
+and updates the chart's Helm repo before install.
 Preview with `helm template` shows kinds and a scrollable manifest; a red
 popup names the context, release, chart and namespace. On success k2 jumps
 to the release and shows its notes. `u` (or `:helm upgrade …`) opens the
@@ -283,6 +290,28 @@ the history, back again to the releases.
 | `space` (` `) | `keys.helm_mark` | mark / unmark a revision to diff against |
 | `D` | `keys.helm_diff` | diff the selected revision with the marked one, or with the current one |
 | `v` `V` `M` `N` | `keys.helm_values` … | that revision's values, computed values, manifest, notes |
+
+## Kind clusters (`:kind`)
+
+Needs the kind CLI (`kind.binary`, default `kind`) and docker. Starter
+charts also need helm. Read-only mode (`R`) blocks create and delete.
+Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
+`~/.kube/k2-<name>`. `ctrl+d` removes only that file, never
+`~/.kube/config`. After MetalLB installs on a `kind-*` cluster, k2
+applies an IPAddressPool + L2Advertisement from the kind Docker network
+subnet.
+
+`A` or `:kind create [name]` opens a form (name, control-planes, workers,
+optional config YAML, optional node image, starter-chart checkboxes).
+Enter asks in a red popup, then streams `kind create cluster`. On
+success the pane switches to that cluster and selected charts install
+one after another.
+
+| Key | Config | What it does |
+|---|---|---|
+| `enter` | `keys.select` | use this cluster in the pane (if its kubeconfig is present) |
+| `A` | `keys.helm_install` / `keys.apply` | create a cluster (form, red popup) |
+| `ctrl+d` | `keys.delete` | delete the cluster and its k2 kubeconfig (red popup) |
 
 ## Multi-pod logs (`M`, `:logs`)
 

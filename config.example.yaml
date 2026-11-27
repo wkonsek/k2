@@ -34,6 +34,10 @@
 #   multi_all_containers: true
 # helm:
 #   binary: helm          # name or path
+#   # charts: optional extras / overrides for the built-in catalog
+#   # (repo, repoName, chart, release, namespace, create_namespace, values)
+# kind:
+#   binary: kind          # name or path
 # editor:
 #   open_folder: code     # . in the Kustomize browser runs it on the folder
 # favorites:              # name, context, namespace, kubeconfig, view

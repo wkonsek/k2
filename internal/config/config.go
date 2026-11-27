@@ -43,6 +43,11 @@ type Logs struct {
 
 type Helm struct {
 	Binary string
+	Charts map[string]Chart
+}
+
+type Kind struct {
+	Binary string
 }
 
 type Editor struct {
@@ -139,6 +144,7 @@ type Config struct {
 	ContextThemes []ContextTheme
 	Logs          Logs
 	Helm          Helm
+	Kind          Kind
 	Editor        Editor
 	Favorites     []Favorite
 	CommandFavs   []CommandFavorite
@@ -157,6 +163,7 @@ func Default() Config {
 		Aliases:       map[string]string{},
 		Logs:          Logs{Tail: 80, MaxLines: 400, MultiMaxLines: 5000, MultiEvery: 2, MultiMaxPods: 20, MultiAllContainers: true},
 		Helm:          Helm{Binary: "helm"},
+		Kind:          Kind{Binary: "kind"},
 		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
 		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
@@ -287,6 +294,8 @@ func Parse(data []byte) (Config, []string) {
 			p.logs(val, &cfg.Logs)
 		case "helm":
 			p.helm(val, &cfg.Helm)
+		case "kind":
+			p.kind(val, &cfg.Kind)
 		case "editor":
 			p.editor(val, &cfg.Editor)
 		case "favorites":
@@ -417,10 +426,133 @@ func (p *parser) helm(n *yaml.Node, h *Helm) {
 			} else if s, ok := p.str("helm."+k, v); ok {
 				h.Binary = s
 			}
+		case "charts":
+			h.Charts = p.helmCharts(v)
 		default:
-			p.warn("helm: unknown setting %q (have binary)", k)
+			p.warn("helm: unknown setting %q (have binary, charts)", k)
 		}
 	}
+}
+
+func (p *parser) kind(n *yaml.Node, k *Kind) {
+	if n.Kind != yaml.MappingNode {
+		p.warn("kind: expected a mapping (line %d, using defaults)", n.Line)
+		return
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, v := n.Content[i].Value, n.Content[i+1]
+		switch key {
+		case "binary":
+			if v.Tag == "!!null" {
+				k.Binary = ""
+			} else if s, ok := p.str("kind."+key, v); ok {
+				k.Binary = s
+			}
+		default:
+			p.warn("kind: unknown setting %q (have binary)", key)
+		}
+	}
+}
+
+func (p *parser) helmCharts(n *yaml.Node) map[string]Chart {
+	if n.Tag == "!!null" || (n.Kind == yaml.ScalarNode && strings.TrimSpace(n.Value) == "") {
+		return nil
+	}
+	if n.Kind != yaml.MappingNode {
+		p.warn("helm.charts: expected a mapping of chart names (line %d, ignored)", n.Line)
+		return nil
+	}
+	out := map[string]Chart{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		name := strings.TrimSpace(n.Content[i].Value)
+		if name == "" {
+			p.warn("helm.charts: skipped an entry with an empty name (line %d)", n.Content[i].Line)
+			continue
+		}
+		ch, ok := p.helmChart("helm.charts."+name, n.Content[i+1])
+		if !ok {
+			continue
+		}
+		ch.Name = name
+		out[name] = ch
+	}
+	return out
+}
+
+func (p *parser) helmChart(path string, n *yaml.Node) (Chart, bool) {
+	if n.Kind != yaml.MappingNode {
+		p.warn("%s: expected a mapping (line %d, ignored)", path, n.Line)
+		return Chart{}, false
+	}
+	var ch Chart
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		k, v := n.Content[i].Value, n.Content[i+1]
+		switch k {
+		case "chart":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.Chart = s
+			}
+		case "repo":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.Repo = s
+			}
+		case "repo_name":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.RepoName = s
+			}
+		case "release":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.Release = s
+			}
+		case "namespace":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.Namespace = s
+			}
+		case "version":
+			if s, ok := p.str(path+"."+k, v); ok {
+				ch.Version = s
+			}
+		case "create_namespace":
+			var on bool
+			before := len(p.warnings)
+			p.boolean(path+"."+k, v, &on)
+			if len(p.warnings) == before {
+				ch.CreateNamespace = boolPtr(on)
+			}
+		case "values":
+			var vals map[string]any
+			if v.Kind != yaml.MappingNode {
+				p.warn("%s.values: expected a mapping (line %d, ignored)", path, v.Line)
+				continue
+			}
+			if err := v.Decode(&vals); err != nil {
+				p.warn("%s.values: %s", path, err)
+				continue
+			}
+			ch.Values = vals
+		case "steps":
+			ch.Steps = p.helmChartSteps(path+".steps", v)
+		default:
+			p.warn("%s: unknown setting %q (have chart, repo, repo_name, release, namespace, version, create_namespace, values, steps)", path, k)
+		}
+	}
+	return ch, true
+}
+
+func (p *parser) helmChartSteps(path string, n *yaml.Node) []Chart {
+	if n.Kind != yaml.SequenceNode {
+		p.warn("%s: expected a list (line %d, ignored)", path, n.Line)
+		return nil
+	}
+	var out []Chart
+	for i, it := range n.Content {
+		ch, ok := p.helmChart(fmt.Sprintf("%s[%d]", path, i), it)
+		if !ok {
+			continue
+		}
+		out = append(out, ch)
+	}
+	return out
 }
 
 func (p *parser) editor(n *yaml.Node, e *Editor) {

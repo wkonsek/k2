@@ -69,7 +69,7 @@ func (h viewHist) label() string {
 
 func histable(stage string) bool {
 	switch stage {
-	case "workpods", "res", "helm", "pulse", "xray", "fwds", "mlogs":
+	case "workpods", "res", "helm", "pulse", "xray", "fwds", "mlogs", "kind":
 		return true
 	}
 	return false

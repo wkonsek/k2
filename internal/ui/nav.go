@@ -347,6 +347,8 @@ func (m model) resumeNS() (tea.Model, tea.Cmd) {
 		return m.openPulse()
 	case "helm", "helmhist", "hdiff", "htpl":
 		return m.openHelm()
+	case "kind":
+		return m.openKind()
 	case "mlogs":
 		if m.vs.ml != nil {
 			return m.openMultiLogs(m.vs.ml.q, m.vs.ml.title, m.vs.ml.from)

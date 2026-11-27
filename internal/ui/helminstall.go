@@ -17,14 +17,16 @@ import (
 )
 
 type helmOp struct {
-	act                  string
-	name, chart, version string
-	ns, values           string
-	createNS             bool
-	current              kube.HelmRelease
-	charts               []kube.HelmChart
-	versions             []string
-	preview, summary     string
+	act                          string
+	name, chart, version         string
+	ns, values                   string
+	createNS                     bool
+	catalog                      string
+	autoName, autoNS, autoValues bool
+	current                      kube.HelmRelease
+	charts                       []kube.HelmChart
+	versions                     []string
+	preview, summary             string
 }
 
 type helmField struct {
@@ -33,6 +35,7 @@ type helmField struct {
 	locked     bool
 	toggle     bool
 	action     bool
+	on         bool
 }
 
 type helmSearchMsg struct {
@@ -99,6 +102,7 @@ func (m model) openHelmInstall(op helmOp) (tea.Model, tea.Cmd) {
 	m.fillHelmForm(d, &op)
 	m.vs.hop = &op
 	m.dlg = d
+	m.maybeFillCatalog()
 	k, bin, seq := m.k, m.cfg.Helm.Binary, d.seq
 	return m, func() tea.Msg {
 		out, err := k.HelmOut(bin, kube.HelmSearchArgs("", false)...)
@@ -370,6 +374,7 @@ func (m model) moveHelmField(delta int) model {
 	helmFocus(&d.hfields[d.idx])
 	d.cands, d.candBase, d.candAt = nil, "", -1
 	d.msg = ""
+	m.maybeFillCatalog()
 	return m
 }
 
@@ -378,11 +383,13 @@ func (m model) completeHelmField() (tea.Model, tea.Cmd, bool) {
 	f := d.hfields[d.idx]
 	switch f.key {
 	case "chart":
-		names := []string{}
-		if m.vs.hop != nil {
-			names = kube.ChartNames(m.vs.hop.charts)
+		next, cmd, done := m.completeHelmList(m.helmChartCandidates(), false)
+		if done {
+			nm := next.(model)
+			nm.maybeFillCatalog()
+			return nm, tea.Batch(cmd, nm.liveHelmVersions()), true
 		}
-		return m.completeHelmList(names, false)
+		return next, cmd, done
 	case "version":
 		vers := []string{}
 		if m.vs.hop != nil {
@@ -413,6 +420,16 @@ func (m model) completeHelmList(cands []string, _ bool) (tea.Model, tea.Cmd, boo
 	if len(hit) == 0 {
 		d.msg = "no match"
 		return m, nil, true
+	}
+	if typed != "" {
+		for _, c := range hit {
+			if c == typed {
+				d.cands = nil
+				d.hfields[d.idx].input.SetValue(c)
+				d.hfields[d.idx].input.CursorEnd()
+				return m, m.liveHelmVersions(), true
+			}
+		}
 	}
 	if len(hit) == 1 {
 		d.cands = nil
@@ -566,6 +583,7 @@ func (m model) submitHelmForm() (tea.Model, tea.Cmd) {
 	if next, cmd, blocked := m.readOnlyBlock(m.helmAct()); blocked {
 		return next, cmd
 	}
+	m.maybeFillCatalog()
 	m.stashHelmForm()
 	op := m.vs.hop
 	if op == nil {
@@ -591,23 +609,48 @@ func (m model) submitHelmForm() (tea.Model, tea.Cmd) {
 		op.values = p
 		m.vs.hop = op
 	}
+	steps := m.helmSteps(op)
+	if err := m.ensureHelmRepos(steps); err != nil {
+		m.dlg.msg = err.Error()
+		return m, m.notify(toneErr, "helm repo add failed")
+	}
 	bin := m.cfg.Helm.Binary
 	m.dlg = nil
 	spin := m.startLoad("rendering "+op.act, false)
 	k, kc, ctx, pane, token := m.k, m.kubeconfig, m.context, m.logID, m.load.token
-	args := kube.HelmTemplateArgs(op.name, op.chart, op.version, op.ns, op.values, kc, ctx)
+	formValues := op.values
 	cur := op.current
 	act := op.act
 	return m, tea.Batch(spin, func() tea.Msg {
-		out, err := k.HelmOut(bin, args...)
-		if err != nil {
-			return helmTplMsg{pane: pane, token: token, err: err}
+		var parts, summaries []string
+		var last string
+		for _, step := range steps {
+			values := formValues
+			if values == "" && len(step.Values) > 0 {
+				path, err := config.WriteValuesFile(step.Values)
+				if err != nil {
+					return helmTplMsg{pane: pane, token: token, err: err}
+				}
+				values = path
+			}
+			args := kube.HelmTemplateArgs(step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, values, kc, ctx)
+			out, err := k.HelmOut(bin, args...)
+			if err != nil {
+				return helmTplMsg{pane: pane, token: token, err: err}
+			}
+			last = out
+			parts = append(parts, "# "+step.HelmRelease()+" "+step.HelmChart()+"\n"+out)
+			summaries = append(summaries, step.HelmRelease()+": "+kube.ManifestKindCounts(out))
 		}
-		text := out
-		if act == "upgrade" {
-			text = kube.UpgradeDiff(cur, out, op.chart, op.version)
+		text := strings.Join(parts, "\n")
+		summary := kube.ManifestKindCounts(last)
+		if len(summaries) > 1 {
+			summary = strings.Join(summaries, " · ")
 		}
-		return helmTplMsg{pane: pane, token: token, text: text, summary: kube.ManifestKindCounts(out)}
+		if act == "upgrade" && len(steps) == 1 {
+			text = kube.UpgradeDiff(cur, last, steps[0].HelmChart(), steps[0].Version)
+		}
+		return helmTplMsg{pane: pane, token: token, text: text, summary: summary}
 	})
 }
 
@@ -702,7 +745,7 @@ func (m model) askHelmApply() (tea.Model, tea.Cmd) {
 	if !ok {
 		return next, cmd
 	}
-	args := kube.HelmApplyArgs(op.act == "upgrade", op.name, op.chart, op.version, op.ns, op.createNS, op.values, m.kubeconfig, m.context)
+	steps := m.helmSteps(op)
 	what := op.act + "ed " + op.name
 	if op.act == "install" {
 		what = "installed " + op.name
@@ -714,13 +757,21 @@ func (m model) askHelmApply() (tea.Model, tea.Cmd) {
 		"chart " + kube.ChartAt(op.chart, op.version),
 		m.contextLine(),
 	}
+	if len(steps) > 1 {
+		var names []string
+		for _, s := range steps {
+			names = append(names, s.HelmRelease())
+		}
+		details[0] = "releases " + strings.Join(names, ", ")
+		details[1] = "charts " + strings.Join(names, " then ")
+	}
 	if op.values != "" {
 		details = append(details, "values "+config.HomePath(op.values))
 	}
 	if op.summary != "" {
 		details = append(details, op.summary)
 	}
-	details = append(details, bin+" "+args[0]+" "+args[1])
+	details = append(details, bin+" "+map[bool]string{true: "upgrade", false: "install"}[op.act == "upgrade"]+" "+op.name)
 	title := "✚ helm install"
 	question := "install " + op.name + " into " + op.ns + "?"
 	running := "installing…"
@@ -732,7 +783,7 @@ func (m model) askHelmApply() (tea.Model, tea.Cmd) {
 	return m.ask(askSpec{
 		title: title, question: question, details: details, danger: true,
 		kind: "helm", ns: op.ns, name: op.name, running: running,
-		cmd: m.helmApplyAction(what, op.ns, op.name, bin, args),
+		cmd: m.helmApplySteps(what, *op, bin, steps),
 	}), nil
 }
 
@@ -748,6 +799,58 @@ func (m model) helmApplyAction(what, ns, name, bin string, args []string) tea.Cm
 			return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: ns, helmName: name}
 		}
 		return editDoneMsg{what: what, helmNS: ns, helmName: name, helmNotes: helmNotesFrom(string(out))}
+	}
+}
+
+func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config.Chart) tea.Cmd {
+	k, run, kc, ctx := m.k, m.run, m.kubeconfig, m.context
+	formValues := op.values
+	docker := m.dockerCLI()
+	upgrade := op.act == "upgrade" && len(steps) == 1
+	return func() tea.Msg {
+		if err := ensureRepos(k, bin, steps, func(string) {}); err != nil {
+			return editDoneMsg{what: what, err: err, helmNS: op.ns, helmName: op.name}
+		}
+		var notes, extra string
+		var last config.Chart
+		for _, step := range steps {
+			last = step
+			values := formValues
+			if values == "" && len(step.Values) > 0 {
+				path, err := config.WriteValuesFile(step.Values)
+				if err != nil {
+					return editDoneMsg{what: what, err: err, helmNS: step.Namespace, helmName: step.HelmRelease()}
+				}
+				values = path
+			}
+			args := kube.HelmApplyArgs(upgrade, step.HelmRelease(), step.HelmChart(), step.Version, step.Namespace, step.CreatesNamespace(), values, kc, ctx)
+			out, err := k.HelmOut(bin, args...)
+			if err != nil {
+				text := strings.TrimSpace(out)
+				if text == "" {
+					text = err.Error()
+				}
+				return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease()}
+			}
+			notes = helmNotesFrom(out)
+			if (strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb") || strings.EqualFold(step.Chart, "metallb")) && strings.HasPrefix(ctx, "kind-") {
+				n, w := setupMetalLB(run, docker, kc, ctx, step.Namespace, func(string) {})
+				if n != "" {
+					extra = strings.TrimSpace(extra + "\n" + n)
+				}
+				if w != "" {
+					extra = strings.TrimSpace(extra + "\n" + w)
+				}
+			}
+		}
+		if extra != "" {
+			notes = strings.TrimSpace(notes + "\n\n" + extra)
+		}
+		ns, name := op.ns, op.name
+		if last.HelmRelease() != "" {
+			ns, name = last.Namespace, last.HelmRelease()
+		}
+		return editDoneMsg{what: what, helmNS: ns, helmName: name, helmNotes: notes}
 	}
 }
 
@@ -854,7 +957,11 @@ func (d *dialog) helmFormRows(inner int) []string {
 		label := st.Render(mark + fitWidth(f.label, nameW) + strings.Repeat(" ", max(0, nameW-len(f.label))) + " ")
 		if f.toggle {
 			val := "no"
-			if d.hcreate {
+			on := f.on
+			if f.key == "create" {
+				on = d.hcreate
+			}
+			if on {
 				val = "yes"
 			}
 			if i == d.idx {

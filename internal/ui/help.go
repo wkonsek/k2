@@ -329,6 +329,12 @@ func (m model) viewSection() []helpSection {
 				r(k.Cancel, "cancel"),
 			}},
 		}
+	case "kind":
+		return []helpSection{{"Kind", []helpRow{
+			r(k.Select, "use this cluster"),
+			r(k.HelmInstall, "create a cluster"),
+			r(k.Delete, "delete the cluster"),
+		}}}
 	case "helm":
 		rows := []helpRow{
 			r(k.HelmValues, "values"),

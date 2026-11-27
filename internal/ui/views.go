@@ -260,6 +260,8 @@ func (m model) paneView() string {
 		return "owner tree"
 	case "helm":
 		return "helm releases"
+	case "kind":
+		return "kind clusters"
 	case "pulse":
 		return "pulse " + m.namespace
 	case "mlogs":

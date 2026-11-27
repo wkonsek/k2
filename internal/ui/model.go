@@ -84,6 +84,8 @@ type viewState struct {
 	helm      []kube.HelmRelease
 	hist      *helmHist
 	hop       *helmOp
+	kop       *kindOp
+	kindNames []string
 	search    string
 	searchAt  int
 	nsPrev    string

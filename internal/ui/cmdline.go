@@ -230,6 +230,16 @@ func (m model) runViewCommand(raw string) (tea.Model, tea.Cmd, bool) {
 	case "fresh":
 		next, cmd := m.freshSession()
 		return next, cmd, true
+	case "kind":
+		if op, ok, err := parseKindCmd(rest); ok {
+			next, cmd := m.openKindCreate(op)
+			return next, cmd, true
+		} else if err != "" {
+			m.status = err
+			return m, m.notify(toneWarn, err), true
+		}
+		next, cmd := m.openKind()
+		return next, cmd, true
 	}
 	return m, nil, false
 }
@@ -303,7 +313,7 @@ func cycleHint(cands []string, at int) string {
 
 func (m model) cmdCandidates(tok string) []string {
 	base := []string{"kubeconfig", "context", "namespace", "pods", "forward", "forwards", "kustomize", "kubectl",
-		"xray", "logs", "helm", "pulse", "fav", "cmds", "theme", "login", "profile", "fresh"}
+		"xray", "logs", "helm", "pulse", "kind", "fav", "cmds", "theme", "login", "profile", "fresh"}
 	seen := map[string]bool{}
 	var out []string
 	add := func(s string) {
