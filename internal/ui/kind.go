@@ -173,6 +173,7 @@ func (m *model) applyKindList(msg kindListMsg) tea.Cmd {
 		if m.stage == "kind" {
 			m.status = m.kindHint()
 		}
+		cmd = tea.Batch(cmd, m.kindExtrasCmds())
 	})
 	return cmd
 }

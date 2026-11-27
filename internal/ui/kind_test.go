@@ -77,7 +77,14 @@ func kindFake(t *testing.T, clusters []string) *shell.Fake {
 			if len(r.Args) > 0 && r.Args[0] == "ps" {
 				var b strings.Builder
 				for _, name := range list {
-					b.WriteString(name + "\tcontrol-plane\tkindest/node:v1.33.1\trunning\tUp 1 hour\n")
+					b.WriteString(name + "\tcontrol-plane\tkindest/node:v1.33.1\trunning\tUp 1 hour\tid" + name + "aaaaaaaa\n")
+				}
+				return shell.OK(b.String())
+			}
+			if len(r.Args) > 0 && r.Args[0] == "stats" {
+				var b strings.Builder
+				for _, name := range list {
+					b.WriteString("id" + name + "aaaaaaaa\t" + name + "-control-plane\t4.20%\t1.400GiB / 8.000GiB\t17.50%\n")
 				}
 				return shell.OK(b.String())
 			}
@@ -157,7 +164,7 @@ func TestKindListView(t *testing.T) {
 		t.Fatalf("stage %s status %q", m.stage, m.status)
 	}
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "1 cp", "0 workers", "v1.33.1", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconSel} {
+	for _, want := range []string{"k2", "dev", "~/.kube/k2", "ACTIVE", "running", "up 1h", "1 cp", "0 workers", "v1.33.1", "CPU", "4.2%", "RAM", "1.4 GiB", kindIconRunning, kindIconNodes, kindIconKube, kindIconActive, kindIconSel} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tiles lack %q:\n%s", want, view)
 		}
@@ -166,6 +173,9 @@ func TestKindListView(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("icon spacing lacks %q:\n%s", want, view)
 		}
+	}
+	if strings.Contains(view, "●") || strings.Contains(view, "○") {
+		t.Fatalf("still using round status dots:\n%s", view)
 	}
 	leg := ansi.Strip(m.legend())
 	for _, want := range []string{"A create", "enter use / logs", "^d delete", "e charts", "r refresh"} {
@@ -705,5 +715,48 @@ func TestKindSelectedBorderDiffersFromActive(t *testing.T) {
 	}
 	if !strings.Contains(view, "╭") {
 		t.Fatalf("unselected ACTIVE tile should keep a rounded muted border:\n%s", view)
+	}
+}
+
+func TestKindMiniBar(t *testing.T) {
+	if got := kindMiniBar(0, 5); got != "□□□□□" {
+		t.Fatalf("empty %q", got)
+	}
+	if got := kindMiniBar(100, 5); got != "■■■■■" {
+		t.Fatalf("full %q", got)
+	}
+	if got := kindMiniBar(40, 5); got != "■■□□□" {
+		t.Fatalf("40%% %q", got)
+	}
+	if got := kindMiniBar(1, 5); got != "■□□□□" {
+		t.Fatalf("tiny %q", got)
+	}
+}
+
+func TestKindUsageAndChartsOnTile(t *testing.T) {
+	withKindCLIs(t)
+	f := kindFake(t, []string{"k2"})
+	m := appModel(t, f)
+	m.vs.kindNames = []string{"k2"}
+	m.vs.kindNodes = map[string]kube.KindNodes{"k2": {Planes: 1, Running: 1, Total: 1, Version: "v1.33.1", Uptime: "up 2h"}}
+	m.kindUsage = map[string]kube.KindUsage{"k2": {CPU: 4.2, MemUsed: 1503238554, MemPct: 40, OK: true}}
+	m.kindCatalog = map[string][]string{"k2": {"metallb", "argocd"}}
+	m.stage = "kind"
+	view := ansi.Strip(m.kindBody(80))
+	for _, want := range []string{kindIconRunning, "running · up 2h", "CPU  4.2%", "RAM 1.4 GiB", "■■□□□", kindIconCharts + "  metallb, argocd"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("tile lacks %q:\n%s", want, view)
+		}
+	}
+	m.kindCatalog["k2"] = nil
+	view = ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, kindIconCharts+"  none") {
+		t.Fatalf("empty catalog:\n%s", view)
+	}
+	m.vs.kindNodes["k2"] = kube.KindNodes{Planes: 1, Running: 0, Total: 1, Version: "v1.33.1"}
+	m.kindUsage = nil
+	view = ansi.Strip(m.kindBody(80))
+	if !strings.Contains(view, kindIconStopped) || !strings.Contains(view, "stopped") || !strings.Contains(view, "CPU  —") {
+		t.Fatalf("stopped tile:\n%s", view)
 	}
 }

@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	kindIconRunning = "●"
-	kindIconStopped = "○"
-	kindIconDeploy  = "◐"
-	kindIconDelete  = "◑"
-	kindIconFailed  = "✕"
+	kindIconRunning = "■"
+	kindIconStopped = "□"
+	kindIconDeploy  = "◧"
+	kindIconDelete  = "◨"
+	kindIconFailed  = "×"
 	kindIconActive  = "◆"
 	kindIconNodes   = "▣"
 	kindIconKube    = "⊚"
@@ -25,11 +25,14 @@ const (
 	kindIconStep    = "›"
 	kindIconSel     = "▸"
 	kindTileMinW    = 28
-	kindTileMaxW    = 42
+	kindTileMaxW    = 44
 	kindTileGap     = 1
 	kindTileSafe    = 1
-	kindTileRows    = 7
+	kindTileRows    = 8
+	kindBarCells    = 5
 )
+
+var kindSpinSquares = []string{"◧", "◨", "◩", "◪"}
 
 func kindLabel(icon, text string) string {
 	return icon + "  " + text
@@ -51,8 +54,10 @@ func kindTileWidth(innerW, cols int) int {
 
 type kindTile struct {
 	name, status, step, last, kubeconfig string
-	active, kcOK                         bool
+	active, kcOK, usageOK, chartsOK      bool
 	nodes                                kube.KindNodes
+	usage                                kube.KindUsage
+	charts                               []string
 	started                              time.Time
 	err                                  error
 }
@@ -190,6 +195,12 @@ func (m model) kindTileFor(name string) kindTile {
 	} else {
 		home, _ := os.UserHomeDir()
 		t.kubeconfig = kube.KindKubeconfig(name, home)
+	}
+	if u, ok := m.kindUsage[name]; ok {
+		t.usage, t.usageOK = u, u.OK
+	}
+	if names, ok := m.kindCatalog[name]; ok {
+		t.charts, t.chartsOK = names, true
 	}
 	if j := m.kindJobs[name]; j != nil && (j.status == "deploying" || j.status == "deleting" || j.status == "failed") {
 		t.status, t.step, t.last, t.started, t.err = j.status, j.step, j.last, j.started, j.err
@@ -346,16 +357,26 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 	} else {
 		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconNodes, "no node info")), inner))
 	}
-	if t.step != "" && (t.status == "deploying" || t.status == "deleting") {
+	busy := t.status == "deploying" || t.status == "deleting"
+	switch {
+	case busy && t.step != "":
 		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconStep, ""))+itemStyle.Render(t.step), inner))
-	} else if t.err != nil {
+	case t.err != nil:
 		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconStep, t.err.Error())), inner))
-	} else if t.last != "" && t.status == "failed" {
+	case t.status == "failed" && t.last != "":
 		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	} else if t.last != "" && t.status == "deploying" {
+	case busy && t.last != "":
 		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
-	} else {
-		lines = append(lines, "")
+	default:
+		lines = append(lines, clipLine(m.kindUsageLine(t, inner), inner))
+	}
+	switch {
+	case busy && t.last != "" && t.step != "":
+		lines = append(lines, clipLine(dimStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
+	case t.status == "failed" && t.last != "" && t.err != nil:
+		lines = append(lines, clipLine(errStyle.Render(kindLabel(kindIconCharts, t.last)), inner))
+	default:
+		lines = append(lines, clipLine(m.kindChartsLine(t), inner))
 	}
 	kc := config.HomePath(t.kubeconfig)
 	if kc == "" {
@@ -371,29 +392,101 @@ func (m model) renderKindTile(t kindTile, selected bool, width int) string {
 	return border.Render(strings.Join(lines, "\n"))
 }
 
+func (m model) kindStatusIcon(status string) string {
+	switch status {
+	case "stopped":
+		return kindIconStopped
+	case "deploying":
+		if m.cfg.UI.Animations && len(kindSpinSquares) > 0 {
+			return kindSpinSquares[m.beat%len(kindSpinSquares)]
+		}
+		return kindIconDeploy
+	case "deleting":
+		if m.cfg.UI.Animations && len(kindSpinSquares) > 0 {
+			return kindSpinSquares[(m.beat+2)%len(kindSpinSquares)]
+		}
+		return kindIconDelete
+	case "failed":
+		return kindIconFailed
+	default:
+		return kindIconRunning
+	}
+}
+
 func (m model) kindStatusLine(t kindTile, _ int) string {
-	icon, st, label := kindIconRunning, okStyle, t.status
+	icon, st, label := m.kindStatusIcon(t.status), okStyle, t.status
 	switch t.status {
 	case "stopped":
-		icon, st = kindIconStopped, dimStyle
+		st = dimStyle
 	case "deploying":
-		icon, st = kindIconDeploy, warnStyle
+		st = warnStyle
 		label = t.status + "  " + elapsed(now().Sub(t.started))
-		if m.cfg.UI.Animations {
-			label += "  " + m.spinGlyph()
-		}
 	case "deleting":
-		icon, st = kindIconDelete, warnStyle
+		st = warnStyle
 		label = t.status + "  " + elapsed(now().Sub(t.started))
-		if m.cfg.UI.Animations {
-			label += "  " + m.spinGlyph()
-		}
 	case "failed":
-		icon, st, label = kindIconFailed, errStyle, "failed"
+		st, label = errStyle, "failed"
 	default:
-		icon, st, label = kindIconRunning, okStyle, "running"
+		st, label = okStyle, "running"
+		if t.nodes.Uptime != "" {
+			label += " · " + t.nodes.Uptime
+		}
 	}
 	return st.Render(kindLabel(icon, label))
+}
+
+func kindMiniBar(pct float64, n int) string {
+	if n < 1 {
+		n = kindBarCells
+	}
+	filled := int(pct/100*float64(n) + 0.5)
+	if filled < 0 {
+		filled = 0
+	}
+	if filled > n {
+		filled = n
+	}
+	if pct > 0 && filled == 0 {
+		filled = 1
+	}
+	return strings.Repeat("■", filled) + strings.Repeat("□", n-filled)
+}
+
+func (m model) kindUsageLine(t kindTile, width int) string {
+	if t.status == "stopped" || !t.usageOK {
+		return dimStyle.Render("CPU  —    RAM —")
+	}
+	cpu := kube.FormatCPU(t.usage.CPU)
+	mem := kube.FormatBytes(t.usage.MemUsed)
+	bar := kindMiniBar(t.usage.MemPct, kindBarCells)
+	if t.usage.MemPct <= 0 && t.nodes.Running > 0 {
+		bar = kindMiniBar(t.usage.CPU/float64(100*t.nodes.Running)*100, kindBarCells)
+	}
+	st := okStyle
+	switch {
+	case t.usage.MemPct >= float64(max(1, m.cfg.UI.MetricsCrit)):
+		st = errStyle
+	case t.usage.MemPct >= float64(max(1, m.cfg.UI.MetricsWarn)):
+		st = warnStyle
+	}
+	full := "CPU  " + cpu + "  " + st.Render(bar) + "  RAM " + mem
+	if lipgloss.Width(full) <= width {
+		return full
+	}
+	return cpu + "  " + st.Render(bar) + "  " + mem
+}
+
+func (m model) kindChartsLine(t kindTile) string {
+	if !t.chartsOK {
+		if t.status != "running" {
+			return ""
+		}
+		return dimStyle.Render(kindLabel(kindIconCharts, "—"))
+	}
+	if len(t.charts) == 0 {
+		return dimStyle.Render(kindLabel(kindIconCharts, "none"))
+	}
+	return dimStyle.Render(kindLabel(kindIconCharts, "")) + itemStyle.Render(strings.Join(t.charts, ", "))
 }
 
 func (m *model) applyKindLine(msg kindLineMsg) {

@@ -195,7 +195,7 @@ revision history. Mark two revisions and diff them per resource. Install,
 upgrade or roll back uses the helm CLI, when it's installed.
 
 **Kind clusters.** `:kind` (or `~`) shows local kind clusters as a tile
-grid. `A` (or `:kind create`) opens a form: name, control-planes, workers,
+grid, with square status, uptime, CPU/RAM and installed catalog charts. `A` (or `:kind create`) opens a form: name, control-planes, workers,
 optional config and node image, plus checkboxes for starter charts. `edit
 config` opens the generated Kind YAML in `$EDITOR`. A red popup confirms,
 then a `deploying` tile appears immediately and k2 streams
@@ -444,8 +444,10 @@ blocks all four.
 
 **Kind** (`:kind`, `~`, `:kind create [name]`). A tile grid of clusters
 from `kind get clusters`, plus node counts and Kubernetes version from
-`docker ps` (control-plane / worker labels) and the kubeconfig path. The
-active cluster gets an `ACTIVE` badge. `A` opens the create form
+`docker ps` (control-plane / worker labels), uptime, CPU and RAM from
+`docker stats`, installed catalog charts, and the kubeconfig path. Status
+uses square icons (`■` running, `□` stopped). The active cluster gets an
+`ACTIVE` badge. `A` opens the create form
 (defaults: name `k2`, one control-plane, no workers). Optional custom
 kind config YAML wins over the generated topology; `edit config` opens
 that YAML (generated from the form, or an existing path) in `$EDITOR`.

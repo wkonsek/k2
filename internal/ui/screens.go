@@ -14,6 +14,9 @@ func (m *model) screenTick() []tea.Cmd {
 		return cmds
 	}
 	cmds = append(cmds, m.pulseTick()...)
+	if m.kindVisible() {
+		cmds = append(cmds, m.kindExtrasCmds())
+	}
 	if m.rowBusy == nil {
 		m.rowBusy = map[string]bool{}
 	}
@@ -104,6 +107,12 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case kindInstalledMsg:
 		cmd := m.applyKindInstalled(msg)
 		return m, cmd, true
+	case kindUsageMsg:
+		m.applyKindUsage(msg)
+		return m, nil, true
+	case kindCatalogMsg:
+		m.applyKindCatalog(msg)
+		return m, nil, true
 	case mlogMsg:
 		cmd := m.applyMlog(msg)
 		return m, cmd, true

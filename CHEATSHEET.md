@@ -301,7 +301,8 @@ chart edits. Kubeconfig is `~/.kube/k2` when the name is `k2`, otherwise
 applies an IPAddressPool + L2Advertisement from the kind Docker network
 subnet.
 
-Clusters show as a tile grid (name, status, nodes, kubeconfig). A new
+Clusters show as a tile grid (name, square status, uptime, nodes, CPU/RAM,
+installed catalog charts, kubeconfig). A new
 cluster appears as a `deploying` tile as soon as create starts; `enter`
 opens a live log (auto-scrolls unless you move up; `esc` returns to the
 tiles while the job keeps running). On success the tile turns `running`
