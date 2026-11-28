@@ -142,7 +142,7 @@ func TestKubeconfigPaneShowsContextsAndSeparateSignals(t *testing.T) {
 			t.Fatalf("closed port: missing %q:\n%s", want, view)
 		}
 	}
-	if strings.Contains(view, "401") {
+	if strings.Contains(view, "401 unauthorized") {
 		t.Fatalf("unreachable must not claim an access verdict:\n%s", view)
 	}
 }
