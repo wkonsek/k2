@@ -153,3 +153,26 @@ func kindInstalledNamespaces(secrets []kube.Object, charts []config.Chart, selec
 	}
 	return out
 }
+
+func kindInstalledReleases(secrets []kube.Object, charts []config.Chart, selected []string) map[string]kindRelease {
+	at := map[string]string{}
+	for _, r := range kube.HelmLatest(secrets) {
+		if r.Name != "" {
+			at[r.Name] = r.Namespace
+		}
+	}
+	out := map[string]kindRelease{}
+	for _, name := range selected {
+		c, ok := config.LookupChart(charts, name)
+		if !ok {
+			continue
+		}
+		for _, s := range c.InstallSteps() {
+			if ns, ok := at[s.HelmRelease()]; ok {
+				out[name] = kindRelease{name: s.HelmRelease(), namespace: ns}
+				break
+			}
+		}
+	}
+	return out
+}

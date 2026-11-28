@@ -2,10 +2,12 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"k2/internal/shell"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"gopkg.in/yaml.v3"
 )
 
 type kindOp struct {
@@ -27,7 +30,11 @@ type kindOp struct {
 	masterKeys                                         map[string]string
 	namespaces                                         map[string]string
 	installed                                          []string
+	deployed                                           map[string]string
+	releases                                           map[string]kindRelease
 }
+
+type kindRelease struct{ name, namespace string }
 
 var fetchKindNodeImages = func() ([]string, error) {
 	return kube.FetchKindNodeImages(nil, "")
@@ -500,7 +507,8 @@ func (m model) kindChartFields(op *kindOp) []helmField {
 	var fields []helmField
 	for _, c := range m.cfg.Charts() {
 		label := c.Name
-		if op.values != nil && op.values[c.Name] != "" {
+		upgrading := selected[c.Name] && op.isInstalled(c.Name) && op.chartUpgrade(c.Name)
+		if op.values != nil && op.values[c.Name] != "" && (!op.isInstalled(c.Name) || upgrading) {
 			label += " (values)"
 		}
 		note := ""
@@ -514,6 +522,7 @@ func (m model) kindChartFields(op *kindOp) []helmField {
 			toggle: true,
 			on:     selected[c.Name],
 			note:   note,
+			tag:    kindUpgradeTag(upgrading),
 		})
 		if selected[c.Name] {
 			fields = append(fields, m.kindNsField(op, c, op.isInstalled(c.Name)))
@@ -1156,6 +1165,19 @@ type kindChartWork struct {
 	upgrade bool
 }
 
+func kindStepValueFiles(op kindOp, w kindChartWork, step config.Chart, custom string) (files, temps []string, err error) {
+	if _, edited := op.deployed[w.parent]; w.upgrade && edited {
+		if step.HelmRelease() != op.releases[w.parent].name {
+			return kindChartValueFiles(step, "")
+		}
+		if custom != "" {
+			return []string{custom}, nil, nil
+		}
+		return nil, nil, nil
+	}
+	return kindChartValueFiles(step, custom)
+}
+
 func kindChartValueFiles(step config.Chart, custom string) (files, temps []string, err error) {
 	if len(step.Values) > 0 {
 		path, err := config.WriteValuesFile(step.Values)
@@ -1305,7 +1327,7 @@ func (m model) startKindCharts(op kindOp, prefix string) tea.Cmd {
 					}
 				}
 				for _, step := range w.steps {
-					files, extra, err := kindChartValueFiles(step, custom)
+					files, extra, err := kindStepValueFiles(op, w, step, custom)
 					if err != nil {
 						fail(err)
 						return
@@ -1702,6 +1724,7 @@ func (m model) openKindCharts(name string) (tea.Model, tea.Cmd) {
 	op := kindOp{name: name, kubeconfig: path, charts: selected, installed: append([]string{}, selected...), form: "kindcharts"}
 	if err == nil {
 		op.namespaces = kindInstalledNamespaces(secrets, m.cfg.Charts(), selected)
+		op.releases = kindInstalledReleases(secrets, m.cfg.Charts(), selected)
 	}
 	d := m.newDialog("kindcharts", kindIconCharts+" charts · "+name, "kind", "", name)
 	m.dlgSeq++
@@ -1749,7 +1772,7 @@ func (m model) submitKindCharts() (tea.Model, tea.Cmd) {
 	for _, n := range want {
 		if !had[n] {
 			install = append(install, n)
-		} else if op.values != nil && op.values[n] != "" {
+		} else if op.chartUpgrade(n) {
 			upgrade = append(upgrade, n)
 		}
 	}
@@ -1926,6 +1949,18 @@ func (m model) editKindChartValues() (tea.Model, tea.Cmd) {
 				seed = text
 			}
 		}
+		if op.isInstalled(name) {
+			text, err := m.deployedKindValues(op, name)
+			if err != nil {
+				m.dlg.msg = "could not read deployed values: " + err.Error()
+				return m, nil
+			}
+			if op.deployed == nil {
+				op.deployed = map[string]string{}
+			}
+			op.deployed[name] = text
+			seed = text
+		}
 		f, err := os.CreateTemp("", "k2-"+name+"-values-*.yaml")
 		if err != nil {
 			m.dlg.msg = err.Error()
@@ -1953,6 +1988,82 @@ func (m model) editKindChartValues() (tea.Model, tea.Cmd) {
 	return m.runEditor("kindvalues", "vim "+filepath.Base(path), filepath.Base(path), "",
 		func() *exec.Cmd { return vimCommand(path) },
 		func(error) tea.Msg { return kindValuesDoneMsg{} })
+}
+
+func (m model) deployedKindValues(op kindOp, name string) (string, error) {
+	rel, ok := op.releases[name]
+	if !ok {
+		return "", fmt.Errorf("%s has no release on %s", name, op.name)
+	}
+	bin := m.helmCLI()
+	if bin == "" {
+		return "", fmt.Errorf("helm CLI not found")
+	}
+	args := []string{"get", "values", rel.name, "-o", "yaml"}
+	args = append(args, kube.HelmArgs(op.kubeconfig, kube.KindContext(op.name), rel.namespace)...)
+	raw, err := shell.Output(m.run, bin, args...)
+	if err != nil {
+		return "", errors.New(shell.FailText(raw, err))
+	}
+	out := string(raw)
+	if kindValuesEmpty(out) {
+		return "{}\n", nil
+	}
+	return out, nil
+}
+
+func kindUpgradeTag(on bool) string {
+	if on {
+		return "upgrade"
+	}
+	return ""
+}
+
+func kindParseValues(text string) (map[string]any, bool) {
+	var v any
+	if err := yaml.Unmarshal([]byte(text), &v); err != nil {
+		return nil, false
+	}
+	switch t := v.(type) {
+	case nil:
+		return map[string]any{}, true
+	case map[string]any:
+		return t, true
+	}
+	return nil, false
+}
+
+func kindValuesEmpty(text string) bool {
+	v, ok := kindParseValues(text)
+	return ok && len(v) == 0
+}
+
+func kindValuesDiffer(a, b string) bool {
+	va, okA := kindParseValues(a)
+	vb, okB := kindParseValues(b)
+	if !okA || !okB {
+		return strings.TrimSpace(a) != strings.TrimSpace(b)
+	}
+	return !reflect.DeepEqual(va, vb)
+}
+
+func (op kindOp) chartUpgrade(name string) bool {
+	path := ""
+	if op.values != nil {
+		path = op.values[name]
+	}
+	if path == "" {
+		return false
+	}
+	base, ok := op.deployed[name]
+	if !ok {
+		return true
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return kindValuesDiffer(base, string(raw))
 }
 
 func (m *model) reopenKindForm() {

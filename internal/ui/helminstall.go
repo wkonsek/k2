@@ -38,6 +38,7 @@ type helmField struct {
 	action     bool
 	on         bool
 	note       string
+	tag        string
 }
 
 type helmSearchMsg struct {
@@ -1128,16 +1129,20 @@ func (d *dialog) helmFormRows(inner int) []string {
 			if f.key == "create" {
 				on = d.hcreate
 			}
+			valStyle := itemStyle
 			if on {
 				val = "yes"
+				if f.tag != "" {
+					val, valStyle = f.tag, warnStyle
+				}
 			}
 			if f.note != "" {
 				val += " · " + f.note
 			}
 			if i == d.idx && f.note == "" {
-				out = append(out, label+itemStyle.Render(val)+dimStyle.Render("  space toggles"))
+				out = append(out, label+valStyle.Render(val)+dimStyle.Render("  space toggles"))
 			} else {
-				out = append(out, label+itemStyle.Render(val))
+				out = append(out, label+valStyle.Render(val))
 			}
 			continue
 		}
