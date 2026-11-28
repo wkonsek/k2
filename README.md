@@ -892,6 +892,42 @@ ui:
   unavailable, CRD `additionalPrinterColumns` are a fallback when
   readable.
 
+### Kubeconfig picker
+
+`C` lists the files in `~/.kube`. When the pane is wide enough, the
+highlighted file gets a details card on the right that follows the
+selection. Per context (the current one first):
+
+- cluster, server (long URLs cut in the middle), default namespace, user
+- auth type: bearer token, OpenShift `oc login` token (`sha256~…`), client
+  cert, exec plugin (with the command name), auth-provider, basic, none
+- whether the token / cert / key is there, and whether it is still good:
+  JWT `exp`, client cert `NotAfter` (`valid until …`, `expired …`,
+  `unknown`). Local only, no signature check. `oc login` tokens and exec
+  plugins have no local expiry, so they say `unknown`
+- two live signals, kept apart on purpose:
+  - `api`: does the server answer at all (`GET /version`, no credentials).
+    Any HTTP answer, 401 and 403 too, is `reachable`. DNS, TLS, refused or
+    timeout is `unreachable` with a short reason
+  - `access`: `GET /api` with the context's own credentials. `auth ok ·
+    <user>` (green), `401 unauthorized / expired` (red), `403 forbidden`
+    (yellow), `exec failed` (red), or `unknown`. An expired token on a live
+    API is `reachable` + `401`
+
+Checks run in the background with a 3 s timeout per request, start about a
+quarter second after the cursor stops, run at most four at a time, and are
+cached per file and context for `ui.kubeconfig_ttl` seconds (60). Scrolling
+never waits for them. `r` rechecks the highlighted file (`keys.kubeconfig_refresh`).
+Exec plugins are run with no stdin and a 3 s timeout, the way kubectl would;
+`ui.kubeconfig_live: false` turns every live check (and so the plugin runs)
+off and keeps the local details. `ui.kubeconfig_pane: false` brings back the
+plain list. Tokens and keys are never shown.
+
+`ctrl+l` (`keys.login`) on a file is the same login as in the context
+picker: same box, same code, but aimed at the highlighted file and its
+current context. After it, the cache for that file is dropped and the live
+checks run again.
+
 ### Token lifetime
 
 Under the cluster info the sidebar shows how long the focused context's
@@ -911,7 +947,8 @@ and has no such resource.
 
 `ctrl+l` or `:login` opens a box: paste the new token and it replaces
 that user's `token` in the kubeconfig (or rewrites `tokenFile`, when that
-is where the token lives). The token is not printed afterwards.
+is where the token lives). The token is not printed afterwards. In the
+kubeconfig picker it targets the highlighted file instead.
 
 | credential of the context's user | sidebar |
 |---|---|

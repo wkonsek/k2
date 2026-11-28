@@ -403,13 +403,17 @@ func (m model) viewSection() []helpSection {
 			r(k.ShellBack, "back"),
 		}}}
 	case "files", "contexts", "projects":
-		return []helpSection{{"Pick a " + m.paneView(), []helpRow{
+		var extra []helpRow
+		if m.stage == "files" {
+			extra = []helpRow{r(k.Login, "paste a token for the selected kubeconfig"), r(k.KubeconfigRefresh, "recheck the selected kubeconfig")}
+		}
+		return []helpSection{{"Pick a " + m.paneView(), append([]helpRow{
 			r(k.Select, "choose"),
 			{"/", "filter"},
 			r(k.Favorites, "favorites"),
 			r(k.CmdFavorites, "favorite commands"),
 			r(k.Back, "back"),
-		}}}
+		}, extra...)}}
 	}
 	return []helpSection{{"Actions", []helpRow{
 		r(k.Select, "open"),

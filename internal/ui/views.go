@@ -393,6 +393,8 @@ func (m model) legend() string {
 		parts = append(parts, pair(k.Apply.Short(), "apply"), pair(k.KustomizeDelete.Short(), "delete"), pair(k.Diff.Short(), "diff"), pair(k.Edit.Short(), "vim"), pair(k.KustomizePath.Short(), "path"), pair(k.OpenFolder.Short(), m.folderApp()))
 	} else if m.stage == "fwds" {
 		parts = append(parts, pair(k.Delete.Short(), "delete"), pair(k.DeleteAll.Short(), "delete all"))
+	} else if m.stage == "files" {
+		parts = append(parts, pair(k.Login.Short(), "login"), pair(k.KubeconfigRefresh.Short(), "recheck"), pair("/", "filter"))
 	} else if m.stage != "nav" && m.stage != "logs" && m.stage != "yaml" {
 		parts = append(parts, pair("/", "filter"))
 	}
@@ -676,6 +678,8 @@ func (m model) rightBody(innerW int) string {
 		return m.logsBody(innerW)
 	case "kind":
 		return m.kindBody(innerW)
+	case "files":
+		return m.kubeconfigBody(innerW)
 	case "fwds":
 		head := ""
 		if len(m.forwards) > 0 {

@@ -337,6 +337,7 @@ type model struct {
 	cinfo              map[string]clusterInfo
 	cinfoKey           string
 	tok                tokenState
+	kcp                *kcPane
 	themeName          string
 	metrics            map[string]podMetrics
 	metNoted           map[string]bool

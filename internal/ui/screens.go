@@ -56,6 +56,15 @@ func (m model) screenMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		m.rowBusy = map[string]bool{}
 	}
 	switch msg := msg.(type) {
+	case kcInfoMsg:
+		cmd := m.applyKcInfo(msg)
+		return m, cmd, true
+	case kcTickMsg:
+		cmd := m.applyKcTick(msg)
+		return m, cmd, true
+	case kcLiveMsg:
+		m.applyKcLive(msg)
+		return m, nil, true
 	case xrayMsg:
 		cmd := m.applyXray(msg)
 		return m, cmd, true
@@ -167,6 +176,9 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 		return next, cmd, true
 	}
 	switch {
+	case m.stage == "files" && km.KubeconfigRefresh.Has(key):
+		next, cmd := m.kcRefreshKey()
+		return next, cmd, true
 	case km.Theme.Has(key):
 		next, cmd := m.openTheme()
 		return next, cmd, true

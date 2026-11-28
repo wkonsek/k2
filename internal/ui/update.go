@@ -22,6 +22,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if more := mm.syncLogStreams(); len(more) > 0 {
 			cmd = tea.Batch(cmd, tea.Batch(more...))
 		}
+		if more := mm.kcSync(); more != nil {
+			cmd = tea.Batch(cmd, more)
+		}
 		return mm, cmd
 	}
 	return next, cmd

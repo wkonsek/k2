@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"k2/internal/config"
 	"k2/internal/kube"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -217,31 +218,45 @@ func tokenLeft(d time.Duration) string {
 	return fmt.Sprintf("%ds", int(d/time.Second))
 }
 
+func (m model) loginTarget() (kubeconfig, context string) {
+	if path := m.kcSelected(); path != "" {
+		return path, m.kcLoginContext(path)
+	}
+	return m.kubeconfig, m.context
+}
+
 func (m model) openLogin() (tea.Model, tea.Cmd) {
-	if m.context == "" && m.kubeconfig == "" {
+	kc, ctx := m.loginTarget()
+	if ctx == "" && kc == "" {
 		m.status = "select a context first"
 		return m, nil
 	}
-	d := m.newDialog("login", "token", "", "", "").
+	d := m.newDialog("login", "token", "", "", ctx).
 		withField("", "paste token", "replaces this context's token in the kubeconfig")
 	d.input.CharLimit = 16384
+	d.where, d.loginKC = or(ctx, config.HomePath(kc)), kc
 	m.dlg = d
 	return m, nil
 }
 
 func (m model) submitLogin() (tea.Model, tea.Cmd) {
 	token := strings.TrimSpace(m.dlg.input.Value())
+	kc, ctx := m.dlg.loginKC, m.dlg.name
 	m.dlg = nil
 	if token == "" {
 		m.status = "empty token"
 		return m, nil
 	}
-	if _, err := kube.SetContextToken(m.kubeconfig, m.context, token); err != nil {
+	if _, err := kube.SetContextToken(kc, ctx, token); err != nil {
 		m.status = err.Error()
 		return m, nil
 	}
-	m.tok = tokenState{}
-	m.status = "token updated · " + m.context
-	m.resFail = kube.FailNone
-	return m, tea.Batch(m.tokenCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+	m.status = "token updated · " + or(ctx, config.HomePath(kc))
+	cmds := []tea.Cmd{m.kcRecheck(kc)}
+	if kc == m.kubeconfig && ctx == m.context {
+		m.tok = tokenState{}
+		m.resFail = kube.FailNone
+		cmds = append(cmds, m.tokenCmd(), fetchResources(m.k, m.kubeconfig, m.context))
+	}
+	return m, tea.Batch(cmds...)
 }

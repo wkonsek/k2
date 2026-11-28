@@ -48,6 +48,7 @@ type dialog struct {
 	hcreate   bool
 	pool      []string
 	dest      string
+	loginKC   string
 }
 
 func (m model) newDialog(act, title, kind, ns, name string) *dialog {
