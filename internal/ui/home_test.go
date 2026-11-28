@@ -124,6 +124,37 @@ func TestNamespacePickerReturnsToTheList(t *testing.T) {
 	}
 }
 
+func TestNamespacePickerMarksCurrent(t *testing.T) {
+	m := newTestModel(t, testEnv(t), nsCluster())
+	m.kubeconfig, m.context, m.namespace = "/kc", "kind-dev", "shop"
+	m = pressSettle(t, m, "n")
+	assertNamespaceTitles(t, m, "shop")
+
+	m.namespace = ""
+	m = settle(t, m, m.showProjects([]string{"shop", "pay"}, nil))
+	assertNamespaceTitles(t, m, "")
+}
+
+func assertNamespaceTitles(t *testing.T, m model, current string) {
+	t.Helper()
+	if m.stage != "projects" {
+		t.Fatalf("stage %q", m.stage)
+	}
+	for _, raw := range m.content.Items() {
+		it := raw.(item)
+		want := it.id
+		if it.id == "*" {
+			want = "all namespaces"
+		}
+		if it.id == current || (it.id == "*" && current == "") {
+			want = markSquare + " " + want
+		}
+		if it.title != want {
+			t.Fatalf("id %q title %q, want %q", it.id, it.title, want)
+		}
+	}
+}
+
 func TestEmptyNamespaceStaysOnTheList(t *testing.T) {
 	f := &shell.Fake{Handler: func(r shell.Request) shell.Result {
 		line := strings.Join(r.Args, " ")

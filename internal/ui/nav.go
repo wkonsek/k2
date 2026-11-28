@@ -129,7 +129,7 @@ func (m model) handleContentEnter() (tea.Model, tea.Cmd) {
 	case "projects":
 		name := it.id
 		if name == "" {
-			name = strings.TrimPrefix(it.title, "● ")
+			name = strings.TrimPrefix(it.title, markSquare+" ")
 		}
 		ctx, ns, err := m.k.UseProject(m.kubeconfig, m.context, name)
 		if err != nil {
@@ -245,6 +245,22 @@ func (m *model) resetDrill() {
 	m.vs.parent, m.vs.parentSel = "", ""
 }
 
+func namespaceItems(projects []string, current string) []list.Item {
+	allTitle := "all namespaces"
+	if current == "" {
+		allTitle = markSquare + " all namespaces"
+	}
+	items := []list.Item{item{title: allTitle, id: "*"}}
+	for _, p := range projects {
+		title := p
+		if p == current {
+			title = markSquare + " " + p
+		}
+		items = append(items, item{title: title, id: p})
+	}
+	return items
+}
+
 func (m *model) showProjects(projects []string, err error) tea.Cmd {
 	if err != nil {
 		m.status = m.errLine(err)
@@ -252,18 +268,7 @@ func (m *model) showProjects(projects []string, err error) tea.Cmd {
 			m.status = text
 		}
 	}
-	allTitle := "all namespaces"
-	if m.namespace == "" {
-		allTitle = "● all namespaces"
-	}
-	items := []list.Item{item{title: allTitle, id: "*"}}
-	for _, p := range projects {
-		title := p
-		if p == m.namespace {
-			title = "● " + p
-		}
-		items = append(items, item{title: title, id: p})
-	}
+	items := namespaceItems(projects, m.namespace)
 	m.content.ResetFilter()
 	m.content.Title = "Namespace"
 	m.content.Select(0)

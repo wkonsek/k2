@@ -341,10 +341,7 @@ func (m *model) hydrate(sp state.Pane) paneSnap {
 			fail(err)
 			break
 		}
-		items := []list.Item{item{title: "all namespaces", id: "*"}}
-		for _, p := range projects {
-			items = append(items, item{title: p, id: p})
-		}
+		items := namespaceItems(projects, ns)
 		alt.content.Title = "Namespace"
 		alt.content.SetItems(items)
 		alt.stage = "projects"
