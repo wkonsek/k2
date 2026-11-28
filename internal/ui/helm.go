@@ -106,10 +106,10 @@ func (m *model) applyHelm(msg helmMsg) tea.Cmd {
 
 func (m model) helmHint() string {
 	k := m.cfg.Keys
-	hint := k.HelmValues.Label() + " values, " + k.HelmComputed.Label() + " computed, " + k.HelmManifest.Label() + " manifest, " +
+	hint := k.Select.Label() + " values, " + k.HelmComputed.Label() + " computed, " + k.HelmManifest.Label() + " manifest, " +
 		k.HelmNotes.Label() + " notes, " + k.HelmHistory.Label() + " history, " + k.AllNamespaces.Label() + " all namespaces"
 	if m.helmCLI() != "" {
-		hint += ", " + k.HelmInstall.Label() + " install, " + k.HelmUpgrade.Label() + " upgrade, " + k.Edit.Label() + " edit, " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
+		hint += ", " + k.HelmInstall.Label() + " install, " + k.HelmUpgrade.Label() + " upgrade, " + k.HelmValues.Label() + " edit values, " + k.HelmRollback.Label() + " rollback, " + k.Delete.Label() + " uninstall"
 	}
 	return hint
 }
@@ -172,6 +172,9 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 	}
 	ref := r.Namespace + "/" + r.Name
 	switch {
+	case km.HelmValues.Has(key) && m.helmCLI() != "":
+		next, cmd := m.editHelmReleaseValues(r)
+		return next, cmd, true
 	case km.HelmValues.Has(key), km.Select.Has(key):
 		text := fmt.Sprintf("# user-supplied values of %s, revision %d\n%s", ref, r.Revision, kube.ValuesYAML(r.Config))
 		return m.helmText("yaml", "values "+ref, text), nil, true
@@ -227,7 +230,7 @@ func (m model) helmText(stage, subject, text string) model {
 	m.stage = stage
 	m.status = subject + " · " + m.cfg.Keys.Back.Label() + " back"
 	if m.helmValuesSubject(subject) && m.helmCLI() != "" {
-		m.status += " · " + m.cfg.Keys.Edit.Label() + " edit"
+		m.status += " · " + m.cfg.Keys.HelmValues.Label() + " edit"
 	}
 	return m
 }

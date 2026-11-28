@@ -217,7 +217,7 @@ func (m model) screenKey(key string) (tea.Model, tea.Cmd, bool) {
 		return m.kindKey(key)
 	case m.stage == "helm":
 		return m.helmKey(key)
-	case m.helmValuesView() && km.Edit.Has(key):
+	case m.helmValuesView() && (km.HelmValues.Has(key) || km.Edit.Has(key)):
 		r, ok := m.selectedRelease()
 		if !ok {
 			return m, nil, true

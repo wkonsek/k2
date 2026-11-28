@@ -21,7 +21,7 @@ func TestHelmValuesNotStalePodYAML(t *testing.T) {
 	m = pressSettle(t, m, "esc")
 	m = selectRow(t, open(t, m, "helm"), "web")
 	checks := []struct{ key, want string }{
-		{"v", "# user-supplied values of shop/web"},
+		{"enter", "# user-supplied values of shop/web"},
 		{"V", "# computed values of shop/web"},
 		{"M", "kind: Deployment"},
 	}
@@ -64,12 +64,12 @@ func TestHelmEditValues(t *testing.T) {
 		t.Fatalf("read-only list: confirm %q status %q", got.asking(), got.status)
 	}
 	m.readOnly = false
-	m = pressSettle(t, m, "v")
+	m = pressSettle(t, m, "enter")
 	if !strings.Contains(m.logText, "user-supplied values") {
 		t.Fatalf("values view:\n%s", m.logText)
 	}
 	view := ansi.Strip(m.View())
-	if !strings.Contains(view, "e edit") && !strings.Contains(m.status, "e edit") {
+	if !strings.Contains(view, "v edit") && !strings.Contains(m.status, "v edit") {
 		t.Fatalf("values view missing edit hint:\nstatus %q\n%s", m.status, view)
 	}
 	m.readOnly = true
@@ -146,7 +146,7 @@ func TestHelmEditValues(t *testing.T) {
 
 	m = selectRow(t, open(t, appModel(t, f), "helm"), "web")
 	m.cfg.UI.EditorInline = false
-	m = pressSettle(t, m, "v")
+	m = pressSettle(t, m, "enter")
 	opened = ""
 	next, _ = m.Update(key(t, "e"))
 	m = next.(model)
@@ -186,13 +186,11 @@ func TestHelmLegendDropsValuesKeepsKeys(t *testing.T) {
 	f := helmInstallFake(t, "")
 	m := selectRow(t, open(t, appModel(t, f), "helm"), "web")
 	l := ansi.Strip(m.legend())
-	if strings.Contains(l, "v values") || !strings.Contains(l, "V computed") || !strings.Contains(l, "e edit values") || !strings.Contains(l, "u upgrade") {
+	if !strings.Contains(l, "enter values") || !strings.Contains(l, "v edit values") || !strings.Contains(l, "V computed") || !strings.Contains(l, "u upgrade") || strings.Contains(l, "e edit values") {
 		t.Fatalf("legend %q", l)
 	}
-	for _, key := range []string{"v", "enter"} {
-		next := pressSettle(t, m, key)
-		if next.stage != "yaml" || !strings.Contains(next.logText, "# user-supplied values of shop/web") {
-			t.Fatalf("%s: stage %s\n%s", key, next.stage, next.logText)
-		}
+	next := pressSettle(t, m, "enter")
+	if next.stage != "yaml" || !strings.Contains(next.logText, "# user-supplied values of shop/web") {
+		t.Fatalf("enter: stage %s\n%s", next.stage, next.logText)
 	}
 }

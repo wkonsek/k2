@@ -202,7 +202,7 @@ func (m model) viewerRows() []helpRow {
 		rows = append(rows, helpRow{keyList(k.Apply, 1), "apply the same kustomization"})
 	}
 	if m.helmValuesView() {
-		rows = append(rows, helpRow{keyList(k.Edit, 1), "edit values and confirm an upgrade"})
+		rows = append(rows, helpRow{keyList(k.HelmValues, 1) + " / " + keyList(k.Edit, 1), "edit values and confirm an upgrade"})
 	}
 	if m.stage == "htpl" {
 		rows = append(rows, helpRow{keyList(k.Select, 1), "confirm the install or upgrade"}, helpRow{keyList(k.Back, 1), "back"})
@@ -360,14 +360,17 @@ func (m model) viewSection() []helpSection {
 		}}}
 	case "helm":
 		rows := []helpRow{
-			{keyList(k.HelmValues, 1) + " / enter", "values"},
+			{k.Select.Label(), "preview the values (read-only)"},
 			r(k.HelmComputed, "computed values"),
 			r(k.HelmManifest, "manifest"),
 			r(k.HelmNotes, "notes"),
 			r(k.HelmHistory, "history"),
 		}
+		if m.helmCLI() == "" {
+			rows = append(rows, r(k.HelmValues, "preview the values (read-only)"))
+		}
 		if m.helmCLI() != "" {
-			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), r(k.Edit, "edit values and confirm an upgrade"), r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
+			rows = append(rows, r(k.HelmInstall, "install"), r(k.HelmUpgrade, "upgrade"), helpRow{keyList(k.HelmValues, 1) + " / " + keyList(k.Edit, 1), "edit the values in vim, then confirm an upgrade"}, r(k.HelmRollback, "roll back"), r(k.Delete, "uninstall"))
 			rows = append(rows, helpRow{"tab / shift+tab", "cycle catalog charts in the install form (↑↓ move between fields)"})
 			rows = append(rows, helpRow{"ctrl+e", "edit the values file in the install or upgrade form"})
 		}
