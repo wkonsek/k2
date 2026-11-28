@@ -214,11 +214,24 @@ func ValuesYAML(v map[string]any) string {
 	if len(v) == 0 {
 		return "{}\n"
 	}
-	out, err := yaml.Marshal(v)
+	out, err := EncodeYAML(v)
 	if err != nil {
 		return fmt.Sprintf("# could not render values: %v\n", err)
 	}
-	return string(out)
+	return out
+}
+
+func EncodeYAML(v any) (string, error) {
+	var b bytes.Buffer
+	enc := yaml.NewEncoder(&b)
+	enc.SetIndent(2)
+	if err := enc.Encode(v); err != nil {
+		return "", err
+	}
+	if err := enc.Close(); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func HelmArgs(kubeconfig, context, namespace string) []string {

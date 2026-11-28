@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"k2/internal/config"
@@ -121,7 +122,7 @@ func (m model) openHelmUpgrade(r kube.HelmRelease) (tea.Model, tea.Cmd) {
 	op.chart, op.version = splitReleaseChart(r.Chart)
 	if dir, err := os.MkdirTemp("", "k2-helm-"); err == nil {
 		path := filepath.Join(dir, r.Name+"-values.yaml")
-		if os.WriteFile(path, []byte(kube.ValuesYAML(r.Config)), 0o600) == nil {
+		if os.WriteFile(path, []byte(m.releaseValuesYAML(r)), 0o600) == nil {
 			op.values = path
 		}
 	}
@@ -634,7 +635,7 @@ func (m model) editHelmReleaseValues(r kube.HelmRelease) (tea.Model, tea.Cmd) {
 	if _, next, cmd, ok := m.needHelmCLI("upgrade"); !ok {
 		return next, cmd
 	}
-	text := kube.ValuesYAML(r.Config)
+	text := m.releaseValuesYAML(r)
 	dir, err := os.MkdirTemp("", "k2-helm-")
 	if err != nil {
 		m.status = m.errLine(err)
@@ -947,11 +948,16 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 	docker := m.dockerCLI()
 	upgrade := op.act == "upgrade" && len(steps) == 1
 	return func() tea.Msg {
-		if err := ensureRepos(k, bin, steps, func(string) {}); err != nil {
-			return editDoneMsg{what: what, err: err, helmNS: op.ns, helmName: op.name}
+		from := 0
+		if upgrade && op.current.Revision > 0 {
+			from = op.current.Revision
 		}
-		var notes, extra string
+		if err := ensureRepos(k, bin, steps, func(string) {}); err != nil {
+			return editDoneMsg{what: what, err: err, helmNS: op.ns, helmName: op.name, helmChart: kube.ChartAt(op.chart, op.version), helmFrom: from}
+		}
+		var notes, extra, state string
 		var last config.Chart
+		var to int
 		for _, step := range steps {
 			last = step
 			if step.IsSealedSecrets() || config.IsSealedSecretsName(op.catalog) || config.IsSealedSecretsName(op.chart) {
@@ -973,7 +979,7 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 						} else {
 							text = text + "\n" + err.Error()
 						}
-						return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease()}
+						return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease(), helmChart: kube.ChartAt(op.chart, op.version), helmFrom: from}
 					}
 					extra = strings.TrimSpace(extra + "\n" + log.String())
 				}
@@ -982,7 +988,7 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 			if values == "" && len(step.Values) > 0 {
 				path, err := config.WriteValuesFile(step.Values)
 				if err != nil {
-					return editDoneMsg{what: what, err: err, helmNS: step.Namespace, helmName: step.HelmRelease()}
+					return editDoneMsg{what: what, err: err, helmNS: step.Namespace, helmName: step.HelmRelease(), helmChart: kube.ChartAt(op.chart, op.version), helmFrom: from}
 				}
 				values = path
 			}
@@ -993,9 +999,9 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 				if text == "" {
 					text = err.Error()
 				}
-				return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease()}
+				return editDoneMsg{what: what, err: fmt.Errorf("%s", text), helmNS: step.Namespace, helmName: step.HelmRelease(), helmChart: kube.ChartAt(op.chart, op.version), helmFrom: from}
 			}
-			notes = helmNotesFrom(out)
+			notes, state, to = parseHelmApplyOut(out)
 			if (strings.EqualFold(step.Name, "metallb") || strings.EqualFold(step.HelmRelease(), "metallb") || strings.EqualFold(step.Chart, "metallb")) && strings.HasPrefix(ctx, "kind-") {
 				n, w := setupMetalLB(run, docker, kc, ctx, step.Namespace, func(string) {})
 				if n != "" {
@@ -1013,7 +1019,7 @@ func (m model) helmApplySteps(what string, op helmOp, bin string, steps []config
 		if last.HelmRelease() != "" {
 			ns, name = last.Namespace, last.HelmRelease()
 		}
-		return editDoneMsg{what: what, helmNS: ns, helmName: name, helmNotes: notes}
+		return editDoneMsg{what: what, helmNS: ns, helmName: name, helmNotes: notes, helmChart: kube.ChartAt(op.chart, op.version), helmState: state, helmFrom: from, helmTo: to}
 	}
 }
 
@@ -1022,6 +1028,29 @@ func helmNotesFrom(out string) string {
 		return strings.TrimSpace(out[i+6:])
 	}
 	return strings.TrimSpace(out)
+}
+
+func parseHelmApplyOut(out string) (notes, status string, revision int) {
+	head := out
+	if i := strings.Index(out, "NOTES:"); i >= 0 {
+		notes = strings.TrimSpace(out[i+6:])
+		head = out[:i]
+	}
+	for _, line := range strings.Split(head, "\n") {
+		line = strings.TrimSpace(line)
+		key, val, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		val = strings.TrimSpace(val)
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "STATUS":
+			status = val
+		case "REVISION":
+			revision, _ = strconv.Atoi(val)
+		}
+	}
+	return notes, status, revision
 }
 
 func parseHelmCmd(rest string) (helmOp, bool, string) {
@@ -1203,8 +1232,8 @@ func (d *dialog) helmFormRows(inner int) []string {
 
 func (m *model) applyHelmDone(msg editDoneMsg) {
 	m.stage = "helm"
-	if msg.helmNS != "" && m.namespace != msg.helmNS && !m.vs.helmAll {
-		m.namespace = msg.helmNS
+	if msg.err == nil {
+		m.saveHelmValuesFromHop()
 	}
 	m.helmRefreshNow()
 	pick := msg.helmName
@@ -1212,21 +1241,128 @@ func (m *model) applyHelmDone(msg editDoneMsg) {
 		pick = msg.helmNS + "/" + msg.helmName
 	}
 	m.showHelm(pick)
-	notes := msg.helmNotes
-	status := msg.what
-	ref := msg.helmNS + "/" + msg.helmName
-	if r, ok := m.selectedRelease(); ok {
-		if notes == "" {
-			notes = r.Notes
-		}
-		status = msg.what + " · " + or(r.Status, "deployed")
-		ref = r.Namespace + "/" + r.Name
-	}
 	m.vs.hop = nil
-	m.status = status
-	if notes != "" {
-		next := m.helmText("view", "notes "+ref, notes)
-		*m = next
-		m.status = status + " · notes"
+	r, _ := m.selectedRelease()
+	status := msg.what
+	if msg.err != nil {
+		status = msg.what + " failed"
+	} else if st := helmResultStatus(msg, r); st != "" {
+		status = msg.what + " · " + st
 	}
+	m.status = status
+	m.openHelmResult(msg, r)
+}
+
+func helmResultStatus(msg editDoneMsg, r kube.HelmRelease) string {
+	if msg.helmState != "" {
+		return msg.helmState
+	}
+	return r.Status
+}
+
+func helmResultRevision(msg editDoneMsg, r kube.HelmRelease) (from, to int) {
+	from, to = msg.helmFrom, msg.helmTo
+	if to == 0 && r.Revision > 0 {
+		to = r.Revision
+	}
+	return from, to
+}
+
+func (m *model) openHelmResult(msg editDoneMsg, r kube.HelmRelease) {
+	ns, name, chart := msg.helmNS, msg.helmName, msg.helmChart
+	if r.Name != "" {
+		if ns == "" {
+			ns = r.Namespace
+		}
+		if name == "" {
+			name = r.Name
+		}
+		if chart == "" {
+			chart = r.Chart
+		}
+	}
+	upgrade := strings.HasPrefix(msg.what, "upgraded")
+	title := "✚ helm install"
+	if upgrade {
+		title = "↑ helm upgrade"
+	}
+	if msg.err != nil {
+		title = "✗ helm install"
+		if upgrade {
+			title = "✗ helm upgrade"
+		}
+	}
+	var details []string
+	switch {
+	case ns != "" && name != "":
+		details = append(details, "release  "+ns+"/"+name)
+	case name != "":
+		details = append(details, "release  "+name)
+	}
+	if chart != "" {
+		details = append(details, "chart    "+chart)
+	}
+	from, to := helmResultRevision(msg, r)
+	switch {
+	case from > 0 && to > 0 && from != to:
+		details = append(details, fmt.Sprintf("revision %d → %d", from, to))
+	case to > 0:
+		details = append(details, fmt.Sprintf("revision %d", to))
+	case from > 0:
+		details = append(details, fmt.Sprintf("revision %d", from))
+	}
+	if msg.err == nil {
+		if st := helmResultStatus(msg, r); st != "" {
+			details = append(details, "status   "+st)
+		}
+	}
+	if msg.err != nil {
+		details = append(details, "")
+		details = append(details, strings.Split(strings.TrimSpace(msg.err.Error()), "\n")...)
+	} else {
+		notes := strings.TrimSpace(msg.helmNotes)
+		if notes == "" {
+			notes = strings.TrimSpace(r.Notes)
+		}
+		if notes != "" {
+			details = append(details, "", "NOTES")
+			details = append(details, strings.Split(notes, "\n")...)
+		}
+	}
+	d := m.newDialog("helmresult", title, "helm", ns, name)
+	if m.dangerous() {
+		d.where = skull + " " + or(m.context, "no context")
+		if ns != "" {
+			d.where += " · " + ns
+		}
+	}
+	d.details, d.danger, d.idx = details, msg.err != nil, 0
+	m.dlgSeq++
+	d.seq = m.dlgSeq
+	m.dlg = d
+}
+
+func (m model) helmResultKey(key string) (tea.Model, tea.Cmd) {
+	km := m.cfg.Keys
+	d := m.dlg
+	switch {
+	case km.ScrollDown.Has(key) || km.PageDown.Has(key):
+		d.idx++
+		return m, nil
+	case km.ScrollUp.Has(key) || km.PageUp.Has(key):
+		if d.idx > 0 {
+			d.idx--
+		}
+		return m, nil
+	case km.Top.Has(key):
+		d.idx = 0
+		return m, nil
+	case km.Bottom.Has(key):
+		d.idx = 1 << 20
+		return m, nil
+	case km.Cancel.Has(key) || km.Back.Has(key) || km.Submit.Has(key):
+		m.dlg = nil
+		return m, nil
+	}
+	return m, nil
 }

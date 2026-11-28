@@ -1471,6 +1471,7 @@ func (m *model) applyKindCharts(msg kindChartsMsg) tea.Cmd {
 			return
 		}
 		j.status, j.step, j.err = "running", "", nil
+		m.saveKindValuesCaches(j.op)
 		m.syncKindLog(name)
 		m.showKind(name)
 		if m.stage == "kindlog" {
@@ -2007,8 +2008,11 @@ func (m model) deployedKindValues(op kindOp, name string) (string, error) {
 	}
 	out := string(raw)
 	if kindValuesEmpty(out) {
-		return "{}\n", nil
+		out = "{}\n"
+	} else {
+		out = formatHelmValues(out)
 	}
+	out = m.preferHelmValues(kube.KindContext(op.name), rel.namespace, rel.name, out)
 	return out, nil
 }
 

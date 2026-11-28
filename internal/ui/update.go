@@ -329,10 +329,6 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if msg.err != nil {
 			cmd := m.notify(toneErr, msg.what+" failed")
-			if msg.helmName != "" {
-				next, extra := m.openLastErr()
-				return next, tea.Batch(cmd, extra)
-			}
 			return m, cmd
 		}
 		return m, m.notify(toneOK, msg.what)

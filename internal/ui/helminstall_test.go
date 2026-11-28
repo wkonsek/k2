@@ -66,9 +66,19 @@ func helmInstallFake(t *testing.T, secrets string) *shell.Fake {
 				if strings.Contains(line, "already-there") {
 					return shell.Fail(1, "Error: cannot re-use a name that is still in use")
 				}
-				return shell.OK("NAME: kafbat-ui\nNAMESPACE: kafka\nSTATUS: deployed\nNOTES:\nGet the UI:\n  kubectl -n kafka port-forward svc/kafbat-ui 8080:80\n")
+				return shell.OK("NAME: kafbat-ui\nNAMESPACE: kafka\nSTATUS: deployed\nREVISION: 1\nNOTES:\nGet the UI:\n  kubectl -n kafka port-forward svc/kafbat-ui 8080:80\n")
 			case strings.HasPrefix(line, "upgrade "):
-				return shell.OK("Release \"web\" has been upgraded. Happy Helming!\nNOTES:\nupgraded notes\n")
+				name, ns := "web", "shop"
+				f := strings.Fields(line)
+				if len(f) > 1 {
+					name = f[1]
+				}
+				for i, a := range f {
+					if a == "-n" && i+1 < len(f) {
+						ns = f[i+1]
+					}
+				}
+				return shell.OK("Release \"" + name + "\" has been upgraded. Happy Helming!\nNAME: " + name + "\nNAMESPACE: " + ns + "\nSTATUS: deployed\nREVISION: 3\nNOTES:\nupgraded notes\n")
 			default:
 				return shell.OK("ok")
 			}
@@ -139,11 +149,24 @@ func TestHelmInstallFormAndPreview(t *testing.T) {
 	if strings.Contains(got[0], "--wait") {
 		t.Fatal("unexpected --wait")
 	}
-	if !strings.Contains(m.status, "installed kafbat-ui") || !strings.Contains(m.logText, "port-forward") {
-		t.Fatalf("after install stage %s status %q text %s", m.stage, m.status, m.logText)
+	view = ansi.Strip(m.View())
+	if m.stage != "helm" || m.dlg == nil || m.dlg.act != "helmresult" || m.dlg.danger {
+		t.Fatalf("after install stage %s dlg %+v", m.stage, m.dlg)
 	}
-	if m.namespace != "kafka" {
-		t.Fatalf("namespace after install: %s", m.namespace)
+	if !strings.Contains(m.status, "installed kafbat-ui") || !strings.Contains(view, "port-forward") {
+		t.Fatalf("after install status %q view:\n%s", m.status, view)
+	}
+	for _, want := range []string{"release  kafka/kafbat-ui", "revision 1", "status   deployed", "NOTES"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("result lacks %q:\n%s", want, view)
+		}
+	}
+	if m.namespace != "shop" || m.vs.helmAll {
+		t.Fatalf("view after install: ns %s all %v", m.namespace, m.vs.helmAll)
+	}
+	m = pressSettle(t, m, "q")
+	if m.dlg != nil || m.stage != "helm" || m.namespace != "shop" {
+		t.Fatalf("q left helm: stage %s ns %s dlg %v", m.stage, m.namespace, m.dlg != nil)
 	}
 }
 
@@ -270,8 +293,15 @@ func TestHelmInstallErrorPopup(t *testing.T) {
 	next, cmd := m.submitHelmForm()
 	m = settle(t, next.(model), cmd)
 	m = pressSettle(t, m, "enter", "y")
-	if m.dlg == nil || m.dlg.act != "error" || !strings.Contains(strings.Join(m.dlg.details, "\n"), "cannot re-use a name") {
-		t.Fatalf("error popup %+v last %q", m.dlg, m.lastErr.text)
+	if m.stage != "helm" || m.dlg == nil || m.dlg.act != "helmresult" || !m.dlg.danger || !strings.Contains(strings.Join(m.dlg.details, "\n"), "cannot re-use a name") {
+		t.Fatalf("error popup stage %s %+v last %q", m.stage, m.dlg, m.lastErr.text)
+	}
+	if m.namespace != "shop" {
+		t.Fatalf("error switched namespace to %s", m.namespace)
+	}
+	m = pressSettle(t, m, "esc")
+	if m.dlg != nil || m.stage != "helm" {
+		t.Fatalf("esc left helm: stage %s dlg %v", m.stage, m.dlg != nil)
 	}
 }
 
@@ -592,5 +622,106 @@ func TestHelmChartDefaultsPreviewDoesNotClobberValues(t *testing.T) {
 	}
 	if string(got) != string(before) {
 		t.Fatalf("values file changed after back:\n%s", got)
+	}
+}
+
+func TestHelmUpgradeResultPopup(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = selectRow(t, open(t, m, "helm"), "web")
+	m = pressSettle(t, m, "u")
+	next, cmd := m.submitHelmForm()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "enter", "y")
+	view := ansi.Strip(m.View())
+	if m.stage != "helm" || m.dlg == nil || m.dlg.act != "helmresult" || m.dlg.danger {
+		t.Fatalf("after upgrade stage %s dlg %+v", m.stage, m.dlg)
+	}
+	for _, want := range []string{"helm upgrade", "release  shop/web", "revision 2 → 3", "status   deployed", "NOTES", "upgraded notes"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("result lacks %q:\n%s", want, view)
+		}
+	}
+	if m.namespace != "shop" || m.vs.helmAll {
+		t.Fatalf("view after upgrade: ns %s all %v", m.namespace, m.vs.helmAll)
+	}
+	m = pressSettle(t, m, "N")
+	if m.stage != "helm" || m.dlg == nil {
+		t.Fatalf("N closed the popup or left helm: stage %s dlg %v", m.stage, m.dlg != nil)
+	}
+	m = pressSettle(t, m, "enter")
+	if m.dlg != nil || m.stage != "helm" {
+		t.Fatalf("enter left helm: stage %s dlg %v", m.stage, m.dlg != nil)
+	}
+	m = pressSettle(t, m, "N")
+	if m.stage != "view" || m.dlg != nil || !strings.Contains(m.subject, "notes") || m.vs.vback != "helm" {
+		t.Fatalf("notes view: stage %s subject %q dlg %v", m.stage, m.subject, m.dlg != nil)
+	}
+	m = pressSettle(t, m, "q")
+	if m.stage != "helm" {
+		t.Fatalf("notes back went to %s", m.stage)
+	}
+}
+
+func TestHelmUpgradeAllNamespaces(t *testing.T) {
+	withHelmCLI(t)
+	f := helmInstallFake(t, "")
+	m := appModel(t, f)
+	m = open(t, m, "helm")
+	if m.namespace != "shop" || m.vs.helmAll {
+		t.Fatalf("start: ns %s all %v", m.namespace, m.vs.helmAll)
+	}
+	m = pressSettle(t, m, "0")
+	if !m.vs.helmAll || !strings.Contains(ansi.Strip(m.View()), "all/helm") {
+		t.Fatalf("all namespaces:\n%s", ansi.Strip(m.View()))
+	}
+	m = selectRow(t, m, "lab/api")
+	m = pressSettle(t, m, "u")
+	next, cmd := m.submitHelmForm()
+	m = settle(t, next.(model), cmd)
+	m = pressSettle(t, m, "enter", "y")
+	got := helmVerbCalls(f, "upgrade")
+	if len(got) != 1 || !strings.Contains(got[0], "upgrade api") || !strings.Contains(got[0], "-n lab") || !strings.Contains(got[0], "--kube-context kind-dev") || !strings.Contains(got[0], "--kubeconfig /kc") {
+		t.Fatalf("upgrade args %v", got)
+	}
+	if strings.Contains(got[0], "-n shop") {
+		t.Fatalf("used the pane namespace: %v", got)
+	}
+	view := ansi.Strip(m.View())
+	if m.stage != "helm" || !m.vs.helmAll || m.namespace != "shop" {
+		t.Fatalf("after upgrade stage %s ns %s all %v", m.stage, m.namespace, m.vs.helmAll)
+	}
+	if !strings.Contains(view, "all/helm") {
+		t.Fatalf("left all/helm:\n%s", view)
+	}
+	if m.dlg == nil || m.dlg.act != "helmresult" || !strings.Contains(view, "release  lab/api") || !strings.Contains(view, "revision 1 → 3") {
+		t.Fatalf("result popup:\n%s", view)
+	}
+	r, ok := m.selectedRelease()
+	if !ok || r.Name != "api" || r.Namespace != "lab" {
+		t.Fatalf("selected %+v ok %v", r, ok)
+	}
+	m = pressSettle(t, m, "q")
+	if m.dlg != nil || m.stage != "helm" || !m.vs.helmAll || m.namespace != "shop" {
+		t.Fatalf("q: stage %s ns %s all %v dlg %v", m.stage, m.namespace, m.vs.helmAll, m.dlg != nil)
+	}
+	if !strings.Contains(ansi.Strip(m.View()), "all/helm") {
+		t.Fatalf("q left all/helm:\n%s", ansi.Strip(m.View()))
+	}
+	r, ok = m.selectedRelease()
+	if !ok || r.Name != "api" || r.Namespace != "lab" {
+		t.Fatalf("q selected %+v ok %v", r, ok)
+	}
+}
+
+func TestParseHelmApplyOut(t *testing.T) {
+	notes, status, rev := parseHelmApplyOut("NAME: web\nSTATUS: deployed\nREVISION: 10\nNOTES:\nhello\n  there\n")
+	if notes != "hello\n  there" || status != "deployed" || rev != 10 {
+		t.Fatalf("got notes=%q status=%q rev=%d", notes, status, rev)
+	}
+	notes, status, rev = parseHelmApplyOut("Error: UPGRADE FAILED: values don't exist")
+	if notes != "" || status != "" || rev != 0 {
+		t.Fatalf("error parse notes=%q status=%q rev=%d", notes, status, rev)
 	}
 }

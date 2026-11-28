@@ -99,6 +99,9 @@ func (m model) updateDialog(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.act == "error" {
 		return m.errorKey(key)
 	}
+	if d.act == "helmresult" {
+		return m.helmResultKey(key)
+	}
 	if d.act == "help" {
 		return m.helpKey(key)
 	}
@@ -366,6 +369,9 @@ func (m model) dialogBox(width int) string {
 	d := m.dlg
 	inner := width - 4
 	hot := m.dangerous()
+	if d.act == "helmresult" {
+		hot = d.danger
+	}
 	title := d.title
 	if hot {
 		title = skull + " " + title
@@ -388,7 +394,10 @@ func (m model) dialogBox(width int) string {
 	if d.act == "error" {
 		room = max(8, m.height-8)
 	}
-	if d.act == "error" && len(det) > room {
+	if d.act == "helmresult" {
+		room = max(8, min(m.height-8, m.height*2/3))
+	}
+	if (d.act == "error" || d.act == "helmresult") && len(det) > room {
 		top := d.idx
 		if top < 0 {
 			top = 0
@@ -421,7 +430,7 @@ func (m model) dialogBox(width int) string {
 	}
 	for _, l := range det {
 		st := itemStyle
-		if d.act == "error" {
+		if d.act == "error" || (d.act == "helmresult" && d.danger) {
 			st = errStyle
 		}
 		lines = append(lines, st.Render(l))
@@ -488,6 +497,12 @@ func (m model) dialogBox(width int) string {
 			keyStyle.Render("[ ]")+dimStyle.Render(" older  ")+
 			keyStyle.Render(k.CopyYank.Short())+dimStyle.Render(" copy  ")+
 			keyStyle.Render(k.Cancel.Short())+dimStyle.Render(" close"))
+	case d.act == "helmresult":
+		foot := keyStyle.Render(k.Cancel.Short()+"/"+k.Back.Short()+"/"+k.Submit.Short()) + dimStyle.Render(" close")
+		if len(d.details) > 12 {
+			foot = keyStyle.Render(k.ScrollDown.Short()+"/"+k.ScrollUp.Short()) + dimStyle.Render(" scroll  ") + foot
+		}
+		lines = append(lines, foot)
 	case d.msg != "" && d.act == "setimage" && len(d.images) == 0:
 		lines = append(lines, dimStyle.Render(d.msg))
 	case d.msg != "":

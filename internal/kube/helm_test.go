@@ -111,3 +111,20 @@ func TestMergeValues(t *testing.T) {
 		t.Fatal("empty values")
 	}
 }
+
+func TestValuesYAMLIndent(t *testing.T) {
+	got := ValuesYAML(map[string]any{
+		"replicaCount": 2,
+		"env": []any{
+			map[string]any{"name": "FOO", "value": "bar"},
+		},
+		"image": map[string]any{"repository": "nginx", "tag": "1.27"},
+	})
+	want := "env:\n  - name: FOO\n    value: bar\nimage:\n  repository: nginx\n  tag: \"1.27\"\nreplicaCount: 2\n"
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if strings.Contains(got, "    - name:") {
+		t.Fatalf("4-space list item:\n%s", got)
+	}
+}

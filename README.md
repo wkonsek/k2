@@ -434,7 +434,7 @@ APP VERSION, UPDATED. `enter` previews the values read-only, `V` computed
 values, `M` manifest, `N` notes, `t` history as a table (`●` current
 revision). `v` (or `e`; also from the `enter` preview) opens the release's
 user-supplied values in vim; if you save a change, a red popup confirms
-`helm upgrade` with the edited file (no extra form). Without the helm CLI
+`helm upgrade` with the edited file (no extra form). Values are written with 2-space indent; if a later edit still matches the cluster, k2 reopens the last file you saved (comments and key order included). Without the helm CLI
 `v` just previews. In the history
 `space` marks a revision and `D` diffs it with another (or the selected
 one with the current one), per resource plus user values.
@@ -455,8 +455,10 @@ catalog (istio, sealed-secrets, metallb, argocd, cert-manager,
 metrics-server, kube-prometheus-stack, kafbat) is overridable under
 `helm.charts` in `~/.k2/config.yaml`. For `sealed-secrets`, the form shows a master-key path (from `helm.charts.sealed-secrets.master_key_path`, or pick one with `ctrl+p`; the last picked path is remembered in `~/.k2/state.json` and prefilled next time, the config path still wins, and clearing the field forgets it); k2 runs `kubectl apply -f` on that Secret YAML before `helm install`. Preview with `helm template` (for an
 upgrade, a per-resource diff against the current manifest). A red popup
-names the context, release, chart and namespace; on success k2 jumps to
-the release and shows its notes.
+names the context, release, chart and namespace. On success k2 stays on
+the helm list and shows a popup with the revision, status and notes
+(`esc`, `q` or `enter` closes it). A failed install or upgrade shows the
+helm error in a red popup. `N` still opens a release's notes full-screen.
 `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`
 and `:helm upgrade …` prefill the same form. `r` rolls back (to the
 previous revision from the list, to the selected one from the history)

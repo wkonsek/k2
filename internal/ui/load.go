@@ -345,8 +345,8 @@ func (m *model) applyEditDone(msg editDoneMsg) {
 	}
 	if msg.err != nil {
 		m.status = m.errLine(msg.err)
-		if msg.helmName != "" && m.vs.hop != nil {
-			m.reopenHelmForm()
+		if msg.helmName != "" {
+			m.applyHelmDone(msg)
 		}
 		return
 	}

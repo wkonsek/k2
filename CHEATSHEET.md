@@ -264,8 +264,11 @@ picker). k2 applies that Secret YAML with `kubectl apply -f` before
 `helm install`. k2 adds
 and updates the chart's Helm repo before install.
 Preview with `helm template` shows kinds and a scrollable manifest; a red
-popup names the context, release, chart and namespace. On success k2 jumps
-to the release and shows its notes. `u` (or `:helm upgrade …`) opens the
+popup names the context, release, chart and namespace. On success k2 stays
+on the helm list and shows a popup with the revision, status and notes
+(`esc`, `q` or `enter` closes it). A failed install or upgrade shows the
+helm error in a red popup. `N` still opens a release's notes full-screen.
+`u` (or `:helm upgrade …`) opens the
 same form on the selected release: name, chart and namespace stay fixed,
 version and values can change, and the preview is a per-resource diff
 against the current manifest.
@@ -280,7 +283,7 @@ against the current manifest.
 | `0` | `keys.all_namespaces` | all namespaces / the pane's namespace (k9s `0`) |
 | `A` | `keys.helm_install` | install a chart (helm CLI; form, preview, red popup) |
 | `u` | `keys.helm_upgrade` | upgrade the selected release (helm CLI; form, diff preview, red popup) |
-| `v` | `keys.helm_values` | edit user-supplied values in vim, then confirm an upgrade (helm CLI; without it, preview; also from the `enter` preview) |
+| `v` | `keys.helm_values` | edit user-supplied values in vim, then confirm an upgrade (helm CLI; without it, preview; also from the `enter` preview). 2-space indent; the last saved file is reused when it still matches the cluster |
 | `e` | `keys.edit` | same as `v` |
 | `r` | `keys.helm_rollback` | roll back to the previous revision (helm CLI; red popup) |
 | `ctrl+d` | `keys.delete` | uninstall the release (helm CLI; red popup), also with other panes or tabs open |

@@ -228,6 +228,8 @@ type editDoneMsg struct {
 	token int
 
 	helmNS, helmName, helmNotes string
+	helmChart, helmState        string
+	helmFrom, helmTo            int
 	status                      string
 }
 

@@ -176,7 +176,7 @@ func (m model) helmKey(key string) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.editHelmReleaseValues(r)
 		return next, cmd, true
 	case km.HelmValues.Has(key), km.Select.Has(key):
-		text := fmt.Sprintf("# user-supplied values of %s, revision %d\n%s", ref, r.Revision, kube.ValuesYAML(r.Config))
+		text := fmt.Sprintf("# user-supplied values of %s, revision %d\n%s", ref, r.Revision, m.releaseValuesYAML(r))
 		return m.helmText("yaml", "values "+ref, text), nil, true
 	case km.HelmComputed.Has(key):
 		text := fmt.Sprintf("# computed values of %s, revision %d (chart defaults merged with the user-supplied values)\n%s",

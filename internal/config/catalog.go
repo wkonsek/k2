@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"os"
 	"sort"
 	"strings"
@@ -331,11 +332,16 @@ func ValuesFileYAML(values map[string]any) (string, error) {
 	if len(values) == 0 {
 		return "", nil
 	}
-	b, err := yaml.Marshal(values)
-	if err != nil {
+	var b bytes.Buffer
+	enc := yaml.NewEncoder(&b)
+	enc.SetIndent(2)
+	if err := enc.Encode(values); err != nil {
 		return "", err
 	}
-	return string(b), nil
+	if err := enc.Close(); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func WriteValuesFile(values map[string]any) (string, error) {
