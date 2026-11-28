@@ -67,6 +67,10 @@ func TestWrapperEvaluatesOnlyCleanExports(t *testing.T) {
 		{"exit 0 but garbage", `echo 'rm -rf "$MARK"'`, 0, "unchanged", ""},
 		{"exit 0, export plus more", `printf 'export KUBECONFIG=/x\ntouch "$MARK.2"\n'`, 0, "unchanged", ""},
 		{"args run directly", ``, 0, "unchanged", ""},
+		{"env export", `echo 'export KUBECONFIG="/tmp/picked config"'`, 0, "/tmp/picked config", ""},
+		{"-e export", `echo 'export KUBECONFIG="/tmp/picked config"'`, 0, "/tmp/picked config", ""},
+		{"env nothing remembered", `echo 'k2: no kubeconfig remembered yet; start k2 and pick one first' >&2; exit 1`, 1, "unchanged", "no kubeconfig remembered yet"},
+		{"env garbage", `echo 'rm -rf "$MARK"'`, 0, "unchanged", ""},
 	}
 	shells := map[string][]string{}
 	for _, sh := range []string{"zsh", "bash"} {
@@ -101,8 +105,13 @@ func TestWrapperEvaluatesOnlyCleanExports(t *testing.T) {
 					t.Fatal(err)
 				}
 				call := "k2"
-				if c.name == "args run directly" {
+				switch c.name {
+				case "args run directly":
 					call = "k2 --version"
+				case "env export", "env nothing remembered", "env garbage":
+					call = "k2 env"
+				case "-e export":
+					call = "k2 -e"
 				}
 				script := strings.Join(fn, "\n") + "\n" + call + "\ncode=$?\nprint_kc() { printf '%s' \"$KUBECONFIG\" > \"$MARK.kc\"; }\nprint_kc\nexit $code\n"
 				cmd := exec.Command(argv[0], "-c", script)

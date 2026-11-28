@@ -10,12 +10,12 @@ import (
 )
 
 const shellWrapper = `  k2() {
-    if (( $# )); then
+    if (( $# )) && [[ $1 != env && $1 != "-e" ]]; then
       command k2 "$@"
       return
     fi
     local out
-    out="$(command k2)" || return
+    out="$(command k2 "$@")" || return
     if [[ $out == 'export KUBECONFIG='* && $out != *$'\n'* ]]; then
       eval "$out"
     fi
@@ -42,13 +42,17 @@ Usage:
                       default ~/.k2/kind-cache): cache = cached layers in cache/ (keeps the CA),
                       ca = the proxy CA in ca/, all = both. Prints what it freed; ca and all
                       refuse while the proxy container runs (k2 kind-cache --help for more)
+  k2 env              print the same export KUBECONFIG="..." line as on UI exit,
+                      for the last focused pane (also -e); no UI
 
 On exit k2 takes the FOCUSED pane: it sets current-context and the namespace
 of that pane in the pane's kubeconfig file, then prints a single line,
 export KUBECONFIG="<that kubeconfig>", and nothing else.
+k2 env (also k2 -e) does that from the last saved pane, with no UI.
 
 Use it through a shell function so the export line is evaluated, e.g. in ~/.zshrc
-(it evaluates only a clean exit's export line, never an error or crash text):
+(it evaluates only a clean export line from a UI exit or from k2 env / k2 -e,
+never an error or crash text):
 
 ` + shellWrapper + `
 

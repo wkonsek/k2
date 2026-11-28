@@ -13,7 +13,7 @@ func TestCLIAction(t *testing.T) {
 	}
 	for _, a := range []string{"--help", "-h"} {
 		out, exit := cliAction([]string{a}, "v9")
-		if !exit || !strings.HasPrefix(out, "k2 - ") || !strings.Contains(out, "README.md") || !strings.Contains(out, `out="$(command k2)"`) {
+		if !exit || !strings.HasPrefix(out, "k2 - ") || !strings.Contains(out, "README.md") || !strings.Contains(out, `out="$(command k2 "$@")"`) {
 			t.Errorf("%s: %q %v", a, out, exit)
 		}
 	}
@@ -26,7 +26,10 @@ func TestCLIAction(t *testing.T) {
 
 func TestHelpDescribesExit(t *testing.T) {
 	out, _ := cliAction([]string{"--help"}, "v")
-	for _, want := range []string{"FOCUSED pane", "current-context", "namespace", `export KUBECONFIG="<that kubeconfig>"`} {
+	for _, want := range []string{
+		"FOCUSED pane", "current-context", "namespace", `export KUBECONFIG="<that kubeconfig>"`,
+		"k2 env", "k2 -e", `[[ $1 != env && $1 != "-e" ]]`,
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("help lacks %q", want)
 		}

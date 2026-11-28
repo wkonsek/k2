@@ -68,16 +68,17 @@ make build      # bin/k2 only
 ```
 
 **Shell function.** On exit k2 prints `export KUBECONFIG="..."` for the
-focused pane. Drop this in `~/.zshrc` (bash is the same):
+focused pane. `k2 env` (or `k2 -e`) prints that same line for the last
+focused pane, with no UI. Drop this in `~/.zshrc` (bash is the same):
 
 ```zsh
 k2() {
-  if (( $# )); then
+  if (( $# )) && [[ $1 != env && $1 != "-e" ]]; then
     command k2 "$@"
     return
   fi
   local out
-  out="$(command k2)" || return
+  out="$(command k2 "$@")" || return
   if [[ $out == 'export KUBECONFIG='* && $out != *$'\n'* ]]; then
     eval "$out"
   fi
@@ -85,8 +86,9 @@ k2() {
 ```
 
 It only evaluates a clean exit: one `export KUBECONFIG=...` line, exit 0.
-With arguments (`k2 --version`, `k2 --help`, `k2 --init-config`,
-`k2 --update`, `k2 kind-cache clean …`) k2 runs as-is. A crash restores the terminal, writes the
+That includes `k2 env` and `k2 -e`. With other arguments (`k2 --version`,
+`k2 --help`, `k2 --init-config`, `k2 --update`, `k2 kind-cache clean …`)
+k2 runs as-is. A crash restores the terminal, writes the
 stack to `~/.k2/crash.log` and prints one line to stderr.
 
 ## Quick start
@@ -752,6 +754,7 @@ with `--fresh` still opens the profile.
 On exit k2 also writes the focused pane's context and namespace into that
 pane's kubeconfig (current-context) and prints
 `export KUBECONFIG="<that kubeconfig>"` for the shell function.
+`k2 env` (or `k2 -e`) does the same from the last saved pane, with no UI.
 
 ### Configuration
 
@@ -992,7 +995,7 @@ make demo        the README GIFs (needs vhs)
 
 ```
 example.go          embeds config.example.yaml (written on first start)
-cmd/k2/             main: runs the UI, prints the export line, --version, --init-config, --update, kind-cache
+cmd/k2/             main: runs the UI, prints the export line, --version, --init-config, --update, kind-cache, env
 internal/ui/        Bubble Tea model, views and key handling
 internal/config/    ~/.k2/config.yaml, key bindings and key parsing
 internal/theme/     color palettes
