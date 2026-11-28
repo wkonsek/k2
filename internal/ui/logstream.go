@@ -209,9 +209,9 @@ func (s *logStream) start() {
 	s.epoch++
 	s.running = true
 	s.announced = false
-	for _, p := range s.pods {
-		p.ended = true
-	}
+	s.fol = kube.NewFollower()
+	s.pods = map[string]*podFollow{}
+	s.buf, s.lost, s.note = nil, 0, ""
 	if sp := s.single; sp != nil {
 		ctx, fol := s.ctx, s.fol
 		spec := kube.FollowSpec{Args: func(since time.Time) []string {

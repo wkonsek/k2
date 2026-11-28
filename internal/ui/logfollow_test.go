@@ -559,3 +559,181 @@ func TestStreamSinceWindowDumpsRawLinesWithoutFollowing(t *testing.T) {
 		t.Fatalf("no --since=60m call in %v", calls(fk, "logs"))
 	}
 }
+
+func TestStreamReopenShowsTheConfiguredTail(t *testing.T) {
+	const tail, total = 50, 200
+	f := &feed{}
+	m := selectRow(t, actionModel(t, f.fake()), "db-0")
+	m.cfg.Logs.MaxLines = 20000
+	m.cfg.Logs.Tail = tail
+	m.height, m.width = 30, 100
+	d := newDriver(t, m)
+	d.press("l")
+	if d.m.stage != "logs" {
+		t.Fatalf("stage %s", d.m.stage)
+	}
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(total)
+	d.until("the first open", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", total-1))
+	})
+
+	d.press("q")
+	if d.m.stage == "logs" {
+		t.Fatal("still in logs")
+	}
+	d.until("the process to stop", func() bool { return f.running.Load() == 0 })
+
+	d.press("l")
+	if d.m.stage != "logs" {
+		t.Fatalf("reopen stage %s", d.m.stage)
+	}
+	assertReopenedTail(t, d, f, tail, total)
+}
+
+func TestStreamReopenAfterEnterShowsTheConfiguredTail(t *testing.T) {
+	const tail, total = 50, 180
+	f := &feed{}
+	m := selectRow(t, actionModel(t, f.fake()), "db-0")
+	m.cfg.Logs.MaxLines = 20000
+	m.cfg.Logs.Tail = tail
+	m.height, m.width = 30, 100
+	d := newDriver(t, m)
+	d.press("enter")
+	if d.m.stage != "logs" || d.m.vs.logCont != "pg" {
+		t.Fatalf("enter stage %s cont %q", d.m.stage, d.m.vs.logCont)
+	}
+	d.until("the process", func() bool { return f.running.Load() == 1 })
+	f.produce(total)
+	d.until("the first open", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", total-1))
+	})
+
+	d.press("q")
+	if d.m.stage == "logs" {
+		t.Fatal("still in logs")
+	}
+	d.until("the process to stop", func() bool { return f.running.Load() == 0 })
+
+	d.press("enter")
+	if d.m.stage != "logs" {
+		t.Fatalf("reopen stage %s", d.m.stage)
+	}
+	assertReopenedTail(t, d, f, tail, total)
+}
+
+func TestStreamSwitchBackToContainerShowsTheConfiguredTail(t *testing.T) {
+	const tail, total = 50, 160
+	f := &feed{}
+	m := selectRow(t, actionModel(t, f.fake()), "web-1")
+	m.cfg.Logs.MaxLines = 20000
+	m.cfg.Logs.Tail = tail
+	m.height, m.width = 30, 100
+	d := newDriver(t, m)
+	next, cmd := d.m.openLogs("shop/web-1", "app", false)
+	d.m = next.(model)
+	d.run(cmd)
+	d.press("tab")
+	d.until("the first container", func() bool { return f.running.Load() == 1 })
+	f.produce(total)
+	d.until("app lines", func() bool {
+		return strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", total-1))
+	})
+
+	next, cmd = d.m.openLogs("shop/web-1", "side", false)
+	d.m = next.(model)
+	d.run(cmd)
+	d.press("tab")
+	d.until("the second container", func() bool {
+		return d.m.vs.logCont == "side" && f.running.Load() == 1 && len(f.calls()) >= 2
+	})
+	d.until("side lines", func() bool {
+		return strings.Contains(d.m.logText, fmt.Sprintf("seq-%06d", total-1))
+	})
+
+	next, cmd = d.m.openLogs("shop/web-1", "app", false)
+	d.m = next.(model)
+	d.run(cmd)
+	d.press("tab")
+	if d.m.vs.logCont != "app" {
+		t.Fatalf("switched back to %q", d.m.vs.logCont)
+	}
+	assertReopenedTail(t, d, f, tail, total)
+}
+
+func TestSternReopenShowsTheConfiguredTail(t *testing.T) {
+	const tail, total = 50, 140
+	f := &feed{}
+	m := appModel(t, f.over(appCluster(t)))
+	m.cfg.Logs.MultiMaxLines = 20000
+	m.cfg.Logs.Tail = tail
+	m.height, m.width = 30, 120
+	d := newDriver(t, m)
+	next, cmd := d.m.runCommand("logs app=web")
+	d.m = next.(model)
+	d.run(cmd)
+	if d.m.stage != "mlogs" {
+		t.Fatalf("stage %s", d.m.stage)
+	}
+	d.until("two processes", func() bool { return f.running.Load() == 2 })
+	f.produce(total)
+	d.until("the first lines", func() bool { return strings.Count(d.m.logText, fmt.Sprintf("seq-%06d", total-1)) == 2 })
+
+	d.press("esc")
+	d.until("both processes to stop", func() bool { return f.running.Load() == 0 })
+
+	next, cmd = d.m.runCommand("logs app=web")
+	d.m = next.(model)
+	d.run(cmd)
+	if d.m.stage != "mlogs" {
+		t.Fatalf("reopen stage %s", d.m.stage)
+	}
+	d.until("two processes again", func() bool { return f.running.Load() == 2 })
+	d.until("the tailed lines after reopen", func() bool {
+		return strings.Count(d.m.logText, fmt.Sprintf("seq-%06d", total-tail)) == 2 &&
+			strings.Count(d.m.logText, fmt.Sprintf("seq-%06d", total-1)) == 2
+	})
+	for pod, got := range sternText(t, d.m) {
+		if len(got) == 0 || got[0] != total-tail || got[len(got)-1] != total-1 {
+			t.Fatalf("%s reopen lines %v, want %d..%d", pod, got, total-tail, total-1)
+		}
+		for i := 1; i < len(got); i++ {
+			if got[i] != got[i-1]+1 {
+				t.Fatalf("%s: gap after %d: %d", pod, got[i-1], got[i])
+			}
+		}
+	}
+	calls := f.calls()
+	if len(calls) < 4 {
+		t.Fatalf("calls %v", calls)
+	}
+	for _, c := range calls[len(calls)-2:] {
+		if !strings.Contains(c, fmt.Sprintf("--tail=%d", tail)) || strings.Contains(c, "--since-time=") {
+			t.Fatalf("reopen args %s", c)
+		}
+	}
+}
+
+func assertReopenedTail(t *testing.T, d *driver, f *feed, tail, total int) {
+	t.Helper()
+	d.until("the process again", func() bool { return f.running.Load() == 1 })
+	d.until("the tailed lines after reopen", func() bool {
+		return strings.Contains(d.m.logText, fmt.Sprintf("seq-%06d", total-tail)) &&
+			strings.HasSuffix(strings.TrimRight(d.m.logText, "\n"), fmt.Sprintf("seq-%06d", total-1))
+	})
+	if strings.Contains(ansi.Strip(d.m.logsBody(90)), "no log lines yet") {
+		t.Fatal("reopen showed an empty follow")
+	}
+	got := contiguous(t, d.m.logText)
+	if got[0] != total-tail || got[len(got)-1] != total-1 {
+		t.Fatalf("reopen lines %d..%d, want %d..%d", got[0], got[len(got)-1], total-tail, total-1)
+	}
+	calls := f.calls()
+	if len(calls) < 2 {
+		t.Fatalf("calls %v", calls)
+	}
+	last := calls[len(calls)-1]
+	if !strings.Contains(last, fmt.Sprintf("--tail=%d", tail)) || strings.Contains(last, "--since-time=") {
+		t.Fatalf("reopen args %s", last)
+	}
+}

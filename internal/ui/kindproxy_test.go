@@ -198,6 +198,16 @@ func TestKindProxyCardSelectionLogsAndBack(t *testing.T) {
 	if m.stage != "kind" || !m.kindProxySelected() {
 		t.Fatalf("back: stage %s sel %d", m.stage, m.vs.kindSel)
 	}
+	m = pressSettle(t, m, "enter")
+	if m.stage != "kindlog" || m.vs.kindLog != kindProxyLog {
+		t.Fatalf("reopen stage %s log %q", m.stage, m.vs.kindLog)
+	}
+	if got := proxyCalls(f.Fake, "logs --tail 200 -f k2-registry-proxy"); len(got) != 2 {
+		t.Fatalf("reopen logs %v", got)
+	}
+	if !strings.Contains(m.logText, "proxy ready") {
+		t.Fatalf("reopen log text %q", m.logText)
+	}
 }
 
 func TestKindProxyRemoveKeepsCacheAndClusterDeleteKeepsProxy(t *testing.T) {

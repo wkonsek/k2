@@ -1833,6 +1833,14 @@ func TestKindEnterOnStoppedClusterOpensLogs(t *testing.T) {
 	if m.stage != "kind" || m.kindLogCancel != nil {
 		t.Fatalf("esc stage %s", m.stage)
 	}
+	m = pressSettle(t, m, "enter")
+	if m.stage != "kindlog" {
+		t.Fatalf("reopen stage %s status %q", m.stage, m.status)
+	}
+	got = dockerCalls(f.Fake, "logs")
+	if len(got) != 2 || !strings.Contains(got[1], "logs --tail 200 -f lab-control-plane") {
+		t.Fatalf("reopen docker logs calls %v", got)
+	}
 }
 
 func TestKindCacheRendersBeforeRefresh(t *testing.T) {
