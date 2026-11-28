@@ -17,7 +17,7 @@ func TestDefaultsMatchOriginal(t *testing.T) {
 	if c.Logs.Tail != 80 || c.Logs.MaxLines != 400 {
 		t.Fatalf("log defaults: %+v", c.Logs)
 	}
-	if c.UI != (UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
+	if c.UI != (UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, KubeconfigPane: true, KubeconfigLive: true, KubeconfigTTL: 60, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true}) {
 		t.Fatalf("ui defaults: %+v", c.UI)
 	}
 	if c.StateDir != DefaultDir() || len(c.Prod) != 0 || len(c.Aliases) != 0 {
@@ -302,7 +302,7 @@ func TestUISwitches(t *testing.T) {
 		`config: ui.animations: "maybe" is not true or false (using true)`,
 		`config: ui.toasts: "" is not true or false (using true)`,
 		`config: ui.toast_seconds: 99 is out of range 1..30 (using 3)`,
-		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, forward_scroll, logo, logo_title_color, logo_twinkle, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_position, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, watch_every, wrap)`,
+		`config: ui: unknown setting "sparkles" (have active_border, animations, background, clipboard, cluster_info, context_themes, copy_mode_hint, dim_inactive, editor_inline, forward_dock_rows, forward_scroll, kubeconfig_live, kubeconfig_pane, kubeconfig_ttl, logo, logo_title_color, logo_twinkle, metrics_bars, metrics_crit, metrics_every, metrics_warn, pod_metrics, refresh_every, sidebar_narrow_width, sidebar_position, sidebar_width, tabbar, toast_seconds, toasts, token_bar, token_crit, token_warn, watch_every, wrap)`,
 	}
 	if strings.Join(w, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("warnings:\n%s", strings.Join(w, "\n"))
@@ -823,5 +823,23 @@ func TestHelpKey(t *testing.T) {
 	c, w := Parse([]byte("keys:\n  help: d\n"))
 	if !c.Keys.Help.Has("?") || len(w) != 1 || !strings.Contains(w[0], "keys.help: d is already used by describe") {
 		t.Fatalf("clash %v %v", c.Keys.Help, w)
+	}
+}
+
+func TestKubeconfigPaneSettings(t *testing.T) {
+	c, w := Parse([]byte("ui:\n  kubeconfig_pane: false\n  kubeconfig_live: off\n  kubeconfig_ttl: 120\nkeys:\n  kubeconfig_refresh: ctrl+r\n"))
+	if len(w) != 0 || c.UI.KubeconfigPane || c.UI.KubeconfigLive || c.UI.KubeconfigTTL != 120 {
+		t.Fatalf("ui %+v warnings %v", c.UI, w)
+	}
+	if got := c.Keys.KubeconfigRefresh; len(got) != 1 || got[0] != "ctrl+r" {
+		t.Fatalf("refresh key %v", got)
+	}
+	c, w = Parse([]byte("ui:\n  kubeconfig_ttl: 1\n"))
+	if len(w) != 1 || c.UI.KubeconfigTTL != 60 {
+		t.Fatalf("ttl %d warnings %v", c.UI.KubeconfigTTL, w)
+	}
+	c, w = Parse([]byte("keys:\n  kubeconfig_refresh: c\n"))
+	if len(w) != 1 || c.Keys.KubeconfigRefresh[0] != "r" {
+		t.Fatalf("clash with keys.kubeconfig: %v %v", c.Keys.KubeconfigRefresh, w)
 	}
 }

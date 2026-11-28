@@ -89,6 +89,9 @@
 #   token_bar: true
 #   token_warn: 25            # percent, 1..99, must be above token_crit
 #   token_crit: 10            # percent, 1..99
+#   kubeconfig_pane: true     # kubeconfig picker: details card for the highlighted file
+#   kubeconfig_live: true     # ...with live api / access checks (runs exec plugins, 3 s timeout)
+#   kubeconfig_ttl: 60        # seconds a live check is reused, 5..3600
 #   wrap: false
 #   copy_mode_hint: true
 #   logo: wordmark            # wordmark (default) | mountain
@@ -106,7 +109,7 @@
 #   cmd_favorites: B          # favorite commands: a popup of saved : commands (:cmds)
 #   cmd_save: ctrl+s          # in the : line: save the typed command as a favorite without running it
 #   theme: ctrl+t             # popup of themes for this context; saved to ui.context_themes
-#   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login)
+#   login: ctrl+l             # paste a new token for this context into its kubeconfig (:login); in the kubeconfig picker for the highlighted file
 #   mark: space               # select rows in a list; delete and M use the selection; q/esc clears it
 #   profile: ctrl+p           # save the open panes as a profile (:profile save name)
 #                             # :fresh (or k2 --fresh) drops every tab and pane back to one home pane
@@ -170,6 +173,7 @@
 #   pod_logs: l               # pods list: logs of the pod (enter opens its containers)
 #   kind_proxy: p             # :kind: start the registry proxy
 #   kind_toggle: s            # :kind: stop a running cluster or the proxy, start a stopped one
+#   kubeconfig_refresh: r     # kubeconfig picker: recheck the highlighted file
 #   log_30m: "1"              # pod logs: open the last 30 minutes in less (no line cap)
 #   log_60m: "2"              # pod logs: the last 60 minutes in less
 #   wrap: w

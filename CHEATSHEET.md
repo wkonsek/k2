@@ -104,7 +104,7 @@ cuts them with `…`).
 | `B` | `keys.cmd_favorites` | favorite commands popup (`:cmds`, `:commands`): saved `:` commands such as `logs app=web -c main`, run with one key; every screen, not in text inputs |
 | `ctrl+s` | `keys.cmd_save` | in the `:` line: save the typed command as a favorite without running it (`:cmds add <command>` does the same) |
 | `ctrl+t` | `keys.theme` | popup of themes for the current context (`:theme`), previewed as you move, `esc` restores; the choice is written to `ui.context_themes`. Not `ctrl+shift+t`: the terminal takes that chord, and k2 does not receive ctrl+shift+letter |
-| `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file |
+| `ctrl+l` | `keys.login` | paste a new token for the current context (`:login`); it replaces that user's `token` in the kubeconfig, or the `tokenFile` when the token lives in a file. In the kubeconfig picker it is the same login for the highlighted file and its current context |
 | `ctrl+p` | `keys.profile` | save the open panes as a profile (`:profile save name`). `k2 --profile name` or `:profile name` restores them. Files live in `~/.k2/profiles/` |
 | — | — | update k2 from the shell: `k2 --update` (or `k2 -U`) runs the repo's install.sh (`.deb` or `.rpm`, needs bash and curl or wget; `K2_VERSION=<tag>` picks a release); it never starts the UI |
 | — | — | drop every tab and pane and open one home pane (`:fresh`, or `k2 --fresh` at start). The focused cluster, port-forwards and favorites stay |
@@ -301,6 +301,19 @@ the history, back again to the releases.
 | `space` (` `) | `keys.helm_mark` | mark / unmark a revision to diff against |
 | `D` | `keys.helm_diff` | diff the selected revision with the marked one, or with the current one |
 | `v` `V` `M` `N` | `keys.helm_values` … | that revision's values, computed values, manifest, notes |
+
+## Kubeconfig picker (`C`)
+
+`C` shows the files in `~/.kube`, with a details card for the highlighted one when the pane is wide enough (`ui.kubeconfig_pane`). Per context: cluster, server, namespace, user, auth type, token / cert present, local validity, and two live signals: `api` (reachable or not) and `access` (`auth ok`, `401`, `403`, `exec failed`, `unknown`).
+
+| Key | Config | What it does |
+|---|---|---|
+| `↑` `↓` | `keys.scroll_up` / `keys.scroll_down` | move; the card follows, live checks start when you stop |
+| `r` | `keys.kubeconfig_refresh` | recheck the highlighted file now, ignoring the cache (`ui.kubeconfig_ttl` seconds) |
+| `ctrl+l` | `keys.login` | the context login (paste a token) for the highlighted file; then the cache is dropped and the checks rerun |
+| `enter` | `keys.select` | use the file |
+
+`ui.kubeconfig_live: false` turns the live checks off (no network, no exec plugin runs). `ui.kubeconfig_pane: false` brings back the plain list.
 
 ## Kind clusters (`:kind`, `~`)
 

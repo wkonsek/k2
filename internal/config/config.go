@@ -117,6 +117,10 @@ type UI struct {
 	TokenBar             bool
 	TokenWarn, TokenCrit int
 
+	KubeconfigPane bool
+	KubeconfigLive bool
+	KubeconfigTTL  int
+
 	Clipboard string
 
 	Wrap bool
@@ -184,7 +188,7 @@ func Default() Config {
 		Kind:          Kind{Binary: "kind", RegistryProxy: DefaultRegistryProxy()},
 		Editor:        Editor{OpenFolder: "code"},
 		PortForward:   PortForward{AutoRestart: false, RestartBackoff: 1, MaxRestarts: 10, HealthEvery: 5},
-		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
+		UI:            UI{Logo: "wordmark", LogoTitleColor: "green", LogoTwinkle: true, SidebarWidth: 28, SidebarNarrowWidth: 22, SidebarPosition: "left", RefreshEvery: 3, WatchEvery: 2, ForwardDockRows: 12, Animations: true, Toasts: true, ToastSeconds: 3, Tabbar: "auto", EditorInline: true, ActiveBorder: "thick", Background: "transparent", ClusterInfo: true, PodMetrics: true, MetricsEvery: 15, MetricsBars: true, MetricsWarn: 70, MetricsCrit: 90, TokenBar: true, TokenWarn: 25, TokenCrit: 10, KubeconfigPane: true, KubeconfigLive: true, KubeconfigTTL: 60, Clipboard: "auto", Wrap: false, CopyModeHint: true, ForwardScroll: true},
 		Keys:          DefaultKeys(),
 	}
 }
@@ -781,7 +785,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		"watch_every":          &ui.WatchEvery,
 		"forward_dock_rows":    &ui.ForwardDockRows,
 	}
-	bools := map[string]*bool{"animations": &ui.Animations, "toasts": &ui.Toasts, "editor_inline": &ui.EditorInline, "dim_inactive": &ui.DimInactive, "cluster_info": &ui.ClusterInfo, "pod_metrics": &ui.PodMetrics, "wrap": &ui.Wrap, "metrics_bars": &ui.MetricsBars, "copy_mode_hint": &ui.CopyModeHint, "token_bar": &ui.TokenBar, "forward_scroll": &ui.ForwardScroll, "logo_twinkle": &ui.LogoTwinkle}
+	bools := map[string]*bool{"animations": &ui.Animations, "toasts": &ui.Toasts, "editor_inline": &ui.EditorInline, "dim_inactive": &ui.DimInactive, "cluster_info": &ui.ClusterInfo, "pod_metrics": &ui.PodMetrics, "wrap": &ui.Wrap, "metrics_bars": &ui.MetricsBars, "copy_mode_hint": &ui.CopyModeHint, "token_bar": &ui.TokenBar, "kubeconfig_pane": &ui.KubeconfigPane, "kubeconfig_live": &ui.KubeconfigLive, "forward_scroll": &ui.ForwardScroll, "logo_twinkle": &ui.LogoTwinkle}
 	def := ui.MetricsWarn
 	defCrit := ui.MetricsCrit
 	defer func() {
@@ -871,6 +875,8 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 			p.intIn("ui."+k, v, 1, 99, &ui.MetricsCrit)
 		case k == "context_themes":
 			p.contextThemes(v, themes)
+		case k == "kubeconfig_ttl":
+			p.intIn("ui."+k, v, 5, 3600, &ui.KubeconfigTTL)
 		case k == "token_warn":
 			p.intIn("ui."+k, v, 1, 99, &ui.TokenWarn)
 		case k == "token_crit":
@@ -880,7 +886,7 @@ func (p *parser) uiSection(n *yaml.Node, ui *UI, themes *[]ContextTheme) {
 		case bools[k] != nil:
 			p.boolean("ui."+k, v, bools[k])
 		default:
-			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "logo", "logo_title_color", "logo_twinkle", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "sidebar_position", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap", "forward_scroll")
+			names := append(sortedKeys(ints), "active_border", "animations", "background", "clipboard", "cluster_info", "context_themes", "copy_mode_hint", "dim_inactive", "editor_inline", "kubeconfig_live", "kubeconfig_pane", "kubeconfig_ttl", "logo", "logo_title_color", "logo_twinkle", "metrics_bars", "metrics_crit", "metrics_every", "metrics_warn", "pod_metrics", "sidebar_position", "tabbar", "toast_seconds", "toasts", "token_bar", "token_crit", "token_warn", "wrap", "forward_scroll")
 			sort.Strings(names)
 			p.warn("ui: unknown setting %q (have %s)", k, strings.Join(names, ", "))
 		}
