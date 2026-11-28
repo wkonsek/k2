@@ -428,11 +428,12 @@ current line. Across namespaces, lines are prefixed
 `namespace/pod/container`.
 
 **Helm** (`:helm`, `:helm all`). Columns: NAME, REVISION, STATUS, CHART,
-APP VERSION, UPDATED. `v` / `enter` values, `V` computed values, `M` manifest,
-`N` notes, `t` history as a table (`●` current revision). `e` (from the
-list or from the `v` values view) opens the release's user-supplied
-values in vim; if you save a change, a red popup confirms `helm upgrade`
-with the edited file (no extra form). In the history
+APP VERSION, UPDATED. `enter` previews the values read-only, `V` computed
+values, `M` manifest, `N` notes, `t` history as a table (`●` current
+revision). `v` (or `e`; also from the `enter` preview) opens the release's
+user-supplied values in vim; if you save a change, a red popup confirms
+`helm upgrade` with the edited file (no extra form). Without the helm CLI
+`v` just previews. In the history
 `space` marks a revision and `D` diffs it with another (or the selected
 one with the current one), per resource plus user values.
 
@@ -523,7 +524,10 @@ finishes. The create form refuses a name that is already a kind cluster
 and a failed create never covers a live cluster's card.
 `e` opens a checklist of catalog charts
 (already-installed ones are checked, their `namespace` row shows where they
-live and is read-only); `v` edits values the same way, `m` on `sealed-secrets` picks a master key the same way as create, and
+live and is read-only); `v` edits values the same way. On an installed chart
+it opens the deployed values (`helm get values`) in vim; if they really
+change (compared as YAML), the row says `upgrade` instead of `yes`, and
+reverting clears it. `m` on `sealed-secrets` picks a master key the same way as create, and
 a red popup confirms installs, value upgrades of already-installed
 charts, and uninstalls, with the same live tile and log (istio
 uninstalls istiod first, then istio-base). `ctrl+d` deletes the cluster

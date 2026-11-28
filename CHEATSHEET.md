@@ -240,9 +240,9 @@ open; tab completes the kind and the name.
 
 Read with kubectl from Helm's release secrets (no helm CLI needed to
 browse). Install, upgrade, rollback and uninstall run the helm CLI
-(`helm.binary`) and are offered only when it is found. `e` edits the
-selected release's values in vim and, after a save, confirms an upgrade.
-Read-only mode (`R`) blocks those and `e`.
+(`helm.binary`) and are offered only when it is found. `v` (or `e`) edits
+the selected release's values in vim and, after a save, confirms an upgrade;
+`enter` only previews them. Read-only mode (`R`) blocks those and `v` / `e`.
 
 `A` (or `:helm install NAME CHART [-n NS] [--create-namespace] [-f FILE] [--version V]`)
 opens a form for the release name, chart (catalog names first, then
@@ -271,7 +271,7 @@ against the current manifest.
 
 | Key | Config | What it does |
 |---|---|---|
-| `v`, `enter` | `keys.helm_values` | user-supplied values |
+| `enter` | `keys.select` | preview user-supplied values (read-only) |
 | `V` | `keys.helm_computed` | computed values (chart defaults merged with the user's) |
 | `M` | `keys.helm_manifest` | the rendered manifest |
 | `N` | `keys.helm_notes` | the chart notes |
@@ -279,7 +279,8 @@ against the current manifest.
 | `0` | `keys.all_namespaces` | all namespaces / the pane's namespace (k9s `0`) |
 | `A` | `keys.helm_install` | install a chart (helm CLI; form, preview, red popup) |
 | `u` | `keys.helm_upgrade` | upgrade the selected release (helm CLI; form, diff preview, red popup) |
-| `e` | `keys.edit` | edit user-supplied values in vim, then confirm an upgrade (helm CLI; also from the `v` values view) |
+| `v` | `keys.helm_values` | edit user-supplied values in vim, then confirm an upgrade (helm CLI; without it, preview; also from the `enter` preview) |
+| `e` | `keys.edit` | same as `v` |
 | `r` | `keys.helm_rollback` | roll back to the previous revision (helm CLI; red popup) |
 | `ctrl+d` | `keys.delete` | uninstall the release (helm CLI; red popup), also with other panes or tabs open |
 
@@ -368,7 +369,9 @@ form, `n` cancels), then streams `kind
 create cluster`. On a running tile, `e` opens a checklist of the catalog
 charts (already-installed ones are checked, their `namespace` row is
 read-only); `v` edits values the same
-way, `m` on `sealed-secrets` picks a master key, and enter confirms installs, value upgrades, and uninstalls (istio
+way (on an installed chart it opens the deployed `helm get values`; the row
+shows `upgrade` instead of `yes` only if they really differ, and enter runs
+`helm upgrade`), `m` on `sealed-secrets` picks a master key, and enter confirms installs, value upgrades, and uninstalls (istio
 in reverse: istiod, then istio-base) with the same live tile and log.
 
 | Key | Config | What it does |

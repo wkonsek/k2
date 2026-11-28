@@ -139,7 +139,7 @@
 #   xray_collapse_all: "-"
 #   xray_filter: /
 #   yaml: y
-#   helm_values: v
+#   helm_values: v            # :helm: edit the release values in vim (e works too); charts popup of :kind: values; enter only previews
 #   helm_computed: V
 #   helm_manifest: M
 #   helm_notes: N
