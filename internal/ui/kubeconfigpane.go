@@ -22,7 +22,7 @@ const (
 	kcListMinW   = 26
 	kcListMaxW   = 40
 	kcMaxChecks  = 4
-	kcLabelWidth = 9
+	kcLabelWidth = 10
 )
 
 var kcDebounce = 250 * time.Millisecond
@@ -376,12 +376,18 @@ func (m model) kcContextLines(path string, entry kcInfoEntry, c kube.KubeconfigC
 	if ns == "" {
 		ns = "default"
 	}
-	who := or(c.User, "—")
-	meta := itemStyle.Render(or(c.Cluster, "—")) + dimStyle.Render(" · ns ") + itemStyle.Render(ns) + dimStyle.Render(" · user ") + itemStyle.Render(who)
+	plain := func(v string) string {
+		if v == "" {
+			return dimStyle.Render("—")
+		}
+		return itemStyle.Render(kcTruncMid(v, valueW))
+	}
 	lines := []string{
 		clipLine(name, inner),
 		kcRow("server", server, inner),
-		kcRow("cluster", meta, inner),
+		kcRow("cluster", plain(c.Cluster), inner),
+		kcRow("namespace", itemStyle.Render(kcTruncMid(ns, valueW)), inner),
+		kcRow("user", plain(c.User), inner),
 		kcRow("auth", kcAuthText(c.Auth), inner),
 		kcRow("valid", kcValidText(c.Auth), inner),
 	}

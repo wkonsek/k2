@@ -109,6 +109,7 @@ func (f *kcFixture) screen() string { return ansi.Strip(f.m.View()) }
 
 func TestKubeconfigPaneShowsContextsAndSeparateSignals(t *testing.T) {
 	f := newKCFixture(t, 160)
+	f.m.height = 60
 	f.open(t)
 	view := f.screen()
 	for _, want := range []string{
@@ -341,4 +342,60 @@ func kcDlg(d *dialog) string {
 		return "nil"
 	}
 	return fmt.Sprintf("act=%s kc=%s ctx=%s", d.act, d.loginKC, d.name)
+}
+
+func TestKubeconfigContextRowsAreSeparateAndAligned(t *testing.T) {
+	const cluster = "api-host-example-com:6443"
+	const user = "developer/api-host-example-com:6443"
+	f := newKCFixture(t, 160)
+	body := "apiVersion: v1\nkind: Config\ncurrent-context: prod\nclusters:\n- name: " + cluster + "\n  cluster:\n    server: https://api-host.example.com:6443\n" +
+		"contexts:\n- name: prod\n  context:\n    cluster: " + cluster + "\n    user: " + user + "\n    namespace: apps\n" +
+		"users:\n- name: " + user + "\n  user:\n    token: sha256~secret\n"
+	if err := os.WriteFile(f.config, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.open(t)
+
+	for _, w := range []int{80, 60, 36} {
+		entry := f.m.kcp.info[f.config]
+		lines := f.m.kcContextLines(f.config, entry, entry.info.Contexts[0], w)
+		got := map[string]string{}
+		for _, l := range lines {
+			plain := ansi.Strip(l)
+			if ansi.StringWidth(plain) > w {
+				t.Fatalf("width %d: %q is %d wide", w, plain, ansi.StringWidth(plain))
+			}
+			if len(plain) > kcLabelWidth {
+				if label := strings.TrimSpace(plain[:kcLabelWidth]); label != "" {
+					got[label] = plain[kcLabelWidth:]
+				}
+			}
+		}
+		for _, label := range []string{"server", "cluster", "namespace", "user", "auth", "valid", "api", "access"} {
+			if _, ok := got[label]; !ok {
+				t.Fatalf("width %d: no %q row in %v", w, label, got)
+			}
+		}
+		if strings.Contains(got["cluster"], "·") || strings.Contains(got["cluster"], "user") || !strings.HasPrefix(got["namespace"], "apps") {
+			t.Fatalf("width %d: cluster row %q namespace %q", w, got["cluster"], got["namespace"])
+		}
+		switch {
+		case w >= 80:
+			if got["cluster"] != cluster || got["user"] != user {
+				t.Fatalf("width %d: long values should fit: %q %q", w, got["cluster"], got["user"])
+			}
+		case w == 36:
+			if !strings.Contains(got["user"], "…") || !strings.HasSuffix(got["user"], ":6443") {
+				t.Fatalf("width %d: long user should be cut in the middle: %q", w, got["user"])
+			}
+		}
+	}
+
+	f.m = pressSettle(t, f.m, "r")
+	view := f.screen()
+	for _, want := range []string{"cluster   " + cluster, "namespace apps", "user      " + user} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("missing %q:\n%s", want, view)
+		}
+	}
 }
